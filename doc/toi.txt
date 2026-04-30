@@ -1,0 +1,77 @@
+*toi.txt*    fluency probes for vim pinpoints                       *toi*
+
+==============================================================================
+INTRODUCTION                                                       *toi-intro*
+
+toi runs short timed probes on vim pinpoints to build behavioral fluency.
+Each probe shows a target buffer state; you produce that state with vim
+commands. Per-session rate is logged for celeration tracking.
+
+==============================================================================
+COMMANDS                                                        *toi-commands*
+
+:Toi {id} [seconds] [only=motion[,motion...]]                          *:Toi*
+    Start a probe on pinpoint {id} for [seconds] (default 60).
+    Use Tab to skip an item, :ToiQuit to end early.
+
+    `only=` filters the generator to only produce items where the
+    canonical answer is one of the listed motions. Example:
+        :Toi 1A.2 only=g_         drill only g_ items
+        :Toi 1A.2 only=g_,^       drill the slow pair
+    Each generator labels every item with `expected_motion` and the
+    end-of-session summary breaks down the rate per motion.
+
+:ToiList                                                          *:ToiList*
+    List installed pinpoints with their starting fluency aims.
+
+:ToiQuit                                                          *:ToiQuit*
+    End the active session, write its log entry, restore the window layout.
+
+:ToiHistory [id]                                                *:ToiHistory*
+    Show prior sessions from the JSONL log, grouped by pinpoint and
+    rendered with an ASCII rate bar (filled = fraction of aim, all '*'
+    means at-or-above aim). Optional [id] filters to a single pinpoint.
+    For groups with n≥2 sessions, shows the first→last rate ratio.
+
+:ToiLearn {id}                                                    *:ToiLearn*
+    Walk through a scripted lesson for pinpoint {id} (DI-style example/
+    non-example sequencing followed by 'try it' frames) before timing the
+    skill with :Toi. Press <Space> or <CR> to advance through 'show'
+    frames; reach the green target to advance through 'try' frames; press
+    'q' or :ToiQuit to stop early. Pinpoints without a lesson() function
+    will report "no lesson written for {id} yet".
+
+==============================================================================
+LOG                                                                  *toi-log*
+
+Each session appends one JSON line to:
+    $XDG_DATA_HOME/toi/sessions.jsonl   (if XDG_DATA_HOME is set)
+    ~/.local/share/toi/sessions.jsonl   (otherwise)
+
+Fields per record: timestamp, pinpoint_id, pinpoint_name, aim,
+duration_seconds, elapsed_seconds, items_correct, items_skipped,
+frequency_per_min, end_reason, items.
+
+==============================================================================
+ADDING A PINPOINT                                              *toi-pinpoints*
+
+Drop a file at  autoload/toi/pinpoints/p<NAME>.vim  defining:
+
+    function! toi#pinpoints#p<NAME>#meta() abort
+        return {'id': '...', 'name': '...', 'aim': N, 'allowed_keys': '...'}
+    endfunction
+
+    function! toi#pinpoints#p<NAME>#generate() abort
+        return {'lines': [...], 'start': [row, col], 'target': [row, col]}
+    endfunction
+
+The leading 'p' is required because vim autoload segments cannot start
+with a digit. {id} is a free-form string and is what users type.
+Rows and cols are 1-indexed (vim convention).
+
+==============================================================================
+REQUIREMENTS                                                       *toi-reqs*
+
+Vim 8.1 or later (for rand(), json_encode(), timer_start()).
+
+ vim:tw=78:ts=8:ft=help:norl:
