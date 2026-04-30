@@ -115,6 +115,7 @@ function! s:setup_window() abort
   setlocal buftype=nofile bufhidden=wipe noswapfile nobuflisted
   setlocal nonumber norelativenumber nowrap signcolumn=no
   setlocal list listchars=trail:·,nbsp:·
+  silent! execute 'keepalt file toi-' . s:session.id
   let &l:statusline = '%{toi#statusline()}'
   set laststatus=2
   let s:session.you_win = win_getid()
@@ -183,11 +184,18 @@ function! s:on_change() abort
   if empty(s:session) || s:session.advancing | return | endif
   if win_getid() != s:session.you_win | return | endif
 
+  let item = s:session.current_item
+  let cur_pos = [line('.'), col('.')]
+
+  " Skip vim's deferred autocmd fire after our in-handler cursor() in
+  " s:next_item: cursor is still at start, no user motion yet.
+  if cur_pos == item.start && s:session.current_item_motions == 0
+    return
+  endif
+
   let s:session.current_item_motions += 1
 
-  let item = s:session.current_item
   let cur_lines = getline(1, '$')
-  let cur_pos = [line('.'), col('.')]
 
   if cur_lines ==# item.lines && cur_pos == item.target
     let s:session.items_correct += 1
@@ -382,6 +390,7 @@ function! toi#stop(reason) abort
     silent! %delete _
     call setline(1, lines)
     setlocal nomodifiable nomodified
+    silent! execute 'keepalt file toi-summary-' . record.pinpoint_id
     let &l:statusline = ' session ended  [press q or <Enter> to close]'
     let b:toi_summary_tabnr = tabnr
     let b:toi_summary_prev_laststatus = prev_laststatus
@@ -542,6 +551,7 @@ function! s:learn_setup_window() abort
   setlocal buftype=nofile bufhidden=wipe noswapfile nobuflisted
   setlocal nonumber norelativenumber nowrap signcolumn=no
   setlocal list listchars=trail:·,nbsp:·
+  silent! execute 'keepalt file toi-lesson-' . s:session.id
   let s:session.you_win = win_getid()
 endfunction
 
