@@ -86,6 +86,7 @@ function! toi#start(...) abort
     \ 'name': info.name,
     \ 'aim': info.aim,
     \ 'module': info.module,
+    \ 'kind': get(info, 'kind', 'motion'),
     \ 'duration': duration,
     \ 'only_filter': only_filter,
     \ 'started_at': reltime(),
@@ -100,6 +101,8 @@ function! toi#start(...) abort
     \ 'item_started_at': reltime(),
     \ 'advancing': 0,
     \ 'target_match_id': -1,
+    \ 'header_offset': 0,
+    \ 'deletion_match_id': -1,
     \ 'prev_laststatus': &laststatus,
     \ }
 
@@ -156,16 +159,42 @@ function! s:next_item() abort
   let s:session.item_started_at = reltime()
   let s:session.current_item_motions = 0
 
+  " Editing-kind probes get a 2-line header (prompt + divider) above the
+  " live editing area. Match checks subtract the header offset.
+  let header = []
+  if s:session.kind ==# 'editing'
+    let prompt = get(item, 'prompt', 'edit to match the target')
+    let header = [prompt, repeat('─', 60)]
+  endif
+  let s:session.header_offset = len(header)
+
   setlocal modifiable
   silent! %delete _
-  call setline(1, item.lines)
-  call cursor(item.start[0], item.start[1])
+  call setline(1, header + item.lines)
+  call cursor(s:session.header_offset + item.start[0], item.start[1])
 
   if s:session.target_match_id != -1
     silent! call matchdelete(s:session.target_match_id)
     let s:session.target_match_id = -1
   endif
-  let s:session.target_match_id = matchaddpos('ToiTarget', [[item.target[0], item.target[1], 1]])
+  let s:session.target_match_id = matchaddpos('ToiTarget',
+    \ [[s:session.header_offset + item.target[0], item.target[1], 1]])
+
+  " Deletion-range highlight (editing probes that mark which characters
+  " will be removed). Items declare deletion_range as a list of
+  " [row, col, length] tuples (matchaddpos format, item-coords).
+  if s:session.deletion_match_id != -1
+    silent! call matchdelete(s:session.deletion_match_id)
+    let s:session.deletion_match_id = -1
+  endif
+  if has_key(item, 'deletion_range') && !empty(item.deletion_range)
+    let positions = []
+    for pos in item.deletion_range
+      call add(positions,
+        \ [s:session.header_offset + pos[0], pos[1], pos[2]])
+    endfor
+    let s:session.deletion_match_id = matchaddpos('ToiDeletion', positions)
+  endif
 
   redrawstatus
   let s:session.advancing = 0
@@ -185,19 +214,26 @@ function! s:on_change() abort
   if win_getid() != s:session.you_win | return | endif
 
   let item = s:session.current_item
-  let cur_pos = [line('.'), col('.')]
+  let header_offset = s:session.header_offset
+  let cur_pos = [line('.') - header_offset, col('.')]
+  let cur_lines = getline(header_offset + 1, '$')
+  let start_lines = item.lines
+  let target_lines = get(item, 'target_lines', item.lines)
 
   " Skip vim's deferred autocmd fire after our in-handler cursor() in
-  " s:next_item: cursor is still at start, no user motion yet.
-  if cur_pos == item.start && s:session.current_item_motions == 0
+  " s:next_item: cursor is still at start AND buffer is still in start
+  " state. Editing motions like `dw` keep the cursor at the same col
+  " but change the buffer — the buffer-state check distinguishes those
+  " from the spurious deferred fire.
+  if cur_pos == item.start
+    \ && cur_lines ==# start_lines
+    \ && s:session.current_item_motions == 0
     return
   endif
 
   let s:session.current_item_motions += 1
 
-  let cur_lines = getline(1, '$')
-
-  if cur_lines ==# item.lines && cur_pos == item.target
+  if cur_lines ==# target_lines && cur_pos == item.target
     let s:session.items_correct += 1
     let elapsed = reltimefloat(reltime(s:session.item_started_at))
     let actual = s:session.current_item_motions
@@ -220,6 +256,7 @@ function! s:on_change() abort
     endif
     call add(s:session.items_log, {
       \ 'lines': item.lines,
+      \ 'target_lines': get(item, 'target_lines', item.lines),
       \ 'start': item.start,
       \ 'target': item.target,
       \ 'expected_motion': motion,
@@ -244,6 +281,7 @@ function! s:skip() abort
   endif
   call add(s:session.items_log, {
     \ 'lines': item.lines,
+    \ 'target_lines': get(item, 'target_lines', item.lines),
     \ 'start': item.start,
     \ 'target': item.target,
     \ 'expected_motion': get(item, 'expected_motion', ''),
@@ -378,6 +416,7 @@ function! toi#stop(reason) abort
   let prev_laststatus = s:session.prev_laststatus
   let tabnr = s:session.tabnr
   let target_id = s:session.target_match_id
+  let deletion_id = s:session.deletion_match_id
   let you_win = get(s:session, 'you_win', 0)
   let s:session = {}
 
@@ -385,6 +424,9 @@ function! toi#stop(reason) abort
     call win_gotoid(you_win)
     if target_id != -1
       silent! call matchdelete(target_id)
+    endif
+    if deletion_id != -1
+      silent! call matchdelete(deletion_id)
     endif
     setlocal modifiable
     silent! %delete _

@@ -19,3 +19,4 @@ command! -nargs=1 -complete=customlist,toi#complete ToiLearn call toi#learn(<f-a
 
 highlight default ToiTarget ctermbg=darkgreen guibg=#2d5a2d ctermfg=white guifg=white
 highlight default ToiLearnShow ctermbg=darkcyan guibg=#2d4a5a ctermfg=white guifg=white
+highlight default ToiDeletion ctermbg=darkred guibg=#5a2d2d ctermfg=white guifg=white

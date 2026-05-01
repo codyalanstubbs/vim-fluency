@@ -17,7 +17,10 @@ function! s:assert_common(id, item) abort
 
   call Assert(!empty(item.expected_motion), prefix . 'expected_motion non-empty')
   call Assert(item.optimal_motions > 0, prefix . 'optimal_motions positive')
-  call Assert(item.start != item.target, prefix . 'start != target')
+  " The probe must require *something* — either cursor or buffer must change.
+  let target_lines = get(item, 'target_lines', item.lines)
+  call Assert(item.start != item.target || target_lines !=# item.lines,
+    \ prefix . 'item requires cursor move or buffer change')
 
   let srow = item.start[0]
   let scol = item.start[1]
@@ -97,6 +100,60 @@ function! s:test_1B_1() abort
   endfor
 endfunction
 
+" 4.d: editing kind; expected_motion ∈ {dw, db}; deletion_range matches
+" the actual delta between start_lines and target_lines.
+function! s:test_4_d() abort
+  let GenFn = function('toi#pinpoints#p4_d#generate')
+  let valid = ['dw', 'db']
+  let seen = {}
+  for i in range(s:N)
+    let item = GenFn()
+    call s:assert_common('4.d', item)
+    call AssertIn(item.expected_motion, valid,
+      \ '4.d: expected_motion in {dw, db}')
+    call AssertEq(item.optimal_motions, 1, '4.d: optimal_motions == 1')
+    let seen[item.expected_motion] = 1
+
+    " editing-kind invariants
+    call Assert(has_key(item, 'target_lines'), '4.d: has target_lines')
+    call Assert(has_key(item, 'deletion_range'), '4.d: has deletion_range')
+    call Assert(!empty(item.deletion_range), '4.d: deletion_range non-empty')
+
+    let start_words = split(item.lines[0])
+    let target_words = split(item.target_lines[0])
+    call AssertEq(len(target_words), len(start_words) - 1,
+      \ '4.d: target has one fewer word')
+
+    " deletion_range cols + length should match the actual length removed
+    let removed_chars = len(item.lines[0]) - len(item.target_lines[0])
+    let total_len = 0
+    for pos in item.deletion_range
+      let total_len += pos[2]
+    endfor
+    call AssertEq(total_len, removed_chars,
+      \ '4.d: deletion_range length matches chars actually removed')
+
+    " for dw: target_cursor col == start_cursor col (cursor stays put)
+    " for db: target_cursor col < start_cursor col (cursor jumps back)
+    if item.expected_motion ==# 'dw'
+      call AssertEq(item.target[1], item.start[1],
+        \ '4.d/dw: target col == start col')
+    else
+      call Assert(item.target[1] < item.start[1],
+        \ '4.d/db: target col < start col')
+    endif
+  endfor
+
+  " Both motions should appear in 50 generates with high probability
+  call Assert(get(seen, 'dw', 0) == 1, '4.d: dw appeared in samples')
+  call Assert(get(seen, 'db', 0) == 1, '4.d: db appeared in samples')
+
+  let meta = toi#pinpoints#p4_d#meta()
+  call AssertEq(get(meta, 'kind', 'motion'), 'editing',
+    \ '4.d: meta.kind == editing')
+endfunction
+
 call s:test_1A_1()
 call s:test_1A_2()
 call s:test_1B_1()
+call s:test_4_d()
