@@ -1,11 +1,11 @@
 # CLAUDE.md
 
-Context for future Claude sessions on the toi vim plugin. Skim before editing.
+Context for future Claude sessions on **Vim Fluency** (plugin id `vimfluency`, repo dir `vim-fluency`, project home vimfluency.com). Skim before editing.
 
 ## What this is
 
-A vim plugin that runs timed fluency probes (`:Toi`) and DI-style lessons
-(`:ToiLearn`) on vim motion pinpoints. Built on the component → composite →
+A vim plugin that runs timed fluency probes (`:Vf`) and DI-style lessons
+(`:VfLearn`) on vim motion pinpoints. Built on the component → composite →
 adduction pipeline from precision teaching and behavioral fluency.
 
 **The thesis being tested:** drilling fluent components (hjkl, line motions,
@@ -21,20 +21,20 @@ Neovim-specific or Lua features — must run on every server you ssh into.
 ## File layout
 
 ```
-plugin/toi.vim                          commands + load guard
-autoload/toi.vim                        runner (probe + lesson + history + summary)
-autoload/toi/pinpoints/p<ID>.vim        one file per pinpoint
-doc/toi.txt                             :help docs
+plugin/vimfluency.vim                          commands + load guard
+autoload/vimfluency.vim                        runner (probe + lesson + history + summary)
+autoload/vimfluency/pinpoints/p<ID>.vim        one file per pinpoint
+doc/vimfluency.txt                             :help docs
 tests/                                  vim-headless test runner
 ```
 
 ## Pinpoint contract
 
-Each `autoload/toi/pinpoints/p<ID>.vim` must export:
+Each `autoload/vimfluency/pinpoints/p<ID>.vim` must export:
 
-- `toi#pinpoints#p<ID>#meta()` → `{id, name, aim, allowed_keys}`
-- `toi#pinpoints#p<ID>#generate()` → `{lines, start, target, expected_motion, optimal_motions}`
-- `toi#pinpoints#p<ID>#lesson()` → list of show/try frames (optional)
+- `vimfluency#pinpoints#p<ID>#meta()` → `{id, name, aim, allowed_keys}`
+- `vimfluency#pinpoints#p<ID>#generate()` → `{lines, start, target, expected_motion, optimal_motions}`
+- `vimfluency#pinpoints#p<ID>#lesson()` → list of show/try frames (optional)
 
 The leading `p` is required — vim autoload segments can't start with a digit.
 `{id}` is a free-form string (e.g. `"1A.2"`).
@@ -45,7 +45,7 @@ For every new pinpoint, work through what the learner could use *instead* of
 the intended motion to reach the target. Adjust content (alphabet, line
 layout, target distance, start position) until the intended motion is
 **strictly the shortest path**. Document the analysis as comments at the top
-of the pinpoint file. See `autoload/toi/pinpoints/p1A_1.vim` and `p1B_1.vim`
+of the pinpoint file. See `autoload/vimfluency/pinpoints/p1A_1.vim` and `p1B_1.vim`
 for worked examples.
 
 Visual aesthetics are negotiable; pinpoint integrity is not. The 1B.1
@@ -76,23 +76,23 @@ accumulates per-motion rate, average actual motions, and total wasted motions
 - For whitespace-sensitive motions (`$` vs `g_`), set
   `listchars=trail:·` in the lesson buffer so the difference is observable
 
-See `autoload/toi/pinpoints/p1A_2.vim` for a fully worked example.
+See `autoload/vimfluency/pinpoints/p1A_2.vim` for a fully worked example.
 
 ## Buffer naming
 
-- Probe: `toi-<id>`
-- Lesson: `toi-lesson-<id>`
-- Summary: `toi-summary-<id>`
+- Probe: `vf-<id>`
+- Lesson: `vf-lesson-<id>`
+- Summary: `vf-summary-<id>`
 
 **Avoid slashes** — vim's `pathshorten()` truncates path-like names when the
-tabline is cramped (`toi://summary/1A.1` → `t//s/1A.1`).
+tabline is cramped (`vimfluency://summary/1A.1` → `t//s/1A.1`).
 
 ## Session logs
 
-JSONL at `$XDG_DATA_HOME/toi/sessions.jsonl` (or
-`~/.local/share/toi/sessions.jsonl`). One record per session, including
+JSONL at `$XDG_DATA_HOME/vimfluency/sessions.jsonl` (or
+`~/.local/share/vimfluency/sessions.jsonl`). One record per session, including
 per-motion stats, errors_per_min, total_motions, total_optimal_motions, and
-the full items_log. View with `:ToiHistory` or `jq` from the shell.
+the full items_log. View with `:VfHistory` or `jq` from the shell.
 
 ## Testing
 
@@ -109,7 +109,7 @@ integration test is the natural extension.
 
 ## Adding a new pinpoint (checklist)
 
-1. Create `autoload/toi/pinpoints/p<ID>.vim`
+1. Create `autoload/vimfluency/pinpoints/p<ID>.vim`
 2. Define `meta()` with `id`, `name`, `aim` (starting guess), `allowed_keys`
 3. **Cheat analysis first** — document at top of file, then write `generate()`
 4. Include `expected_motion` and `optimal_motions` in the returned item
@@ -122,5 +122,5 @@ integration test is the natural extension.
 
 - All aim numbers are starting guesses. Calibration against real data is
   part of the actual research, not premature
-- Don't pre-create sub-pinpoints for "drill just this motion" — `:Toi <id> only=motion[,motion...]` exists for that
+- Don't pre-create sub-pinpoints for "drill just this motion" — `:Vf <id> only=motion[,motion...]` exists for that
 - Don't add `Co-Authored-By: Claude` trailers to commits in this project

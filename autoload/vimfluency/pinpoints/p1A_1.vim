@@ -12,11 +12,11 @@ let s:chars = ['a','b','c','d','e','f','g','h','i','j','k','m','n','p',
   \ 'q','r','s','t','u','v','w','x','y','z',
   \ '2','3','4','5','6','7','8','9']
 
-function! toi#pinpoints#p1A_1#meta() abort
+function! vimfluency#pinpoints#p1A_1#meta() abort
   return {'id': '1A.1', 'name': 'hjkl', 'aim': 60, 'allowed_keys': 'hjkl'}
 endfunction
 
-function! toi#pinpoints#p1A_1#lesson() abort
+function! vimfluency#pinpoints#p1A_1#lesson() abort
   " Tight lesson — hjkl is universally known; this exists for completeness
   " of the lesson layer. One summary show frame, then try frames covering
   " each motion plus chains and a diagonal combination.
@@ -51,7 +51,7 @@ function! s:make_line(len) abort
   return s
 endfunction
 
-function! toi#pinpoints#p1A_1#generate() abort
+function! vimfluency#pinpoints#p1A_1#generate() abort
   let line_len = 20
   let n_lines = 7
   let lines = []

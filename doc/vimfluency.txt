@@ -1,47 +1,47 @@
-*toi.txt*    fluency probes for vim pinpoints                       *toi*
+*vimfluency.txt*    fluency probes for vim pinpoints                       *vimfluency*
 
 ==============================================================================
-INTRODUCTION                                                       *toi-intro*
+INTRODUCTION                                                       *vf-intro*
 
-toi runs short timed probes on vim pinpoints to build behavioral fluency.
+Vim Fluency runs short timed probes on vim pinpoints to build behavioral fluency.
 Each probe shows a target buffer state; you produce that state with vim
 commands. Per-session rate is logged for celeration tracking.
 
 ==============================================================================
-COMMANDS                                                        *toi-commands*
+COMMANDS                                                        *vf-commands*
 
-:Toi {id} [seconds] [only=motion[,motion...]]                          *:Toi*
+:Vf {id} [seconds] [only=motion[,motion...]]                          *:Vf*
     Start a probe on pinpoint {id} for [seconds] (default 60).
-    Use Tab to skip an item, :ToiQuit to end early.
+    Use Tab to skip an item, :VfQuit to end early.
 
     `only=` filters the generator to only produce items where the
     canonical answer is one of the listed motions. Example:
-        :Toi 1A.2 only=g_         drill only g_ items
-        :Toi 1A.2 only=g_,^       drill the slow pair
+        :Vf 1A.2 only=g_         drill only g_ items
+        :Vf 1A.2 only=g_,^       drill the slow pair
     Each generator labels every item with `expected_motion` and the
     end-of-session summary breaks down the rate per motion.
 
-:ToiList                                                          *:ToiList*
+:VfList                                                          *:VfList*
     List installed pinpoints with their starting fluency aims.
 
-:ToiQuit                                                          *:ToiQuit*
+:VfQuit                                                          *:VfQuit*
     End the active session, write its log entry, restore the window layout.
 
-:ToiHistory [id]                                                *:ToiHistory*
+:VfHistory [id]                                                *:VfHistory*
     Show prior sessions from the JSONL log, grouped by pinpoint and
     rendered with an ASCII rate bar (filled = fraction of aim, all '*'
     means at-or-above aim). Optional [id] filters to a single pinpoint.
     For groups with n≥2 sessions, shows the first→last rate ratio.
 
-:ToiLearn {id}                                                    *:ToiLearn*
+:VfLearn {id}                                                    *:VfLearn*
     Walk through a scripted lesson for pinpoint {id} (DI-style example/
     non-example sequencing followed by 'try it' frames) before timing the
-    skill with :Toi. Press <Space> or <CR> to advance through 'show'
+    skill with :Vf. Press <Space> or <CR> to advance through 'show'
     frames; reach the green target to advance through 'try' frames; press
-    'q' or :ToiQuit to stop early. Pinpoints without a lesson() function
+    'q' or :VfQuit to stop early. Pinpoints without a lesson() function
     will report "no lesson written for {id} yet".
 
-:ToiChart {id}                                                    *:ToiChart*
+:VfChart {id}                                                    *:VfChart*
     Render a Standard Celeration Chart (text-only, semi-log) for pinpoint
     {id}. Y-axis is rate per minute on a log scale (1 to 1000 across
     three decades). X-axis is session index (chronological). Plots both
@@ -49,26 +49,26 @@ COMMANDS                                                        *toi-commands*
     fluency aim drawn as a dashed line. Press 'q' or <Enter> to close.
 
 ==============================================================================
-LOG                                                                  *toi-log*
+LOG                                                                  *vf-log*
 
 Each session appends one JSON line to:
-    $XDG_DATA_HOME/toi/sessions.jsonl   (if XDG_DATA_HOME is set)
-    ~/.local/share/toi/sessions.jsonl   (otherwise)
+    $XDG_DATA_HOME/vimfluency/sessions.jsonl   (if XDG_DATA_HOME is set)
+    ~/.local/share/vimfluency/sessions.jsonl   (otherwise)
 
 Fields per record: timestamp, pinpoint_id, pinpoint_name, aim,
 duration_seconds, elapsed_seconds, items_correct, items_skipped,
 frequency_per_min, end_reason, items.
 
 ==============================================================================
-ADDING A PINPOINT                                              *toi-pinpoints*
+ADDING A PINPOINT                                              *vf-pinpoints*
 
-Drop a file at  autoload/toi/pinpoints/p<NAME>.vim  defining:
+Drop a file at  autoload/vimfluency/pinpoints/p<NAME>.vim  defining:
 
-    function! toi#pinpoints#p<NAME>#meta() abort
+    function! vimfluency#pinpoints#p<NAME>#meta() abort
         return {'id': '...', 'name': '...', 'aim': N, 'allowed_keys': '...'}
     endfunction
 
-    function! toi#pinpoints#p<NAME>#generate() abort
+    function! vimfluency#pinpoints#p<NAME>#generate() abort
         return {'lines': [...], 'start': [row, col], 'target': [row, col]}
     endfunction
 
@@ -77,7 +77,7 @@ with a digit. {id} is a free-form string and is what users type.
 Rows and cols are 1-indexed (vim convention).
 
 ==============================================================================
-REQUIREMENTS                                                       *toi-reqs*
+REQUIREMENTS                                                       *vf-reqs*
 
 Vim 8.1 or later (for rand(), json_encode(), timer_start()).
 

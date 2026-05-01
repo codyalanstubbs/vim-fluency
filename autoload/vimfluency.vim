@@ -5,22 +5,22 @@ function! s:round3(x) abort
   return str2float(printf('%.3f', a:x))
 endfunction
 
-function! toi#log_dir() abort
+function! vimfluency#log_dir() abort
   let dir = exists('$XDG_DATA_HOME') && !empty($XDG_DATA_HOME)
-    \ ? $XDG_DATA_HOME . '/toi'
-    \ : expand('~/.local/share/toi')
+    \ ? $XDG_DATA_HOME . '/vimfluency'
+    \ : expand('~/.local/share/vimfluency')
   if !isdirectory(dir)
     call mkdir(dir, 'p')
   endif
   return dir
 endfunction
 
-function! toi#discover_pinpoints() abort
+function! vimfluency#discover_pinpoints() abort
   let registry = {}
-  let files = globpath(&runtimepath, 'autoload/toi/pinpoints/p*.vim', 0, 1)
+  let files = globpath(&runtimepath, 'autoload/vimfluency/pinpoints/p*.vim', 0, 1)
   for f in files
     let mod = fnamemodify(f, ':t:r')
-    let MetaFn = function('toi#pinpoints#' . mod . '#meta')
+    let MetaFn = function('vimfluency#pinpoints#' . mod . '#meta')
     let info = MetaFn()
     let info.module = mod
     let registry[info.id] = info
@@ -28,13 +28,13 @@ function! toi#discover_pinpoints() abort
   return registry
 endfunction
 
-function! toi#complete(arglead, cmdline, cursorpos) abort
-  let registry = toi#discover_pinpoints()
+function! vimfluency#complete(arglead, cmdline, cursorpos) abort
+  let registry = vimfluency#discover_pinpoints()
   return filter(sort(keys(registry)), 'v:val =~# "^" . a:arglead')
 endfunction
 
-function! toi#list() abort
-  let registry = toi#discover_pinpoints()
+function! vimfluency#list() abort
+  let registry = vimfluency#discover_pinpoints()
   if empty(registry)
     echo 'no pinpoints found on runtimepath'
     return
@@ -46,9 +46,9 @@ function! toi#list() abort
   endfor
 endfunction
 
-function! toi#start(...) abort
+function! vimfluency#start(...) abort
   if !empty(s:session)
-    echo 'a session is already active; :ToiQuit first'
+    echo 'a session is already active; :VfQuit first'
     return
   endif
 
@@ -65,7 +65,7 @@ function! toi#start(...) abort
   endfor
 
   if empty(positional)
-    echo 'usage: :Toi <id> [duration] [only=motion[,motion...]]'
+    echo 'usage: :Vf <id> [duration] [only=motion[,motion...]]'
     return
   endif
   let id = positional[0]
@@ -73,9 +73,9 @@ function! toi#start(...) abort
   let only_filter = has_key(kwargs, 'only')
     \ ? filter(split(kwargs.only, ','), '!empty(v:val)') : []
 
-  let registry = toi#discover_pinpoints()
+  let registry = vimfluency#discover_pinpoints()
   if !has_key(registry, id)
-    echo 'unknown pinpoint: ' . id . '  (try :ToiList)'
+    echo 'unknown pinpoint: ' . id . '  (try :VfList)'
     return
   endif
   let info = registry[id]
@@ -118,27 +118,27 @@ function! s:setup_window() abort
   setlocal buftype=nofile bufhidden=wipe noswapfile nobuflisted
   setlocal nonumber norelativenumber nowrap signcolumn=no
   setlocal list listchars=trail:·,nbsp:·
-  silent! execute 'keepalt file toi-' . s:session.id
-  let &l:statusline = '%{toi#statusline()}'
+  silent! execute 'keepalt file vf-' . s:session.id
+  let &l:statusline = '%{vimfluency#statusline()}'
   set laststatus=2
   let s:session.you_win = win_getid()
 endfunction
 
-function! toi#statusline() abort
+function! vimfluency#statusline() abort
   if empty(s:session) | return '' | endif
   let elapsed = reltimefloat(reltime(s:session.started_at))
   let remaining = max([0, s:session.duration - elapsed])
   let rate = elapsed > 0 ? s:session.items_correct * 60.0 / elapsed : 0.0
   let filter_tag = empty(get(s:session, 'only_filter', []))
     \ ? '' : ' [only=' . join(s:session.only_filter, ',') . ']'
-  return printf(' %s — %s%s   time %ds   correct %d   rate %.1f/min   aim %d/min   [Tab=skip :ToiQuit=quit]',
+  return printf(' %s — %s%s   time %ds   correct %d   rate %.1f/min   aim %d/min   [Tab=skip :VfQuit=quit]',
     \ s:session.id, s:session.name, filter_tag,
     \ float2nr(remaining), s:session.items_correct, rate, s:session.aim)
 endfunction
 
 function! s:next_item() abort
   let s:session.advancing = 1
-  let GenFn = function('toi#pinpoints#' . s:session.module . '#generate')
+  let GenFn = function('vimfluency#pinpoints#' . s:session.module . '#generate')
   let item = {}
   let attempts = 0
   while attempts < 100
@@ -152,7 +152,7 @@ function! s:next_item() abort
   if attempts >= 100
     let s:session.advancing = 0
     echo 'could not generate item matching only=' . join(s:session.only_filter, ',')
-    call toi#stop('filter_error')
+    call vimfluency#stop('filter_error')
     return
   endif
   let s:session.current_item = item
@@ -177,7 +177,7 @@ function! s:next_item() abort
     silent! call matchdelete(s:session.target_match_id)
     let s:session.target_match_id = -1
   endif
-  let s:session.target_match_id = matchaddpos('ToiTarget',
+  let s:session.target_match_id = matchaddpos('VfTarget',
     \ [[s:session.header_offset + item.target[0], item.target[1], 1]])
 
   " Deletion-range highlight (editing probes that mark which characters
@@ -193,7 +193,7 @@ function! s:next_item() abort
       call add(positions,
         \ [s:session.header_offset + pos[0], pos[1], pos[2]])
     endfor
-    let s:session.deletion_match_id = matchaddpos('ToiDeletion', positions)
+    let s:session.deletion_match_id = matchaddpos('VfDeletion', positions)
   endif
 
   redrawstatus
@@ -201,7 +201,7 @@ function! s:next_item() abort
 endfunction
 
 function! s:install_autocmds() abort
-  augroup ToiProbe
+  augroup VfProbe
     autocmd!
     autocmd CursorMoved,CursorMovedI,TextChanged,TextChangedI <buffer>
       \ call s:on_change()
@@ -297,7 +297,7 @@ function! s:on_tick(timer) abort
   if empty(s:session) | return | endif
   let elapsed = reltimefloat(reltime(s:session.started_at))
   if elapsed >= s:session.duration
-    call toi#stop('time')
+    call vimfluency#stop('time')
     return
   endif
   if win_getid() == s:session.you_win
@@ -305,16 +305,16 @@ function! s:on_tick(timer) abort
   endif
 endfunction
 
-function! toi#stop(reason) abort
+function! vimfluency#stop(reason) abort
   if empty(s:session) | return | endif
   if get(s:session, 'mode', 'probe') ==# 'learn'
-    call toi#learn_stop()
+    call vimfluency#learn_stop()
     return
   endif
   if has_key(s:session, 'timer')
     call timer_stop(s:session.timer)
   endif
-  silent! augroup ToiProbe | autocmd! | augroup END
+  silent! augroup VfProbe | autocmd! | augroup END
 
   let elapsed = min([reltimefloat(reltime(s:session.started_at)), s:session.duration * 1.0])
   let rate = elapsed > 0 ? s:session.items_correct * 60.0 / elapsed : 0.0
@@ -363,7 +363,7 @@ function! toi#stop(reason) abort
     \ 'per_motion': per_motion_out,
     \ 'items': s:session.items_log,
     \ }
-  call writefile([json_encode(record)], toi#log_dir() . '/sessions.jsonl', 'a')
+  call writefile([json_encode(record)], vimfluency#log_dir() . '/sessions.jsonl', 'a')
 
   " Build summary as buffer lines (avoids vim's "press ENTER" gate
   " that hits when too many :echo lines fire at once).
@@ -408,7 +408,7 @@ function! toi#stop(reason) abort
     endfor
   endif
   call add(lines, '')
-  call add(lines, '  logged: ' . toi#log_dir() . '/sessions.jsonl')
+  call add(lines, '  logged: ' . vimfluency#log_dir() . '/sessions.jsonl')
   call add(lines, '')
   call add(lines, '  Press q or <Enter> to close.')
 
@@ -432,12 +432,12 @@ function! toi#stop(reason) abort
     silent! %delete _
     call setline(1, lines)
     setlocal nomodifiable nomodified
-    silent! execute 'keepalt file toi-summary-' . record.pinpoint_id
+    silent! execute 'keepalt file vf-summary-' . record.pinpoint_id
     let &l:statusline = ' session ended  [press q or <Enter> to close]'
-    let b:toi_summary_tabnr = tabnr
-    let b:toi_summary_prev_laststatus = prev_laststatus
-    nnoremap <buffer> <silent> q :call toi#close_summary()<CR>
-    nnoremap <buffer> <silent> <CR> :call toi#close_summary()<CR>
+    let b:vf_summary_tabnr = tabnr
+    let b:vf_summary_prev_laststatus = prev_laststatus
+    nnoremap <buffer> <silent> q :call vimfluency#close_summary()<CR>
+    nnoremap <buffer> <silent> <CR> :call vimfluency#close_summary()<CR>
     call cursor(1, 1)
   else
     " probe window/tab is gone — fall back to echoing
@@ -449,10 +449,10 @@ function! toi#stop(reason) abort
   endif
 endfunction
 
-function! toi#close_summary() abort
-  if exists('b:toi_summary_tabnr')
-    let tabnr = b:toi_summary_tabnr
-    let prev_ls = b:toi_summary_prev_laststatus
+function! vimfluency#close_summary() abort
+  if exists('b:vf_summary_tabnr')
+    let tabnr = b:vf_summary_tabnr
+    let prev_ls = b:vf_summary_prev_laststatus
     silent! execute 'tabclose ' . tabnr
     let &laststatus = prev_ls
   endif
@@ -469,9 +469,9 @@ function! s:rate_bar(rate, aim) abort
   return '[' . repeat('=', filled) . repeat(' ', width - filled) . ']'
 endfunction
 
-function! toi#history(...) abort
+function! vimfluency#history(...) abort
   let filter_id = a:0 >= 1 ? a:1 : ''
-  let log_path = toi#log_dir() . '/sessions.jsonl'
+  let log_path = vimfluency#log_dir() . '/sessions.jsonl'
   if !filereadable(log_path)
     echo 'no sessions logged yet (' . log_path . ')'
     return
@@ -511,7 +511,7 @@ function! toi#history(...) abort
     call add(groups[r.pinpoint_id], r)
   endfor
 
-  echo printf('toi history — %d session(s) across %d pinpoint(s)',
+  echo printf('vimfluency history — %d session(s) across %d pinpoint(s)',
     \ len(records), len(groups))
   for pid in sort(order)
     let g = groups[pid]
@@ -542,23 +542,23 @@ endfunction
 " Lesson mode (DI-style example/non-example sequencing before a probe)
 " -----------------------------------------------------------------
 
-function! toi#learn(...) abort
+function! vimfluency#learn(...) abort
   if !empty(s:session)
-    echo 'a session is already active; :ToiQuit first'
+    echo 'a session is already active; :VfQuit first'
     return
   endif
   if a:0 < 1
-    echo 'usage: :ToiLearn <pinpoint_id>'
+    echo 'usage: :VfLearn <pinpoint_id>'
     return
   endif
   let id = a:1
-  let registry = toi#discover_pinpoints()
+  let registry = vimfluency#discover_pinpoints()
   if !has_key(registry, id)
     echo 'unknown pinpoint: ' . id
     return
   endif
   let info = registry[id]
-  let lesson_fn = 'toi#pinpoints#' . info.module . '#lesson'
+  let lesson_fn = 'vimfluency#pinpoints#' . info.module . '#lesson'
   if !exists('*' . lesson_fn)
     echo 'no lesson written for ' . id . ' yet'
     return
@@ -593,7 +593,7 @@ function! s:learn_setup_window() abort
   setlocal buftype=nofile bufhidden=wipe noswapfile nobuflisted
   setlocal nonumber norelativenumber nowrap signcolumn=no
   setlocal list listchars=trail:·,nbsp:·
-  silent! execute 'keepalt file toi-lesson-' . s:session.id
+  silent! execute 'keepalt file vf-lesson-' . s:session.id
   let s:session.you_win = win_getid()
 endfunction
 
@@ -625,13 +625,13 @@ function! s:learn_show_frame() abort
   if frame.kind ==# 'show'
     let buf_row = s:session.header_offset + frame.cursor[0]
     call cursor(buf_row, frame.cursor[1])
-    let s:session.target_match_id = matchaddpos('ToiLearnShow',
+    let s:session.target_match_id = matchaddpos('VfLearnShow',
       \ [[buf_row, frame.cursor[1], 1]])
   else
     let buf_start_row = s:session.header_offset + frame.start[0]
     let buf_target_row = s:session.header_offset + frame.target[0]
     call cursor(buf_start_row, frame.start[1])
-    let s:session.target_match_id = matchaddpos('ToiTarget',
+    let s:session.target_match_id = matchaddpos('VfTarget',
       \ [[buf_target_row, frame.target[1], 1]])
   endif
 
@@ -639,13 +639,13 @@ function! s:learn_show_frame() abort
 endfunction
 
 function! s:learn_install_autocmds() abort
-  augroup ToiLearn
+  augroup VfLearn
     autocmd!
     autocmd CursorMoved,CursorMovedI <buffer> call s:learn_on_change()
   augroup END
   nnoremap <buffer> <silent> <Space> :call <SID>learn_advance_show()<CR>
   nnoremap <buffer> <silent> <CR> :call <SID>learn_advance_show()<CR>
-  nnoremap <buffer> <silent> q :call toi#learn_stop()<CR>
+  nnoremap <buffer> <silent> q :call vimfluency#learn_stop()<CR>
 endfunction
 
 function! s:learn_advance_show() abort
@@ -668,21 +668,21 @@ endfunction
 function! s:learn_next() abort
   let s:session.frame_idx += 1
   if s:session.frame_idx >= len(s:session.frames)
-    call toi#learn_stop()
+    call vimfluency#learn_stop()
     return
   endif
   call s:learn_show_frame()
 endfunction
 
-function! toi#learn_stop() abort
+function! vimfluency#learn_stop() abort
   if empty(s:session) | return | endif
-  silent! augroup ToiLearn | autocmd! | augroup END
+  silent! augroup VfLearn | autocmd! | augroup END
   let id = s:session.id
   if has_key(s:session, 'tabnr')
     silent! execute 'tabclose ' . s:session.tabnr
   endif
   let s:session = {}
-  echo 'lesson ended for ' . id . ' — try :Toi ' . id
+  echo 'lesson ended for ' . id . ' — try :Vf ' . id
 endfunction
 
 " -----------------------------------------------------------------
@@ -712,13 +712,13 @@ function! s:chart_y(rate) abort
   return float2nr(round((s:CHART_LOG_TOP - lr) / span * s:CHART_HEIGHT))
 endfunction
 
-function! toi#chart(...) abort
+function! vimfluency#chart(...) abort
   if a:0 < 1
-    echo 'usage: :ToiChart <pinpoint_id>'
+    echo 'usage: :VfChart <pinpoint_id>'
     return
   endif
   let id = a:1
-  let log_path = toi#log_dir() . '/sessions.jsonl'
+  let log_path = vimfluency#log_dir() . '/sessions.jsonl'
   if !filereadable(log_path)
     echo 'no sessions logged yet (' . log_path . ')'
     return
@@ -814,7 +814,7 @@ function! s:render_chart(id, sessions) abort
 
   " Compose output lines
   let out = []
-  call add(out, printf('toi celeration chart — %s (%s)', a:id, pinpoint_name))
+  call add(out, printf('vimfluency celeration chart — %s (%s)', a:id, pinpoint_name))
   call add(out, printf('aim %d/min   ·   %d session(s)   ·   ● corrects   × errors   - aim',
     \ aim, n))
   call add(out, '')
@@ -844,14 +844,14 @@ function! s:show_chart_buffer(id, lines) abort
   let tabnr = tabpagenr()
   setlocal buftype=nofile bufhidden=wipe noswapfile nobuflisted
   setlocal nonumber norelativenumber nowrap signcolumn=no
-  silent! execute 'keepalt file toi-chart-' . a:id
+  silent! execute 'keepalt file vf-chart-' . a:id
   call setline(1, a:lines)
   setlocal nomodifiable nomodified
   let &l:statusline = ' celeration chart — ' . a:id . '   [press q or <Enter> to close]'
-  let b:toi_summary_tabnr = tabnr
-  let b:toi_summary_prev_laststatus = &laststatus
+  let b:vf_summary_tabnr = tabnr
+  let b:vf_summary_prev_laststatus = &laststatus
   set laststatus=2
-  nnoremap <buffer> <silent> q :call toi#close_summary()<CR>
-  nnoremap <buffer> <silent> <CR> :call toi#close_summary()<CR>
+  nnoremap <buffer> <silent> q :call vimfluency#close_summary()<CR>
+  nnoremap <buffer> <silent> <CR> :call vimfluency#close_summary()<CR>
   call cursor(1, 1)
 endfunction

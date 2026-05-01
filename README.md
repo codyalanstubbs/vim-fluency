@@ -1,29 +1,29 @@
-# toi (vim plugin)
+# Vim Fluency
 
-Fluency probes for vim pinpoints, run inside vim itself. No simulator divergence — you're using real vim.
+A vim plugin for behavioral-fluency probes on vim motion pinpoints. Runs inside vim itself — no simulator divergence, you're using real vim. Project home: vimfluency.com.
 
 ## Install
 
 Manual:
 ```vim
 " in your vimrc
-set runtimepath+=/path/to/toi/vim
+set runtimepath+=/path/to/vim-fluency
 ```
 
 Plugin manager (vim-plug example):
 ```vim
-Plug '/path/to/toi/vim'
+Plug '/path/to/vim-fluency'
 ```
 
-For the "every server" use case: `scp -r vim/ user@host:~/.vim/pack/toi/start/toi/` and it's installed.
+For the "every server" use case: `scp -r vim-fluency/ user@host:~/.vim/pack/vimfluency/start/vimfluency/` and it's installed.
 
 ## Use
 
 ```
-:ToiList                  " show installed pinpoints
-:Toi 1A.1                 " 60-second probe on hjkl
-:Toi 1A.1 30              " 30 seconds
-:ToiQuit                  " end early; log + summary printed
+:VfList                  " show installed pinpoints
+:Vf 1A.1                 " 60-second probe on hjkl
+:Vf 1A.1 30              " 30 seconds
+:VfQuit                  " end early; log + summary printed
 ```
 
 Tab key skips the current item. The session opens its own tab page; ending closes it.
@@ -38,11 +38,11 @@ For motion-only pinpoints (Tier 0/1), the target cell is enough — the buffer c
 
 ## Logs
 
-JSONL appended to `$XDG_DATA_HOME/toi/sessions.jsonl` (or `~/.local/share/toi/sessions.jsonl`). One line per session. Substrate for the (not-yet-built) celeration chart.
+JSONL appended to `$XDG_DATA_HOME/vimfluency/sessions.jsonl` (or `~/.local/share/vimfluency/sessions.jsonl`). One line per session. Substrate for the (not-yet-built) celeration chart.
 
 ## Adding a pinpoint
 
-See `:help toi-pinpoints` or copy `autoload/toi/pinpoints/p1A_1.vim` as a template. Two functions: `meta()` returns the pinpoint metadata; `generate()` returns one item.
+See `:help vf-pinpoints` or copy `autoload/vimfluency/pinpoints/p1A_1.vim` as a template. Two functions: `meta()` returns the pinpoint metadata; `generate()` returns one item.
 
 ## v1 limits
 

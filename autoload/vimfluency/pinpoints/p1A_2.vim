@@ -3,7 +3,7 @@
 let s:words = ['def', 'class', 'return', 'import', 'from', 'while', 'if',
   \ 'else', 'for', 'in', 'True', 'False', 'None', 'self', 'data', 'value']
 
-function! toi#pinpoints#p1A_2#meta() abort
+function! vimfluency#pinpoints#p1A_2#meta() abort
   return {'id': '1A.2', 'name': 'line start/end (0 ^ $ g_)', 'aim': 50, 'allowed_keys': '0^$g_'}
 endfunction
 
@@ -22,7 +22,7 @@ function! s:make_line() abort
   return indent . join(parts, ' ')
 endfunction
 
-function! toi#pinpoints#p1A_2#lesson() abort
+function! vimfluency#pinpoints#p1A_2#lesson() abort
   " DI-style sequence: parallel rule statements (one keystroke + one
   " destination per frame), juxtaposition frames showing when pairs
   " collapse, then 'try it' frames covering each motion at least once.
@@ -54,7 +54,7 @@ function! toi#pinpoints#p1A_2#lesson() abort
     \ ]
 endfunction
 
-function! toi#pinpoints#p1A_2#generate() abort
+function! vimfluency#pinpoints#p1A_2#generate() abort
   let line = s:make_line()
   " 50% of items get trailing whitespace so g_ and $ are distinct.
   " (When trailing ws is absent, last_nonblank == last_char and the

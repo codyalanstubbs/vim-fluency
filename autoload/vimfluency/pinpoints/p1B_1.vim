@@ -12,11 +12,11 @@
 
 let s:chars = ['a', 'e', 'i', 'o', 'r', 's']
 
-function! toi#pinpoints#p1B_1#meta() abort
+function! vimfluency#pinpoints#p1B_1#meta() abort
   return {'id': '1B.1', 'name': 'w b e ge', 'aim': 45, 'allowed_keys': 'wbeg'}
 endfunction
 
-function! toi#pinpoints#p1B_1#lesson() abort
+function! vimfluency#pinpoints#p1B_1#lesson() abort
   " DI-style sequence on word motions. Parallel structure across the four
   " motions: w/b move between word *starts*, e/ge move between word *ends*.
   " Within each pair: forward (w, e) vs backward (b, ge). Cursor in SHOW
@@ -63,7 +63,7 @@ function! s:make_word() abort
   return s
 endfunction
 
-function! toi#pinpoints#p1B_1#generate() abort
+function! vimfluency#pinpoints#p1B_1#generate() abort
   let n_words = 10
   let words = []
   for _ in range(n_words)

@@ -42,7 +42,7 @@ endfunction
 " 1A.1: optimal_motions == manhattan(start, target);
 " expected_motion ∈ {h, j, k, l, diag}
 function! s:test_1A_1() abort
-  let GenFn = function('toi#pinpoints#p1A_1#generate')
+  let GenFn = function('vimfluency#pinpoints#p1A_1#generate')
   let valid = ['h', 'j', 'k', 'l', 'diag']
   for i in range(s:N)
     let item = GenFn()
@@ -59,7 +59,7 @@ endfunction
 " 1A.2: optimal_motions == 1; expected_motion ∈ {0, ^, $, g_};
 " target_col == 1 → motion is '0'; trailing whitespace items can be 'g_'.
 function! s:test_1A_2() abort
-  let GenFn = function('toi#pinpoints#p1A_2#generate')
+  let GenFn = function('vimfluency#pinpoints#p1A_2#generate')
   let valid = ['0', '^', '$', 'g_']
   for i in range(s:N)
     let item = GenFn()
@@ -88,7 +88,7 @@ endfunction
 
 " 1B.1: expected_motion ∈ {w, b, e, ge}; optimal_motions in [2, 5].
 function! s:test_1B_1() abort
-  let GenFn = function('toi#pinpoints#p1B_1#generate')
+  let GenFn = function('vimfluency#pinpoints#p1B_1#generate')
   let valid = ['w', 'b', 'e', 'ge']
   for i in range(s:N)
     let item = GenFn()
@@ -103,7 +103,7 @@ endfunction
 " 4.d: editing kind; expected_motion ∈ {dw, db}; deletion_range matches
 " the actual delta between start_lines and target_lines.
 function! s:test_4_d() abort
-  let GenFn = function('toi#pinpoints#p4_d#generate')
+  let GenFn = function('vimfluency#pinpoints#p4_d#generate')
   let valid = ['dw', 'db']
   let seen = {}
   for i in range(s:N)
@@ -148,7 +148,7 @@ function! s:test_4_d() abort
   call Assert(get(seen, 'dw', 0) == 1, '4.d: dw appeared in samples')
   call Assert(get(seen, 'db', 0) == 1, '4.d: db appeared in samples')
 
-  let meta = toi#pinpoints#p4_d#meta()
+  let meta = vimfluency#pinpoints#p4_d#meta()
   call AssertEq(get(meta, 'kind', 'motion'), 'editing',
     \ '4.d: meta.kind == editing')
 endfunction

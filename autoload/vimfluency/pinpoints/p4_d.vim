@@ -19,7 +19,7 @@
 let s:words = ['alpha', 'beta', 'gamma', 'delta', 'epsilon',
   \ 'zeta', 'eta', 'theta', 'iota', 'kappa']
 
-function! toi#pinpoints#p4_d#meta() abort
+function! vimfluency#pinpoints#p4_d#meta() abort
   return {'id': '4.d', 'name': 'delete with word motion (dw, db)',
     \ 'aim': 60, 'allowed_keys': 'dwb', 'kind': 'editing'}
 endfunction
@@ -28,7 +28,7 @@ function! s:rand(n) abort
   return rand() % a:n
 endfunction
 
-function! toi#pinpoints#p4_d#generate() abort
+function! vimfluency#pinpoints#p4_d#generate() abort
   let n_words = 5
   let words = []
   let used = {}
@@ -94,7 +94,7 @@ function! toi#pinpoints#p4_d#generate() abort
     \ }
 endfunction
 
-function! toi#pinpoints#p4_d#lesson() abort
+function! vimfluency#pinpoints#p4_d#lesson() abort
   " Teaches the d-operator + word-motion composition rule, focusing on
   " the dw/db discrimination. Parallel framing: each motion describes
   " a range from cursor; d deletes that range.

@@ -1,6 +1,6 @@
 " Plugin loads, discovery resolves the expected pinpoints, each meta() is well-formed.
 
-let s:registry = toi#discover_pinpoints()
+let s:registry = vimfluency#discover_pinpoints()
 
 call Assert(len(s:registry) >= 3, 'smoke: registry has at least 3 pinpoints')
 call Assert(has_key(s:registry, '1A.1'), 'smoke: 1A.1 registered')
@@ -17,17 +17,17 @@ for [s:id, s:info] in items(s:registry)
 endfor
 
 " Public API surface
-call Assert(exists('*toi#start'),         'smoke: toi#start exists')
-call Assert(exists('*toi#stop'),          'smoke: toi#stop exists')
-call Assert(exists('*toi#learn'),         'smoke: toi#learn exists')
-call Assert(exists('*toi#learn_stop'),    'smoke: toi#learn_stop exists')
-call Assert(exists('*toi#close_summary'), 'smoke: toi#close_summary exists')
-call Assert(exists('*toi#history'),       'smoke: toi#history exists')
-call Assert(exists('*toi#list'),          'smoke: toi#list exists')
+call Assert(exists('*vimfluency#start'),         'smoke: vimfluency#start exists')
+call Assert(exists('*vimfluency#stop'),          'smoke: vimfluency#stop exists')
+call Assert(exists('*vimfluency#learn'),         'smoke: vimfluency#learn exists')
+call Assert(exists('*vimfluency#learn_stop'),    'smoke: vimfluency#learn_stop exists')
+call Assert(exists('*vimfluency#close_summary'), 'smoke: vimfluency#close_summary exists')
+call Assert(exists('*vimfluency#history'),       'smoke: vimfluency#history exists')
+call Assert(exists('*vimfluency#list'),          'smoke: vimfluency#list exists')
 
 " Commands
-call Assert(exists(':Toi') == 2,        'smoke: :Toi defined')
-call Assert(exists(':ToiList') == 2,    'smoke: :ToiList defined')
-call Assert(exists(':ToiQuit') == 2,    'smoke: :ToiQuit defined')
-call Assert(exists(':ToiHistory') == 2, 'smoke: :ToiHistory defined')
-call Assert(exists(':ToiLearn') == 2,   'smoke: :ToiLearn defined')
+call Assert(exists(':Vf') == 2,        'smoke: :Vf defined')
+call Assert(exists(':VfList') == 2,    'smoke: :VfList defined')
+call Assert(exists(':VfQuit') == 2,    'smoke: :VfQuit defined')
+call Assert(exists(':VfHistory') == 2, 'smoke: :VfHistory defined')
+call Assert(exists(':VfLearn') == 2,   'smoke: :VfLearn defined')
