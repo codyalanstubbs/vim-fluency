@@ -16,6 +16,7 @@ command! ToiList call toi#list()
 command! ToiQuit call toi#stop('user')
 command! -nargs=? -complete=customlist,toi#complete ToiHistory call toi#history(<f-args>)
 command! -nargs=1 -complete=customlist,toi#complete ToiLearn call toi#learn(<f-args>)
+command! -nargs=1 -complete=customlist,toi#complete ToiChart call toi#chart(<f-args>)
 
 highlight default ToiTarget ctermbg=darkgreen guibg=#2d5a2d ctermfg=white guifg=white
 highlight default ToiLearnShow ctermbg=darkcyan guibg=#2d4a5a ctermfg=white guifg=white

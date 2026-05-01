@@ -684,3 +684,174 @@ function! toi#learn_stop() abort
   let s:session = {}
   echo 'lesson ended for ' . id . ' — try :Toi ' . id
 endfunction
+
+" -----------------------------------------------------------------
+" Standard Celeration Chart (text-only)
+" -----------------------------------------------------------------
+
+" Y-axis layout: log10 scale, 3 decades (1 → 1000), 24 rows total.
+let s:CHART_HEIGHT = 24
+let s:CHART_DECADES = 3
+let s:CHART_LOG_TOP = 3.0    " log10(1000)
+let s:CHART_LOG_BOT = 0.0    " log10(1)
+let s:CHART_LABEL_W = 6
+let s:CHART_COLS_PER_SESSION = 2
+
+function! s:chart_y(rate) abort
+  if a:rate <= 0
+    return s:CHART_HEIGHT
+  endif
+  let lr = log10(a:rate * 1.0)
+  if lr < s:CHART_LOG_BOT
+    return s:CHART_HEIGHT
+  endif
+  if lr > s:CHART_LOG_TOP
+    return 0
+  endif
+  let span = s:CHART_LOG_TOP - s:CHART_LOG_BOT
+  return float2nr(round((s:CHART_LOG_TOP - lr) / span * s:CHART_HEIGHT))
+endfunction
+
+function! toi#chart(...) abort
+  if a:0 < 1
+    echo 'usage: :ToiChart <pinpoint_id>'
+    return
+  endif
+  let id = a:1
+  let log_path = toi#log_dir() . '/sessions.jsonl'
+  if !filereadable(log_path)
+    echo 'no sessions logged yet (' . log_path . ')'
+    return
+  endif
+
+  let sessions = []
+  for line in readfile(log_path)
+    if empty(line) | continue | endif
+    try
+      let r = json_decode(line)
+      if get(r, 'pinpoint_id', '') ==# id
+        call add(sessions, r)
+      endif
+    catch
+    endtry
+  endfor
+
+  if empty(sessions)
+    echo 'no sessions for pinpoint ' . id
+    return
+  endif
+
+  call sort(sessions, {a, b -> a.timestamp ==# b.timestamp ? 0
+    \ : (a.timestamp <# b.timestamp ? -1 : 1)})
+
+  let lines = s:render_chart(id, sessions)
+  call s:show_chart_buffer(id, lines)
+endfunction
+
+function! s:render_chart(id, sessions) abort
+  let n = len(a:sessions)
+  let pinpoint_name = a:sessions[0].pinpoint_name
+  let aim = a:sessions[0].aim
+  let chart_w = n * s:CHART_COLS_PER_SESSION
+  let total_w = s:CHART_LABEL_W + 1 + chart_w + 1
+
+  " Initialize grid: each row is a list of single-char strings
+  let grid = []
+  for r in range(s:CHART_HEIGHT + 1)
+    call add(grid, repeat([' '], total_w))
+  endfor
+
+  " Y-axis labels at decade boundaries
+  for [rate, lbl] in [[1000, '1000'], [100, ' 100'], [10, '  10'], [1, '   1']]
+    let row = s:chart_y(rate)
+    if row >= 0 && row <= s:CHART_HEIGHT
+      let label = printf('%5s', lbl)
+      for i in range(len(label))
+        let grid[row][i] = label[i]
+      endfor
+    endif
+  endfor
+
+  " Vertical axis line
+  for r in range(s:CHART_HEIGHT + 1)
+    let grid[r][s:CHART_LABEL_W] = '│'
+  endfor
+
+  " Horizontal axis line at the bottom
+  for c in range(s:CHART_LABEL_W, total_w - 1)
+    let grid[s:CHART_HEIGHT][c] = '─'
+  endfor
+  let grid[s:CHART_HEIGHT][s:CHART_LABEL_W] = '└'
+
+  " Aim line (dashed)
+  let aim_row = s:chart_y(aim)
+  if aim_row > 0 && aim_row < s:CHART_HEIGHT
+    for c in range(s:CHART_LABEL_W + 1, total_w - 1)
+      let grid[aim_row][c] = '-'
+    endfor
+  endif
+
+  " Plot each session
+  for i in range(n)
+    let session = a:sessions[i]
+    let col = s:CHART_LABEL_W + 1 + i * s:CHART_COLS_PER_SESSION
+    if col >= total_w | break | endif
+
+    let crate = get(session, 'frequency_per_min', 0)
+    let crow = s:chart_y(crate)
+    if crow >= 0 && crow <= s:CHART_HEIGHT
+      let grid[crow][col] = '●'
+    endif
+
+    let erate = get(session, 'errors_per_min', 0)
+    if erate > 0
+      let erow = s:chart_y(erate)
+      if erow >= 0 && erow <= s:CHART_HEIGHT
+        let grid[erow][col] = '×'
+      endif
+    endif
+  endfor
+
+  " Compose output lines
+  let out = []
+  call add(out, printf('toi celeration chart — %s (%s)', a:id, pinpoint_name))
+  call add(out, printf('aim %d/min   ·   %d session(s)   ·   ● corrects   × errors   - aim',
+    \ aim, n))
+  call add(out, '')
+  for row_chars in grid
+    call add(out, join(row_chars, ''))
+  endfor
+
+  " Compute first→last celeration for the corrects line
+  if n >= 2
+    let first = a:sessions[0].frequency_per_min
+    let last = a:sessions[-1].frequency_per_min
+    if first > 0
+      call add(out, printf(' first→last on corrects: ×%.2f over %d sessions',
+        \ last / first, n))
+    endif
+  endif
+  call add(out, printf(' first session: %s', a:sessions[0].timestamp))
+  call add(out, printf(' last  session: %s', a:sessions[-1].timestamp))
+  call add(out, '')
+  call add(out, ' Press q or <Enter> to close.')
+
+  return out
+endfunction
+
+function! s:show_chart_buffer(id, lines) abort
+  tabnew
+  let tabnr = tabpagenr()
+  setlocal buftype=nofile bufhidden=wipe noswapfile nobuflisted
+  setlocal nonumber norelativenumber nowrap signcolumn=no
+  silent! execute 'keepalt file toi-chart-' . a:id
+  call setline(1, a:lines)
+  setlocal nomodifiable nomodified
+  let &l:statusline = ' celeration chart — ' . a:id . '   [press q or <Enter> to close]'
+  let b:toi_summary_tabnr = tabnr
+  let b:toi_summary_prev_laststatus = &laststatus
+  set laststatus=2
+  nnoremap <buffer> <silent> q :call toi#close_summary()<CR>
+  nnoremap <buffer> <silent> <CR> :call toi#close_summary()<CR>
+  call cursor(1, 1)
+endfunction

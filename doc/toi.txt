@@ -41,6 +41,13 @@ COMMANDS                                                        *toi-commands*
     'q' or :ToiQuit to stop early. Pinpoints without a lesson() function
     will report "no lesson written for {id} yet".
 
+:ToiChart {id}                                                    *:ToiChart*
+    Render a Standard Celeration Chart (text-only, semi-log) for pinpoint
+    {id}. Y-axis is rate per minute on a log scale (1 to 1000 across
+    three decades). X-axis is session index (chronological). Plots both
+    the corrects rate (●) and the errors rate (×) per session, with the
+    fluency aim drawn as a dashed line. Press 'q' or <Enter> to close.
+
 ==============================================================================
 LOG                                                                  *toi-log*
 
