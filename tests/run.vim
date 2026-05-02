@@ -1,7 +1,12 @@
 " Test orchestrator. Sources assert.vim then every test_*.vim under tests/.
 " Reports PASS/FAIL via writefile to /dev/stdout. cquit on failure.
 
+" Isolate logs to a per-invocation temp dir so tests can call stop() and
+" inspect sessions.jsonl without polluting the user's real history.
+let $XDG_DATA_HOME = tempname()
+
 set runtimepath+=.
+set runtimepath+=tests/fixtures
 runtime plugin/vimfluency.vim
 
 let s:tests_dir = expand('<sfile>:p:h')

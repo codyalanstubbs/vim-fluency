@@ -1,6 +1,19 @@
 " Session state. Empty dict when no session is active.
 let s:session = {}
 
+" Test-only accessor for the runner's session dict. Returns a reference,
+" so in-place mutations from the runner are visible to the caller.
+function! vimfluency#_test_state() abort
+  return s:session
+endfunction
+
+" Test-only entrypoint for the skip path. The user-facing trigger is the
+" buffer-local <Tab> mapping, but :normal \<Tab> is unreliable in batch
+" (-Es) mode, so tests call this directly.
+function! vimfluency#_test_skip() abort
+  call s:skip()
+endfunction
+
 function! s:round3(x) abort
   return str2float(printf('%.3f', a:x))
 endfunction

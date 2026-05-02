@@ -3,4 +3,4 @@
 set -e
 HERE="$(cd "$(dirname "$0")" && pwd)"
 cd "$HERE/.."
-exec vim -Nu NONE -es -S tests/run.vim
+exec vim -Nu NONE -Es -S tests/run.vim
