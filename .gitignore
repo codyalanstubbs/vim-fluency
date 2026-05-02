@@ -4,3 +4,4 @@
 *.swn
 doc/tags
 tags
+.strategy/
