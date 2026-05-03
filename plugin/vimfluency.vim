@@ -18,6 +18,8 @@ command! -nargs=? -complete=customlist,vimfluency#complete VfHistory call vimflu
 command! -nargs=1 -complete=customlist,vimfluency#complete VfLearn call vimfluency#learn(<f-args>)
 command! -nargs=1 -complete=customlist,vimfluency#complete VfChart call vimfluency#chart(<f-args>)
 
-highlight default VfTarget ctermbg=darkgreen guibg=#2d5a2d ctermfg=white guifg=white
-highlight default VfLearnShow ctermbg=darkcyan guibg=#2d4a5a ctermfg=white guifg=white
-highlight default VfDeletion ctermbg=darkred guibg=#5a2d2d ctermfg=white guifg=white
+" High-contrast highlights so the target character stays legible against
+" any colorscheme. Saturated bg + dark fg = "highlighter pen" look.
+highlight default VfTarget     ctermbg=Green  ctermfg=Black guibg=#5fff5f guifg=#000000
+highlight default VfLearnShow  ctermbg=Cyan   ctermfg=Black guibg=#5fffff guifg=#000000
+highlight default VfDeletion   ctermbg=Red    ctermfg=Black guibg=#ff5f5f guifg=#000000
