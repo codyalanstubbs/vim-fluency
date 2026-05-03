@@ -59,8 +59,8 @@ function! vimfluency#pinpoints#p1C_1#lesson() abort
     \  'prompt': 'Use Fr to reach the r in ran.'},
     \ {'kind': 'try', 'lines': buf2, 'start': [1, 12], 'target': [1, 3],
     \  'prompt': 'Use Fl to reach the l in split.'},
-    \ {'kind': 'try', 'lines': buf3, 'start': [1, 14], 'target': [1, 2],
-    \  'prompt': 'Use Fr to reach the r in crab.'},
+    \ {'kind': 'try', 'lines': buf3, 'start': [1, 1], 'target': [1, 9],
+    \  'prompt': 'Use fm to reach the m in swim.'},
     \ ]
 endfunction
 
