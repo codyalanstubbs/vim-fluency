@@ -17,32 +17,25 @@ function! vimfluency#pinpoints#p1B_1#meta() abort
 endfunction
 
 function! vimfluency#pinpoints#p1B_1#lesson() abort
-  " DI-style sequence on word motions. Parallel structure across the four
-  " motions: w/b move between word *starts*, e/ge move between word *ends*.
-  " Within each pair: forward (w, e) vs backward (b, ge). Cursor in SHOW
-  " frames is positioned at the destination; the prompt names the motion.
-  " Real words used (not the vowel-soup from the probe) so frames are
-  " readable; cheat-defense is irrelevant during teaching.
+  " Each motion is introduced via a try frame so the learner sees the
+  " cursor jump from their own keystroke. Pair structure: w/b move
+  " between word starts (forward / backward), e/ge between word ends.
+  " One show frame remains for the meta-rule (no specific motion to
+  " demo — the rule is about which motions move between which kind of
+  " word boundary). Real words used so frames stay readable;
+  " cheat-defense is irrelevant during teaching.
   let buf = ['alpha beta gamma delta epsilon']
   return [
-    \ {'kind': 'show', 'lines': buf, 'cursor': [1, 7],
-    \  'prompt': 'w sends cursor to the start of the next word.'},
-    \ {'kind': 'show', 'lines': buf, 'cursor': [1, 1],
-    \  'prompt': 'b sends cursor to the start of the previous word.'},
-    \ {'kind': 'show', 'lines': buf, 'cursor': [1, 10],
-    \  'prompt': 'e sends cursor to the end of the next word.'},
-    \ {'kind': 'show', 'lines': buf, 'cursor': [1, 5],
-    \  'prompt': 'ge sends cursor to the end of the previous word.'},
+    \ {'kind': 'try', 'lines': buf, 'start': [1, 1], 'target': [1, 7],
+    \  'prompt': 'Press w — sends cursor to the start of the next word.'},
+    \ {'kind': 'try', 'lines': buf, 'start': [1, 7], 'target': [1, 1],
+    \  'prompt': 'Press b — sends cursor to the start of the previous word.'},
+    \ {'kind': 'try', 'lines': buf, 'start': [1, 7], 'target': [1, 10],
+    \  'prompt': 'Press e — sends cursor to the end of the next word.'},
+    \ {'kind': 'try', 'lines': buf, 'start': [1, 12], 'target': [1, 10],
+    \  'prompt': 'Press ge — sends cursor to the end of the previous word.'},
     \ {'kind': 'show', 'lines': buf, 'cursor': [1, 12],
     \  'prompt': 'w and b move between word starts; e and ge move between word ends.'},
-    \ {'kind': 'try', 'lines': buf, 'start': [1, 1], 'target': [1, 7],
-    \  'prompt': 'Use w to reach the start of the next word.'},
-    \ {'kind': 'try', 'lines': buf, 'start': [1, 18], 'target': [1, 12],
-    \  'prompt': 'Use b to reach the start of the previous word.'},
-    \ {'kind': 'try', 'lines': buf, 'start': [1, 1], 'target': [1, 5],
-    \  'prompt': 'Use e to reach the end of the current word.'},
-    \ {'kind': 'try', 'lines': buf, 'start': [1, 7], 'target': [1, 5],
-    \  'prompt': 'Use ge to reach the end of the previous word.'},
     \ {'kind': 'try', 'lines': buf, 'start': [1, 1], 'target': [1, 12],
     \  'prompt': 'Use w twice to skip a word.'},
     \ {'kind': 'try', 'lines': buf, 'start': [1, 18], 'target': [1, 7],

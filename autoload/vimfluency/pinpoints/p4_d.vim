@@ -96,24 +96,21 @@ endfunction
 
 function! vimfluency#pinpoints#p4_d#lesson() abort
   " Teaches the d-operator + word-motion composition rule, focusing on
-  " the dw/db discrimination. Parallel framing: each motion describes
-  " a range from cursor; d deletes that range.
+  " the dw/db discrimination. The opening show frame names the meta-rule
+  " (no specific motion to demo); the dw/db demos are try frames so the
+  " learner performs the deletion and watches the buffer change. The
+  " "u undoes" tip is a show frame because there's no motion involved
+  " in the rule itself.
   let buf = ['alpha beta gamma delta']
   return [
     \ {'kind': 'show', 'lines': buf, 'cursor': [1, 12],
     \  'prompt': 'd takes a motion. The motion names a range from cursor; d deletes that range.'},
-    \ {'kind': 'show', 'lines': ['alpha beta delta'], 'cursor': [1, 12],
-    \  'prompt': 'dw from start of gamma deletes "gamma " — current word + trailing space.'},
-    \ {'kind': 'show', 'lines': ['alpha gamma delta'], 'cursor': [1, 7],
-    \  'prompt': 'db from start of gamma deletes "beta " — previous word + trailing space.'},
-    \ {'kind': 'show', 'lines': buf, 'cursor': [1, 12],
-    \  'prompt': 'Same cursor on gamma: dw deletes forward (gamma), db deletes backward (beta). The cursor stays put for dw; jumps back for db.'},
+    \ {'kind': 'try', 'lines': buf, 'start': [1, 12], 'target': [1, 12],
+    \  'prompt': 'Press dw — deletes gamma + trailing space (current word). Cursor stays put.'},
+    \ {'kind': 'try', 'lines': buf, 'start': [1, 12], 'target': [1, 7],
+    \  'prompt': 'Press db — deletes beta + trailing space (previous word). Cursor jumps back.'},
     \ {'kind': 'show', 'lines': ['edit me; mistakes happen.'], 'cursor': [1, 1],
-    \  'prompt': 'Tip: pressed the wrong motion? u undoes. The probe is free-operant — keep editing until the buffer matches.'},
-    \ {'kind': 'try', 'lines': ['alpha beta gamma delta'], 'start': [1, 12], 'target': [1, 12],
-    \  'prompt': 'Use dw to delete gamma.'},
-    \ {'kind': 'try', 'lines': ['alpha beta gamma delta'], 'start': [1, 12], 'target': [1, 7],
-    \  'prompt': 'Use db to delete beta.'},
+    \  'prompt': 'Pressed the wrong motion? u undoes. The probe is free-operant — keep editing until the buffer matches.'},
     \ {'kind': 'try', 'lines': ['one two three four five'], 'start': [1, 9], 'target': [1, 9],
     \  'prompt': 'Use dw to delete three.'},
     \ {'kind': 'try', 'lines': ['one two three four five'], 'start': [1, 9], 'target': [1, 5],

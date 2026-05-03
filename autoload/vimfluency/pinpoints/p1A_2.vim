@@ -23,34 +23,27 @@ function! s:make_line() abort
 endfunction
 
 function! vimfluency#pinpoints#p1A_2#lesson() abort
-  " DI-style sequence: parallel rule statements (one keystroke + one
-  " destination per frame), juxtaposition frames showing when pairs
-  " collapse, then 'try it' frames covering each motion at least once.
-  " Trailing whitespace is rendered with `·` so the $ vs g_ distinction
-  " is observable.
+  " Each motion is introduced via a try frame so the learner sees the
+  " cursor jump from their own keystroke. Two show frames remain for
+  " the genuine juxtaposition rules — when no leading/trailing
+  " whitespace is present, two motions collapse to the same column;
+  " observing that equivalence is the point, not a motion. Trailing
+  " whitespace is rendered with `·` so $ vs g_ is observable.
   return [
-    \ {'kind': 'show', 'lines': ['    if x:'], 'cursor': [1, 1],
-    \  'prompt': '0 sends cursor to column 1.'},
-    \ {'kind': 'show', 'lines': ['    if x:'], 'cursor': [1, 5],
-    \  'prompt': '^ sends cursor to the first non-blank character.'},
-    \ {'kind': 'show', 'lines': ['    if x:    '], 'cursor': [1, 13],
-    \  'prompt': '$ sends cursor to the last character (whitespace counts).'},
-    \ {'kind': 'show', 'lines': ['    if x:    '], 'cursor': [1, 9],
-    \  'prompt': 'g_ sends cursor to the last non-blank character.'},
-    \ {'kind': 'show', 'lines': ['if x:'], 'cursor': [1, 1],
-    \  'prompt': 'No leading whitespace → 0 and ^ are the same column.'},
-    \ {'kind': 'show', 'lines': ['if x:'], 'cursor': [1, 5],
-    \  'prompt': 'No trailing whitespace → $ and g_ are the same column.'},
+    \ {'kind': 'try',  'lines': ['    if x:'], 'start': [1, 5], 'target': [1, 1],
+    \  'prompt': 'Press 0 — sends cursor to column 1.'},
     \ {'kind': 'try',  'lines': ['        return value'], 'start': [1, 1], 'target': [1, 9],
-    \  'prompt': 'Use ^ to skip the indent.'},
-    \ {'kind': 'try',  'lines': ['    name = data'], 'start': [1, 5], 'target': [1, 1],
-    \  'prompt': 'Use 0 to reach column 1.'},
-    \ {'kind': 'try',  'lines': ['    return result    '], 'start': [1, 5], 'target': [1, 17],
-    \  'prompt': 'Use g_ to skip trailing whitespace.'},
-    \ {'kind': 'try',  'lines': ['    return result    '], 'start': [1, 5], 'target': [1, 21],
-    \  'prompt': 'Use $ to land on the trailing whitespace.'},
+    \  'prompt': 'Press ^ — sends cursor to the first non-blank character.'},
+    \ {'kind': 'try',  'lines': ['    if x:    '], 'start': [1, 5], 'target': [1, 13],
+    \  'prompt': 'Press $ — sends cursor to the last character (whitespace counts).'},
+    \ {'kind': 'try',  'lines': ['    if x:    '], 'start': [1, 5], 'target': [1, 9],
+    \  'prompt': 'Press g_ — sends cursor to the last non-blank character.'},
+    \ {'kind': 'show', 'lines': ['if x:'], 'cursor': [1, 1],
+    \  'prompt': 'No leading whitespace → 0 and ^ would land on the same column.'},
+    \ {'kind': 'show', 'lines': ['if x:'], 'cursor': [1, 5],
+    \  'prompt': 'No trailing whitespace → $ and g_ would land on the same column.'},
     \ {'kind': 'try',  'lines': ['        if data:'], 'start': [1, 14], 'target': [1, 9],
-    \  'prompt': '^ works even when you start past the first non-blank.'},
+    \  'prompt': 'Use ^ — works even when you start past the first non-blank.'},
     \ ]
 endfunction
 

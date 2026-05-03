@@ -17,21 +17,19 @@ function! vimfluency#pinpoints#p1A_1#meta() abort
 endfunction
 
 function! vimfluency#pinpoints#p1A_1#lesson() abort
-  " Tight lesson — hjkl is universally known; this exists for completeness
-  " of the lesson layer. One summary show frame, then try frames covering
-  " each motion plus chains and a diagonal combination.
+  " Each motion gets its own try frame — the prompt names the rule, the
+  " learner performs it. Tail of the lesson chains motions and combines
+  " them diagonally.
   let buf = ['abcdef', 'ghijkl', 'mnopqr', 'stuvwx', 'yzabcd']
   return [
-    \ {'kind': 'show', 'lines': buf, 'cursor': [3, 4],
-    \  'prompt': 'h moves left.   l moves right.   j moves down.   k moves up.'},
     \ {'kind': 'try', 'lines': buf, 'start': [3, 4], 'target': [3, 3],
-    \  'prompt': 'Press h to move one column left.'},
+    \  'prompt': 'Press h — moves cursor one column left.'},
     \ {'kind': 'try', 'lines': buf, 'start': [3, 4], 'target': [3, 5],
-    \  'prompt': 'Press l to move one column right.'},
+    \  'prompt': 'Press l — moves cursor one column right.'},
     \ {'kind': 'try', 'lines': buf, 'start': [3, 4], 'target': [4, 4],
-    \  'prompt': 'Press j to move one row down.'},
+    \  'prompt': 'Press j — moves cursor one row down.'},
     \ {'kind': 'try', 'lines': buf, 'start': [3, 4], 'target': [2, 4],
-    \  'prompt': 'Press k to move one row up.'},
+    \  'prompt': 'Press k — moves cursor one row up.'},
     \ {'kind': 'try', 'lines': buf, 'start': [3, 1], 'target': [3, 3],
     \  'prompt': 'Press l twice — motions repeat.'},
     \ {'kind': 'try', 'lines': buf, 'start': [2, 4], 'target': [3, 5],
