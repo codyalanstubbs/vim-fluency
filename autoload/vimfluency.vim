@@ -190,8 +190,12 @@ function! s:next_item() abort
     silent! call matchdelete(s:session.target_match_id)
     let s:session.target_match_id = -1
   endif
+  " Priority 20 puts the target on top of the deletion-range red, so
+  " the "where the cursor will end up" cell is still legible when the
+  " target sits inside the deletion range (e.g. dw, where target_col
+  " == start_col == first deleted cell).
   let s:session.target_match_id = matchaddpos('VfTarget',
-    \ [[s:session.header_offset + item.target[0], item.target[1], 1]])
+    \ [[s:session.header_offset + item.target[0], item.target[1], 1]], 20)
 
   " Deletion-range highlight (editing probes that mark which characters
   " will be removed). Items declare deletion_range as a list of
@@ -206,7 +210,7 @@ function! s:next_item() abort
       call add(positions,
         \ [s:session.header_offset + pos[0], pos[1], pos[2]])
     endfor
-    let s:session.deletion_match_id = matchaddpos('VfDeletion', positions)
+    let s:session.deletion_match_id = matchaddpos('VfDeletion', positions, 10)
   endif
 
   redrawstatus
@@ -693,6 +697,10 @@ function! s:learn_show_frame() abort
     silent! call matchdelete(s:session.target_match_id)
     let s:session.target_match_id = -1
   endif
+  if s:session.deletion_match_id != -1
+    silent! call matchdelete(s:session.deletion_match_id)
+    let s:session.deletion_match_id = -1
+  endif
 
   if frame.kind ==# 'show'
     let buf_row = s:session.header_offset + frame.cursor[0]
@@ -704,7 +712,15 @@ function! s:learn_show_frame() abort
     let buf_target_row = s:session.header_offset + frame.target[0]
     call cursor(buf_start_row, frame.start[1])
     let s:session.target_match_id = matchaddpos('VfTarget',
-      \ [[buf_target_row, frame.target[1], 1]])
+      \ [[buf_target_row, frame.target[1], 1]], 20)
+    if has_key(frame, 'deletion_range') && !empty(frame.deletion_range)
+      let positions = []
+      for pos in frame.deletion_range
+        call add(positions,
+          \ [s:session.header_offset + pos[0], pos[1], pos[2]])
+      endfor
+      let s:session.deletion_match_id = matchaddpos('VfDeletion', positions, 10)
+    endif
   endif
 
   let s:session.advancing = 0
@@ -785,18 +801,39 @@ function! s:learn_on_change() abort
   let frame = s:session.frames[s:session.frame_idx]
   if frame.kind !=# 'try' | return | endif
   let buf_target_row = s:session.header_offset + frame.target[0]
-  if [line('.'), col('.')] == [buf_target_row, frame.target[1]]
-    let s:session.frame_complete = 1
-    call s:learn_render_complete()
+  if [line('.'), col('.')] != [buf_target_row, frame.target[1]] | return | endif
+  " For editing-kind frames where start == target (dw stays put), the
+  " cursor-only check would fire on s:learn_show_frame's own cursor()
+  " call and credit before the learner typed anything. Frames declare
+  " target_lines so we can also require the buffer to be in its
+  " post-edit state.
+  if has_key(frame, 'target_lines')
+    let cur_lines = getline(s:session.header_offset + 1, '$')
+    if cur_lines !=# frame.target_lines | return | endif
   endif
+  let s:session.frame_complete = 1
+  call s:learn_render_complete()
 endfunction
 
 " Repaint the header line in place to show the ✓/✗ confirmation. Done
 " via setline rather than re-rendering the whole buffer so the learner's
 " cursor and any visible buffer change stay on screen for them to observe.
+" Also clears the target and deletion-range matches: once the answer is
+" given, leaving them up creates a stale "what was supposed to happen"
+" overlay that's especially confusing for editing kinds where the
+" highlighted cells now sit on different characters than they did
+" pre-deletion.
 function! s:learn_render_complete() abort
   let s:session.advancing = 1
   setlocal modifiable
+  if s:session.target_match_id != -1
+    silent! call matchdelete(s:session.target_match_id)
+    let s:session.target_match_id = -1
+  endif
+  if s:session.deletion_match_id != -1
+    silent! call matchdelete(s:session.deletion_match_id)
+    let s:session.deletion_match_id = -1
+  endif
   call setline(1, s:learn_header_line())
   let s:session.advancing = 0
   redraw
@@ -948,7 +985,7 @@ function! s:learn_test_next() abort
     let s:session.target_match_id = -1
   endif
   let s:session.target_match_id = matchaddpos('VfTarget',
-    \ [[s:session.header_offset + item.target[0], item.target[1], 1]])
+    \ [[s:session.header_offset + item.target[0], item.target[1], 1]], 20)
 
   if s:session.deletion_match_id != -1
     silent! call matchdelete(s:session.deletion_match_id)
@@ -960,7 +997,7 @@ function! s:learn_test_next() abort
       call add(positions,
         \ [s:session.header_offset + pos[0], pos[1], pos[2]])
     endfor
-    let s:session.deletion_match_id = matchaddpos('VfDeletion', positions)
+    let s:session.deletion_match_id = matchaddpos('VfDeletion', positions, 10)
   endif
 
   let s:session.advancing = 0
