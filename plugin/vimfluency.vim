@@ -20,6 +20,11 @@ command! -nargs=1 -complete=customlist,vimfluency#complete VfChart call vimfluen
 
 " High-contrast highlights so the target character stays legible against
 " any colorscheme. Saturated bg + dark fg = "highlighter pen" look.
-highlight default VfTarget     ctermbg=Green  ctermfg=Black guibg=#5fff5f guifg=#000000
-highlight default VfLearnShow  ctermbg=Cyan   ctermfg=Black guibg=#5fffff guifg=#000000
-highlight default VfDeletion   ctermbg=Red    ctermfg=Black guibg=#ff5f5f guifg=#000000
+" Use the Light* cterm variants explicitly: plain `Green` is color 2 in
+" the 16-color palette, which some terminals render as a muddy yellow-
+" green that washes out a black foreground. LightGreen is color 10 (the
+" "bright" slot) and reads as actual bright green. Bold also nudges the
+" character glyph forward on terminals that render bold as bright.
+highlight default VfTarget     cterm=bold gui=bold ctermbg=LightGreen ctermfg=Black guibg=#5fff5f guifg=#000000
+highlight default VfLearnShow  cterm=bold gui=bold ctermbg=LightCyan  ctermfg=Black guibg=#5fffff guifg=#000000
+highlight default VfDeletion   cterm=bold gui=bold ctermbg=LightRed   ctermfg=Black guibg=#ff5f5f guifg=#000000
