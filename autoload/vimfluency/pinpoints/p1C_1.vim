@@ -1,0 +1,143 @@
+" 1C.1 — f{char} / F{char}. Find a target character on the current line.
+"
+" Design constraints to keep f/F the strictly shortest path:
+"
+"   - single line (no j/k cheats).
+"
+"   - distance from start to target ≥ 4 columns, so f/F's 2 keystrokes
+"     beat the equivalent hjkl chain (≥ 4 keys).
+"
+"   - target column is INTERIOR to its word, with margin ≥ 2 from BOTH
+"     word edges. Defeats the word-motion alternatives:
+"       w + l × n: lands at word start, then n h/l moves to target.
+"                  Margin ≥ 2 → ≥ 3 keystrokes total. f/F = 2 wins.
+"       e + h × n: lands at word end, then n h moves to target.
+"                  Margin ≥ 2 → ≥ 3 keystrokes total. f/F = 2 wins.
+"       b/ge + ll/hh: backward variants with the same margin logic.
+"     Word length ≥ 5 is required for the interior range to be non-empty.
+"
+"   - target character appears EXACTLY ONCE in the line, so f{c} from any
+"     position to its left lands directly on it (no `;` needed) and F{c}
+"     from any position to its right does the same.
+"
+"   - cursor never starts on whitespace or on the target character itself
+"     (avoids ambiguity in what "next" / "previous" means to the learner).
+"
+"   - lines have no leading or trailing whitespace, so 0/^/$/g_ all land
+"     on positions outside the candidate target range (col 1 or llen,
+"     while target is always strictly interior to a word).
+
+let s:WORDS = ['return', 'import', 'while', 'range', 'class', 'value',
+  \ 'array', 'result', 'parse', 'error', 'begin', 'label', 'count',
+  \ 'frame', 'start', 'fetch', 'scope', 'plain', 'brain', 'focus',
+  \ 'total', 'query', 'write', 'magic', 'cursor', 'target', 'finish',
+  \ 'point', 'truck', 'noise', 'alpha', 'gamma', 'delta', 'south',
+  \ 'north', 'visit', 'spend', 'phone', 'movie', 'happy', 'lucky',
+  \ 'jumbo', 'flash', 'crisp', 'blank', 'globe']
+
+function! vimfluency#pinpoints#p1C_1#meta() abort
+  return {'id': '1C.1', 'name': 'find char (f F)',
+    \ 'aim': 50, 'allowed_keys': 'fF'}
+endfunction
+
+function! vimfluency#pinpoints#p1C_1#lesson() abort
+  " Every frame that involves a motion is a 'try' so the learner sees
+  " the cursor jump from their own keystroke — including the
+  " "multiple-matches" rule, where staring at a static buffer doesn't
+  " communicate which match the cursor lands on.
+  let buf1 = ['the cat ran past']
+  let buf2 = ['split banana']
+  let buf3 = ['crab swim soft']
+  return [
+    \ {'kind': 'try', 'lines': buf1, 'start': [1, 1], 'target': [1, 13],
+    \  'prompt': 'Press fp — sends cursor to the next p on this line. Watch the cursor jump.'},
+    \ {'kind': 'try', 'lines': buf1, 'start': [1, 16], 'target': [1, 13],
+    \  'prompt': 'Press Fp — F is the backward version. Sends cursor to the previous p.'},
+    \ {'kind': 'try', 'lines': buf2, 'start': [1, 1], 'target': [1, 8],
+    \  'prompt': 'banana has 3 a''s ahead. Press fa — it lands on the FIRST one forward, never a later match.'},
+    \ {'kind': 'try', 'lines': buf1, 'start': [1, 16], 'target': [1, 9],
+    \  'prompt': 'Use Fr to reach the r in ran.'},
+    \ {'kind': 'try', 'lines': buf2, 'start': [1, 12], 'target': [1, 3],
+    \  'prompt': 'Use Fl to reach the l in split.'},
+    \ {'kind': 'try', 'lines': buf3, 'start': [1, 14], 'target': [1, 2],
+    \  'prompt': 'Use Fr to reach the r in crab.'},
+    \ ]
+endfunction
+
+function! s:rand(n) abort
+  return rand() % a:n
+endfunction
+
+function! s:try_generate() abort
+  let n_words = 5 + s:rand(3)
+  let words = []
+  for _ in range(n_words)
+    call add(words, s:WORDS[s:rand(len(s:WORDS))])
+  endfor
+  let line = join(words, ' ')
+  let llen = len(line)
+
+  let counts = {}
+  for i in range(llen)
+    let ch = line[i]
+    let counts[ch] = get(counts, ch, 0) + 1
+  endfor
+
+  let word_starts = []
+  let word_ends = []
+  let cumcol = 1
+  for w in words
+    call add(word_starts, cumcol)
+    call add(word_ends, cumcol + len(w) - 1)
+    let cumcol += len(w) + 1
+  endfor
+
+  let candidates = []
+  for wi in range(n_words)
+    let ws = word_starts[wi]
+    let we = word_ends[wi]
+    if we - ws < 4 | continue | endif
+    for c in range(ws + 2, we - 2)
+      let ch = line[c - 1]
+      if ch ==# ' ' | continue | endif
+      if counts[ch] == 1
+        call add(candidates, c)
+      endif
+    endfor
+  endfor
+
+  if empty(candidates) | return {} | endif
+  let target_col = candidates[s:rand(len(candidates))]
+  let target_char = line[target_col - 1]
+
+  let valid_starts = []
+  for sc in range(1, llen)
+    if abs(sc - target_col) < 4 | continue | endif
+    let ch = line[sc - 1]
+    if ch ==# ' ' || ch ==# target_char | continue | endif
+    call add(valid_starts, sc)
+  endfor
+
+  if empty(valid_starts) | return {} | endif
+  let start_col = valid_starts[s:rand(len(valid_starts))]
+  let motion = start_col < target_col ? 'f' : 'F'
+
+  return {'lines': [line], 'start': [1, start_col], 'target': [1, target_col],
+    \ 'expected_motion': motion, 'optimal_motions': 1}
+endfunction
+
+function! vimfluency#pinpoints#p1C_1#generate() abort
+  let attempts = 0
+  while attempts < 30
+    let attempts += 1
+    let item = s:try_generate()
+    if !empty(item)
+      return item
+    endif
+  endwhile
+  " Fallback in the unlikely event of no candidate after 30 attempts.
+  " 'banana split query': l in 'split' (col 10) is unique and interior.
+  return {'lines': ['banana split query'],
+    \ 'start': [1, 1], 'target': [1, 10],
+    \ 'expected_motion': 'f', 'optimal_motions': 1}
+endfunction

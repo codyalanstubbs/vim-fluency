@@ -153,7 +153,73 @@ function! s:test_4_d() abort
     \ '4.d: meta.kind == editing')
 endfunction
 
+" 1C.1: expected_motion ∈ {f, F}; optimal_motions == 1; target unique in
+" line; target interior to its word (margin ≥2); cursor not on whitespace
+" or target_char; distance ≥4 from cursor.
+function! s:test_1C_1() abort
+  let GenFn = function('vimfluency#pinpoints#p1C_1#generate')
+  let valid = ['f', 'F']
+  let seen = {}
+  for i in range(s:N)
+    let item = GenFn()
+    call s:assert_common('1C.1', item)
+    call AssertIn(item.expected_motion, valid,
+      \ '1C.1: expected_motion in {f, F}')
+    call AssertEq(item.optimal_motions, 1,
+      \ '1C.1: optimal_motions == 1')
+
+    let line = item.lines[0]
+    let llen = len(line)
+    let start_col = item.start[1]
+    let target_col = item.target[1]
+    let target_char = line[target_col - 1]
+    let seen[item.expected_motion] = 1
+
+    if item.expected_motion ==# 'f'
+      call Assert(start_col < target_col,
+        \ '1C.1/f: start_col < target_col')
+    else
+      call Assert(start_col > target_col,
+        \ '1C.1/F: start_col > target_col')
+    endif
+
+    call Assert(abs(target_col - start_col) >= 4,
+      \ '1C.1: distance ≥ 4 (cheat-defense vs hjkl chains)')
+
+    call Assert(line[start_col - 1] !=# ' ',
+      \ '1C.1: start not on whitespace')
+    call Assert(line[start_col - 1] !=# target_char,
+      \ '1C.1: start not on target_char')
+
+    let count_target = 0
+    for ci in range(llen)
+      if line[ci] ==# target_char | let count_target += 1 | endif
+    endfor
+    call AssertEq(count_target, 1,
+      \ '1C.1: target_char appears exactly once in line')
+
+    let words_in_line = split(line, ' ')
+    let cumcol = 1
+    for w in words_in_line
+      let ws = cumcol
+      let we = cumcol + len(w) - 1
+      if target_col >= ws && target_col <= we
+        call Assert(target_col - ws >= 2,
+          \ '1C.1: target ≥2 cols from word start')
+        call Assert(we - target_col >= 2,
+          \ '1C.1: target ≥2 cols from word end')
+        break
+      endif
+      let cumcol += len(w) + 1
+    endfor
+  endfor
+
+  call Assert(get(seen, 'f', 0) == 1, '1C.1: f appeared in samples')
+  call Assert(get(seen, 'F', 0) == 1, '1C.1: F appeared in samples')
+endfunction
+
 call s:test_1A_1()
 call s:test_1A_2()
 call s:test_1B_1()
+call s:test_1C_1()
 call s:test_4_d()
