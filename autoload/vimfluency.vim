@@ -588,10 +588,24 @@ function! vimfluency#learn(...) abort
     \ 'id': info.id,
     \ 'name': info.name,
     \ 'module': info.module,
+    \ 'kind': get(info, 'kind', 'motion'),
     \ 'frames': frames,
     \ 'frame_idx': 0,
+    \ 'frame_complete': 0,
+    \ 'phase': 'setup',
+    \ 'streak': 0,
+    \ 'required_streak': 3,
+    \ 'max_test_items': 20,
+    \ 'max_wrongs': 3,
+    \ 'test_items_seen': 0,
+    \ 'wrongs': 0,
+    \ 'test_motion_count': 0,
+    \ 'last_item_motions': 0,
+    \ 'last_item_optimal': 0,
+    \ 'current_test_item': {},
     \ 'prev_laststatus': &laststatus,
     \ 'target_match_id': -1,
+    \ 'deletion_match_id': -1,
     \ 'advancing': 0,
     \ }
 
@@ -610,16 +624,61 @@ function! s:learn_setup_window() abort
   let s:session.you_win = win_getid()
 endfunction
 
-function! s:learn_show_frame() abort
-  let s:session.advancing = 1
-  let frame = s:session.frames[s:session.frame_idx]
+" Build the lesson header line dynamically. Reads s:session.frame_complete
+" so the same function works both for initial render and the post-success
+" "✓ Press <Space>" update. Test phase has its own format (streak counter
+" + ✓/✗ feedback).
+function! s:learn_header_line() abort
+  if s:session.phase ==# 'test'
+    let cur = s:session.streak
+    let req = s:session.required_streak
+    if s:session.frame_complete
+      if s:session.last_item_motions <= s:session.last_item_optimal
+        if s:session.streak >= s:session.required_streak
+          let hint = printf('✓ %d/%d streak!  [Space=start probe]',
+            \ cur, req)
+        else
+          let hint = printf('✓ %d motion(s)  streak %d/%d  [Space=next]',
+            \ s:session.last_item_motions, cur, req)
+        endif
+      else
+        let hint = printf('✗ %d motions, expected %d  streak reset to 0  [Space=next]',
+          \ s:session.last_item_motions, s:session.last_item_optimal)
+      endif
+    else
+      let hint = printf('streak %d/%d  [reach the green cell, fewest keystrokes]',
+        \ cur, req)
+      if get(s:session, 'kind', 'motion') ==# 'editing'
+        let hint .= '  [u=undo if wrong]'
+      endif
+    endif
+    return printf('LESSON %s  TEST  %s  [q=quit]', s:session.id, hint)
+  endif
 
+  let frame = s:session.frames[s:session.frame_idx]
   let total = len(s:session.frames)
   let idx = s:session.frame_idx + 1
-  let hint = frame.kind ==# 'show' ? '[Space=next]' : '[reach the green cell]'
+  if s:session.frame_complete
+    let hint = '✓ correct  [Space=next]'
+  elseif frame.kind ==# 'show'
+    let hint = '[Space=next]'
+  else
+    let hint = '[reach the green cell]'
+    if get(s:session, 'kind', 'motion') ==# 'editing'
+      let hint .= '  [u=undo if wrong]'
+    endif
+  endif
+  return printf('LESSON %s  SETUP %d/%d  %s  [q=quit]',
+    \ s:session.id, idx, total, hint)
+endfunction
+
+function! s:learn_show_frame() abort
+  let s:session.advancing = 1
+  let s:session.frame_complete = 0
+  let frame = s:session.frames[s:session.frame_idx]
+
   let header = [
-    \ printf('LESSON %s  (%d/%d)  %s  [q=quit]',
-    \   s:session.id, idx, total, hint),
+    \ s:learn_header_line(),
     \ '',
     \ frame.prompt,
     \ '',
@@ -654,37 +713,257 @@ endfunction
 function! s:learn_install_autocmds() abort
   augroup VfLearn
     autocmd!
-    autocmd CursorMoved,CursorMovedI <buffer> call s:learn_on_change()
+    " TextChanged is needed for the test phase on editing-kind pinpoints
+    " where dw/db etc. modify the buffer without necessarily firing
+    " CursorMoved (e.g. dw at col 1 leaves cursor at col 1).
+    autocmd CursorMoved,CursorMovedI,TextChanged,TextChangedI <buffer>
+      \ call s:learn_on_change()
   augroup END
   nnoremap <buffer> <silent> <Space> :call <SID>learn_advance_show()<CR>
   nnoremap <buffer> <silent> <CR> :call <SID>learn_advance_show()<CR>
   nnoremap <buffer> <silent> q :call vimfluency#learn_stop()<CR>
+  nnoremap <buffer> <silent> p :call <SID>learn_start_probe()<CR>
 endfunction
 
+" Space/Enter: advance from a 'show' frame, from a completed 'try' frame,
+" or from a completed test-phase item.
 function! s:learn_advance_show() abort
   if empty(s:session) || s:session.mode !=# 'learn' || s:session.advancing | return | endif
-  if s:session.frames[s:session.frame_idx].kind !=# 'show' | return | endif
-  call s:learn_next()
+  if s:session.phase ==# 'complete' | return | endif
+  if s:session.phase ==# 'test'
+    if s:session.frame_complete
+      call s:learn_next()
+    endif
+    return
+  endif
+  let frame = s:session.frames[s:session.frame_idx]
+  if frame.kind ==# 'show'
+    call s:learn_next()
+  elseif frame.kind ==# 'try' && s:session.frame_complete
+    call s:learn_next()
+  endif
 endfunction
 
 function! s:learn_on_change() abort
   if empty(s:session) || s:session.mode !=# 'learn' || s:session.advancing | return | endif
   if win_getid() != s:session.you_win | return | endif
+  if s:session.phase ==# 'complete' | return | endif
+  if s:session.frame_complete | return | endif
+
+  if s:session.phase ==# 'test'
+    let item = s:session.current_test_item
+    let header_offset = s:session.header_offset
+    let cur_pos = [line('.') - header_offset, col('.')]
+    let cur_lines = getline(header_offset + 1, '$')
+    let start_lines = item.lines
+    let target_lines = get(item, 'target_lines', item.lines)
+
+    " Deferred-autocmd guard: skip the spurious CursorMoved that fires
+    " after our in-handler cursor() in s:learn_test_next.
+    if cur_pos == item.start && cur_lines ==# start_lines
+      \ && s:session.test_motion_count == 0
+      return
+    endif
+    let s:session.test_motion_count += 1
+
+    if cur_lines ==# target_lines && cur_pos == item.target
+      let s:session.frame_complete = 1
+      let s:session.last_item_motions = s:session.test_motion_count
+      let s:session.last_item_optimal = get(item, 'optimal_motions', 1)
+      if s:session.last_item_motions <= s:session.last_item_optimal
+        let s:session.streak += 1
+        let s:session.wrongs = 0
+      else
+        let s:session.streak = 0
+        let s:session.wrongs += 1
+      endif
+      call s:learn_render_complete()
+    endif
+    return
+  endif
+
   let frame = s:session.frames[s:session.frame_idx]
   if frame.kind !=# 'try' | return | endif
   let buf_target_row = s:session.header_offset + frame.target[0]
   if [line('.'), col('.')] == [buf_target_row, frame.target[1]]
-    call s:learn_next()
+    let s:session.frame_complete = 1
+    call s:learn_render_complete()
   endif
 endfunction
 
+" Repaint the header line in place to show the ✓/✗ confirmation. Done
+" via setline rather than re-rendering the whole buffer so the learner's
+" cursor and any visible buffer change stay on screen for them to observe.
+function! s:learn_render_complete() abort
+  let s:session.advancing = 1
+  setlocal modifiable
+  call setline(1, s:learn_header_line())
+  let s:session.advancing = 0
+  redraw
+endfunction
+
 function! s:learn_next() abort
-  let s:session.frame_idx += 1
-  if s:session.frame_idx >= len(s:session.frames)
-    call vimfluency#learn_stop()
+  if s:session.phase ==# 'setup'
+    let s:session.frame_idx += 1
+    if s:session.frame_idx >= len(s:session.frames)
+      let s:session.phase = 'test'
+      let s:session.streak = 0
+      call s:learn_test_next()
+      return
+    endif
+    call s:learn_show_frame()
     return
   endif
+
+  " phase == 'test'
+  if s:session.streak >= s:session.required_streak
+    let s:session.phase = 'complete'
+    call s:learn_show_complete()
+    return
+  endif
+  if s:session.wrongs >= s:session.max_wrongs
+    call s:learn_restart('wrongs')
+    return
+  endif
+  if s:session.test_items_seen >= s:session.max_test_items
+    call s:learn_restart('cap')
+    return
+  endif
+  call s:learn_test_next()
+endfunction
+
+" Final celebration screen after the learner hits 3-in-a-row in the
+" test phase. Stays in the lesson tab; explicit p/q decide what's next.
+function! s:learn_show_complete() abort
+  let s:session.advancing = 1
+
+  if s:session.target_match_id != -1
+    silent! call matchdelete(s:session.target_match_id)
+    let s:session.target_match_id = -1
+  endif
+  if s:session.deletion_match_id != -1
+    silent! call matchdelete(s:session.deletion_match_id)
+    let s:session.deletion_match_id = -1
+  endif
+
+  setlocal modifiable
+  silent! %delete _
+  call setline(1, [
+    \ printf('LESSON %s  COMPLETE  [p=start probe]  [q=quit]', s:session.id),
+    \ '',
+    \ printf('  ✓ 3 in a row on %s — nice work.', s:session.name),
+    \ '',
+    \ '  The probe presents the same kind of items, but on a 60-second',
+    \ '  clock. The lesson just confirmed you know the rule; the probe',
+    \ '  is where you build fluency — the speed and automaticity that',
+    \ '  make a motion useful during real editing. Knowing how a motion',
+    \ '  works and being fluent at it are different things, and only',
+    \ '  repetition under time pressure closes the gap.',
+    \ '',
+    \ '  Smooth is slow. Slow is fast.',
+    \ '',
+    \ '  Each probe writes a data point to the session log;',
+    \ printf('  :VfChart %s plots your rate over days.', s:session.id),
+    \ '',
+    \ printf('    p   start :Vf %s', s:session.id),
+    \ '    q   exit (run :Vf later when ready)',
+    \ ])
+  call cursor(1, 1)
+  let s:session.advancing = 0
+endfunction
+
+" Triggered by the p mapping on the completion screen. No-op anywhere
+" else, so p stays inert during normal lesson flow.
+function! s:learn_start_probe() abort
+  if empty(s:session) || s:session.mode !=# 'learn' | return | endif
+  if get(s:session, 'phase', '') !=# 'complete' | return | endif
+  let id = s:session.id
+  call vimfluency#learn_stop()
+  call vimfluency#start(id)
+endfunction
+
+" Send the learner back to frame 0 of the lesson, preserving the tab,
+" buffer, and autocmds. Echoes the reason so they know why they're
+" being restarted.
+function! s:learn_restart(reason) abort
+  let id = s:session.id
+  let cap = s:session.max_test_items
+  let s:session.phase = 'setup'
+  let s:session.frame_idx = 0
+  let s:session.streak = 0
+  let s:session.wrongs = 0
+  let s:session.test_items_seen = 0
+  let s:session.test_motion_count = 0
+  let s:session.frame_complete = 0
+  let s:session.last_item_motions = 0
+  let s:session.last_item_optimal = 0
+  let s:session.current_test_item = {}
   call s:learn_show_frame()
+  if a:reason ==# 'cap'
+    echo printf('lesson %s: hit %d-item test cap without 3-in-a-row — restarting from the top.',
+      \ id, cap)
+  elseif a:reason ==# 'wrongs'
+    echo printf('lesson %s: 3 wrong in a row — restarting from the top.', id)
+  endif
+endfunction
+
+" Generate a fresh test item from the pinpoint and render it. Reuses the
+" pinpoint's generate() so test items have the same cheat-defense as
+" probe items — meaning the intended motion is the canonical answer and
+" optimal_motions is the criterion for "first-try correct".
+function! s:learn_test_next() abort
+  let s:session.advancing = 1
+  let s:session.frame_complete = 0
+  let s:session.test_motion_count = 0
+  let s:session.test_items_seen += 1
+
+  let GenFn = function('vimfluency#pinpoints#' . s:session.module . '#generate')
+  let item = GenFn()
+  let s:session.current_test_item = item
+
+  let lesson_header = [
+    \ s:learn_header_line(),
+    \ '',
+    \ 'Reach the target — figure out the motion. Fewer keystrokes is better.',
+    \ '',
+    \ ]
+
+  " Editing items get the runner's prompt+divider header above the live
+  " editing area, mirroring what the probe shows.
+  let editing_header = []
+  if get(s:session, 'kind', 'motion') ==# 'editing'
+    let prompt = get(item, 'prompt', 'edit to match the target')
+    let editing_header = [prompt, repeat('─', 60)]
+  endif
+  let full_header = lesson_header + editing_header
+  let s:session.header_offset = len(full_header)
+
+  setlocal modifiable
+  silent! %delete _
+  call setline(1, full_header + item.lines)
+  call cursor(s:session.header_offset + item.start[0], item.start[1])
+
+  if s:session.target_match_id != -1
+    silent! call matchdelete(s:session.target_match_id)
+    let s:session.target_match_id = -1
+  endif
+  let s:session.target_match_id = matchaddpos('VfTarget',
+    \ [[s:session.header_offset + item.target[0], item.target[1], 1]])
+
+  if s:session.deletion_match_id != -1
+    silent! call matchdelete(s:session.deletion_match_id)
+    let s:session.deletion_match_id = -1
+  endif
+  if has_key(item, 'deletion_range') && !empty(item.deletion_range)
+    let positions = []
+    for pos in item.deletion_range
+      call add(positions,
+        \ [s:session.header_offset + pos[0], pos[1], pos[2]])
+    endfor
+    let s:session.deletion_match_id = matchaddpos('VfDeletion', positions)
+  endif
+
+  let s:session.advancing = 0
 endfunction
 
 function! vimfluency#learn_stop() abort

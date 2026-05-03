@@ -69,14 +69,52 @@ accumulates per-motion rate, average actual motions, and total wasted motions
 
 - **Parallel rule statements**: "X sends cursor to Y" — same shape across all
   motions in the set
-- **One concept per show frame**; separate juxtaposition frames where pairs
-  collapse (e.g. "no leading whitespace → 0 and ^ are the same column")
+- **If there's a motion to demo, use a `try` frame.** Every motion
+  introduction — including discrimination/juxtaposition rules like
+  "f lands on the first match, not later ones" — gets a try frame so
+  the learner sees the cursor jump from their own keystroke. Static
+  show frames let the learner read the prompt and skip past without
+  ever performing the motion. Reserve `show` only for purely static
+  observations where typing nothing genuinely makes the point (e.g.
+  "no leading whitespace → 0 and ^ are the same column" — the rule is
+  about positions being equal, not about a motion).
+
+- **Faultless-communication structure (Engelmann/Carnine).** A lesson
+  has two phases: **setup** (the static frames returned from
+  `lesson()`, where each motion is introduced and named in the
+  prompt) followed by an automatic **test phase** (no code change
+  needed in the pinpoint — the runner does this for every lesson).
+  In the test phase the runner calls the pinpoint's `generate()` to
+  produce novel items and shows them with a generic prompt ("Reach
+  the target — figure out the motion"). The learner must apply the
+  rule without being told the answer. Streak counter advances on
+  first-try-correct (motion count ≤ optimal); resets on inefficient
+  reach. On 3 in a row the runner enters a `complete` phase and
+  shows a celebration screen with explicit options: **p** starts
+  `:Vf <id>` (60 s probe), **q** exits. Space/Enter and CursorMoved
+  are no-ops on this screen — the handoff is deliberate. On either
+  failure condition — 3 wrong in a row (symmetric with the success
+  criterion) or the 20-item safety cap — the runner **restarts the
+  lesson from frame 0 in place**, echoing the reason; the tab and
+  autocmds stay put so the learner just keeps going. Because test
+  items come from the same `generate()` the probe uses, their
+  cheat-defense is identical — the intended motion is the canonical
+  answer.
+- **Confirmation step**: when the learner reaches a try frame's target,
+  the runner pauses and shows `✓ Press <Space>` in the header instead of
+  auto-advancing. This lets them see their motion took effect before the
+  next frame loads. (Probes still auto-advance — the free-operant speed
+  loop wants no friction.)
+- **Editing kinds get an undo hint**: when meta declares
+  `kind: 'editing'`, try-frame headers include `[u=undo if wrong]` so the
+  learner knows how to recover from a wrong operator without quitting.
 - **Try frames** cover each motion at least once; targets designed so the
   intended motion is the canonical answer
 - For whitespace-sensitive motions (`$` vs `g_`), set
   `listchars=trail:·` in the lesson buffer so the difference is observable
 
-See `autoload/vimfluency/pinpoints/p1A_2.vim` for a fully worked example.
+See `autoload/vimfluency/pinpoints/p1C_1.vim` for the active-introduction
+pattern; `p1A_2.vim` for the whitespace-listchars pattern.
 
 ## Buffer naming
 
