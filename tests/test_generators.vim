@@ -218,8 +218,89 @@ function! s:test_1C_1() abort
   call Assert(get(seen, 'F', 0) == 1, '1C.1: F appeared in samples')
 endfunction
 
+" 1C.2: expected_motion ∈ {t, T}; optimal_motions == 1; the LANDING is
+" target_col, the actual char is at target_col + 1 (forward) or
+" target_col - 1 (backward). Char must be unique in line, interior to
+" its word with direction-specific margins, and distance >= 3 from cursor.
+function! s:test_1C_2() abort
+  let GenFn = function('vimfluency#pinpoints#p1C_2#generate')
+  let valid = ['t', 'T']
+  let seen = {}
+  for i in range(s:N)
+    let item = GenFn()
+    call s:assert_common('1C.2', item)
+    call AssertIn(item.expected_motion, valid,
+      \ '1C.2: expected_motion in {t, T}')
+    call AssertEq(item.optimal_motions, 1,
+      \ '1C.2: optimal_motions == 1')
+
+    let line = item.lines[0]
+    let llen = len(line)
+    let start_col = item.start[1]
+    let target_col = item.target[1]
+    let seen[item.expected_motion] = 1
+
+    if item.expected_motion ==# 't'
+      call Assert(start_col < target_col,
+        \ '1C.2/t: start_col < target_col')
+      let target_char_col = target_col + 1
+    else
+      call Assert(start_col > target_col,
+        \ '1C.2/T: start_col > target_col')
+      let target_char_col = target_col - 1
+    endif
+
+    call Assert(target_char_col >= 1 && target_char_col <= llen,
+      \ '1C.2: target_char_col in line bounds')
+    let target_char = line[target_char_col - 1]
+    call Assert(target_char !=# ' ',
+      \ '1C.2: target_char is not whitespace')
+
+    call Assert(abs(target_col - start_col) >= 3,
+      \ '1C.2: distance >= 3 from cursor to landing')
+
+    call Assert(line[start_col - 1] !=# ' ',
+      \ '1C.2: start not on whitespace')
+    call Assert(line[start_col - 1] !=# target_char,
+      \ '1C.2: start not on target_char')
+
+    let count_target = 0
+    for ci in range(llen)
+      if line[ci] ==# target_char | let count_target += 1 | endif
+    endfor
+    call AssertEq(count_target, 1,
+      \ '1C.2: target_char appears exactly once in line')
+
+    let words_in_line = split(line, ' ')
+    let cumcol = 1
+    for w in words_in_line
+      let ws = cumcol
+      let we = cumcol + len(w) - 1
+      if target_char_col >= ws && target_char_col <= we
+        if item.expected_motion ==# 't'
+          call Assert(target_char_col - ws >= 3,
+            \ '1C.2/t: target_char >= 3 cols from word start')
+          call Assert(we - target_char_col >= 1,
+            \ '1C.2/t: target_char >= 1 col from word end')
+        else
+          call Assert(target_char_col - ws >= 1,
+            \ '1C.2/T: target_char >= 1 col from word start')
+          call Assert(we - target_char_col >= 3,
+            \ '1C.2/T: target_char >= 3 cols from word end')
+        endif
+        break
+      endif
+      let cumcol += len(w) + 1
+    endfor
+  endfor
+
+  call Assert(get(seen, 't', 0) == 1, '1C.2: t appeared in samples')
+  call Assert(get(seen, 'T', 0) == 1, '1C.2: T appeared in samples')
+endfunction
+
 call s:test_1A_1()
 call s:test_1A_2()
 call s:test_1B_1()
 call s:test_1C_1()
+call s:test_1C_2()
 call s:test_4_d()
