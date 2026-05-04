@@ -169,6 +169,7 @@ function! vimfluency#start(...) abort
     \ 'target_match_id': -1,
     \ 'header_offset': 0,
     \ 'deletion_match_id': -1,
+    \ 'waypoint_match_ids': [],
     \ 'prev_laststatus': &laststatus,
     \ }
 
@@ -232,6 +233,12 @@ function! s:next_item() abort
     let prompt = get(item, 'prompt', 'edit to match the target')
     let header = [prompt, repeat('─', 60)]
   endif
+  " Waypoint annotation row sits at the END of the header (just above the
+  " content) so the deferred-fire guard's cur_lines comparison still
+  " excludes it via header_offset. Same scaffolding as in lessons —
+  " probes need it too so the learner can disambiguate ; vs , scenarios
+  " for items where cursor sits between two char occurrences.
+  let header += s:waypoint_annotation(item)
   let s:session.header_offset = len(header)
 
   setlocal modifiable
@@ -265,6 +272,9 @@ function! s:next_item() abort
     endfor
     let s:session.deletion_match_id = matchaddpos('VfDeletion', positions, 10)
   endif
+
+  call s:clear_waypoint_matches()
+  call s:add_waypoint_matches(item)
 
   redrawstatus
   let s:session.advancing = 0
@@ -487,6 +497,7 @@ function! vimfluency#stop(reason) abort
   let tabnr = s:session.tabnr
   let target_id = s:session.target_match_id
   let deletion_id = s:session.deletion_match_id
+  let waypoint_ids = get(s:session, 'waypoint_match_ids', [])
   let you_win = get(s:session, 'you_win', 0)
   let s:session = {}
 
@@ -495,6 +506,9 @@ function! vimfluency#stop(reason) abort
     if target_id != -1
       silent! call matchdelete(target_id)
     endif
+    for wid in waypoint_ids
+      silent! call matchdelete(wid)
+    endfor
     if deletion_id != -1
       silent! call matchdelete(deletion_id)
     endif
