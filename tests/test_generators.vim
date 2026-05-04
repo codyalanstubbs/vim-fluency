@@ -298,9 +298,74 @@ function! s:test_1C_2() abort
   call Assert(get(seen, 'T', 0) == 1, '1C.2: T appeared in samples')
 endfunction
 
+" 1C.3: expected_motion == ';'; optimal_motions == 2; target is the
+" SECOND occurrence of a char that appears >= 2 times in the line,
+" interior to its word with margin >= 2; cursor sits strictly outside
+" all occurrences (forward: < first; backward: > last); distance >= 5.
+function! s:test_1C_3() abort
+  let GenFn = function('vimfluency#pinpoints#p1C_3#generate')
+  for i in range(s:N)
+    let item = GenFn()
+    call s:assert_common('1C.3', item)
+    call AssertEq(item.expected_motion, ';',
+      \ '1C.3: expected_motion is ;')
+    call AssertEq(item.optimal_motions, 2,
+      \ '1C.3: optimal_motions == 2')
+
+    let line = item.lines[0]
+    let llen = len(line)
+    let start_col = item.start[1]
+    let target_col = item.target[1]
+    let target_char = line[target_col - 1]
+
+    call Assert(abs(target_col - start_col) >= 5,
+      \ '1C.3: distance >= 5')
+
+    let cols_for_char = []
+    for ci in range(llen)
+      if line[ci] ==# target_char | call add(cols_for_char, ci + 1) | endif
+    endfor
+    call Assert(len(cols_for_char) >= 2,
+      \ '1C.3: target_char appears >= 2 times in line')
+
+    if start_col < target_col
+      call Assert(start_col < cols_for_char[0],
+        \ '1C.3/forward: start before first occurrence')
+      call AssertEq(target_col, cols_for_char[1],
+        \ '1C.3/forward: target == second occurrence')
+    else
+      call Assert(start_col > cols_for_char[-1],
+        \ '1C.3/backward: start after last occurrence')
+      call AssertEq(target_col, cols_for_char[-2],
+        \ '1C.3/backward: target == second-to-last occurrence')
+    endif
+
+    call Assert(line[start_col - 1] !=# ' ',
+      \ '1C.3: start not on whitespace')
+    call Assert(line[start_col - 1] !=# target_char,
+      \ '1C.3: start not on target_char')
+
+    let words_in_line = split(line, ' ')
+    let cumcol = 1
+    for w in words_in_line
+      let ws = cumcol
+      let we = cumcol + len(w) - 1
+      if target_col >= ws && target_col <= we
+        call Assert(target_col - ws >= 2,
+          \ '1C.3: target >= 2 cols from word start')
+        call Assert(we - target_col >= 2,
+          \ '1C.3: target >= 2 cols from word end')
+        break
+      endif
+      let cumcol += len(w) + 1
+    endfor
+  endfor
+endfunction
+
 call s:test_1A_1()
 call s:test_1A_2()
 call s:test_1B_1()
 call s:test_1C_1()
 call s:test_1C_2()
+call s:test_1C_3()
 call s:test_4_d()
