@@ -298,17 +298,18 @@ function! s:test_1C_2() abort
   call Assert(get(seen, 'T', 0) == 1, '1C.2: T appeared in samples')
 endfunction
 
-" 1C.3: expected_motion == ';'; optimal_motions == 2; target is the
-" SECOND occurrence of a char that appears >= 2 times in the line,
-" interior to its word with margin >= 2; cursor sits strictly outside
-" all occurrences (forward: < first; backward: > last); distance >= 5.
+" 1C.3: expected_motion in {; ,}; optimal_motions == 2; target interior
+" to its word with margin >= 2; cursor positioned per-scenario; distance
+" >= 3; exactly one waypoint at the canonical-sequence's first-stop.
 function! s:test_1C_3() abort
   let GenFn = function('vimfluency#pinpoints#p1C_3#generate')
+  let valid_motions = [';', ',']
+  let seen = {}
   for i in range(s:N)
     let item = GenFn()
     call s:assert_common('1C.3', item)
-    call AssertEq(item.expected_motion, ';',
-      \ '1C.3: expected_motion is ;')
+    call AssertIn(item.expected_motion, valid_motions,
+      \ '1C.3: expected_motion in {; ,}')
     call AssertEq(item.optimal_motions, 2,
       \ '1C.3: optimal_motions == 2')
 
@@ -317,9 +318,12 @@ function! s:test_1C_3() abort
     let start_col = item.start[1]
     let target_col = item.target[1]
     let target_char = line[target_col - 1]
+    let seen[item.expected_motion] = 1
 
-    call Assert(abs(target_col - start_col) >= 5,
-      \ '1C.3: distance >= 5')
+    call Assert(abs(target_col - start_col) >= 3,
+      \ '1C.3: distance >= 3')
+    call Assert(target_char !=# ' ',
+      \ '1C.3: target_char is not whitespace')
 
     let cols_for_char = []
     for ci in range(llen)
@@ -328,16 +332,48 @@ function! s:test_1C_3() abort
     call Assert(len(cols_for_char) >= 2,
       \ '1C.3: target_char appears >= 2 times in line')
 
-    if start_col < target_col
-      call Assert(start_col < cols_for_char[0],
-        \ '1C.3/forward: start before first occurrence')
-      call AssertEq(target_col, cols_for_char[1],
-        \ '1C.3/forward: target == second occurrence')
+    call Assert(has_key(item, 'waypoints'), '1C.3: item has waypoints')
+    call AssertEq(len(item.waypoints), 1, '1C.3: exactly one waypoint')
+    let wp_col = item.waypoints[0][1]
+    call Assert(abs(target_col - wp_col) >= 2,
+      \ '1C.3: target and waypoint at least 2 cols apart')
+
+    if item.expected_motion ==# ';'
+      if start_col < target_col
+        " forward ; (fc;): cursor < cols[0]; target == cols[1];
+        " waypoint == cols[0].
+        call Assert(start_col < cols_for_char[0],
+          \ '1C.3/forward;: start before first occurrence')
+        call AssertEq(target_col, cols_for_char[1],
+          \ '1C.3/forward;: target == second occurrence')
+        call AssertEq(wp_col, cols_for_char[0],
+          \ '1C.3/forward;: waypoint == first occurrence')
+      else
+        " backward ; (Fc;): cursor > cols[-1]; target == cols[-2];
+        " waypoint == cols[-1].
+        call Assert(start_col > cols_for_char[-1],
+          \ '1C.3/backward;: start after last occurrence')
+        call AssertEq(target_col, cols_for_char[-2],
+          \ '1C.3/backward;: target == second-to-last occurrence')
+        call AssertEq(wp_col, cols_for_char[-1],
+          \ '1C.3/backward;: waypoint == last occurrence')
+      endif
     else
-      call Assert(start_col > cols_for_char[-1],
-        \ '1C.3/backward: start after last occurrence')
-      call AssertEq(target_col, cols_for_char[-2],
-        \ '1C.3/backward: target == second-to-last occurrence')
+      " , scenarios: cursor strictly between cols[0] and cols[1].
+      call Assert(start_col > cols_for_char[0]
+        \ && start_col < cols_for_char[1],
+        \ '1C.3/,: cursor between cols[0] and cols[1]')
+      if target_col == cols_for_char[0]
+        " fc, : target == cols[0]; waypoint == cols[1].
+        call AssertEq(wp_col, cols_for_char[1],
+          \ '1C.3/fc,: waypoint == second occurrence')
+      else
+        " Fc, : target == cols[1]; waypoint == cols[0].
+        call AssertEq(target_col, cols_for_char[1],
+          \ '1C.3/Fc,: target == second occurrence')
+        call AssertEq(wp_col, cols_for_char[0],
+          \ '1C.3/Fc,: waypoint == first occurrence')
+      endif
     endif
 
     call Assert(line[start_col - 1] !=# ' ',
@@ -360,6 +396,9 @@ function! s:test_1C_3() abort
       let cumcol += len(w) + 1
     endfor
   endfor
+
+  call Assert(get(seen, ';', 0) == 1, '1C.3: ; appeared in samples')
+  call Assert(get(seen, ',', 0) == 1, '1C.3: , appeared in samples')
 endfunction
 
 call s:test_1A_1()

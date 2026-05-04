@@ -18,6 +18,59 @@ function! s:round3(x) abort
   return str2float(printf('%.3f', a:x))
 endfunction
 
+" Build a numbered annotation row aligned with item.lines[0]. Each
+" waypoint gets a number 1..N (in declared order); the final target
+" gets N+1. Returns [annotation_string] (a single-line list) when the
+" item declares non-empty waypoints, otherwise [] so callers can
+" splice it into the header unconditionally. Multi-row annotation
+" isn't supported yet — every numbered position must sit on row 1.
+function! s:waypoint_annotation(item) abort
+  if !has_key(a:item, 'waypoints') || empty(a:item.waypoints)
+    return []
+  endif
+  if empty(a:item.lines) | return [] | endif
+  let llen = len(a:item.lines[0])
+  let annotation = repeat(' ', llen)
+  let n = 1
+  for wp in a:item.waypoints
+    if wp[0] == 1 && wp[1] >= 1 && wp[1] <= llen
+      let annotation = strpart(annotation, 0, wp[1] - 1)
+        \ . string(n) . strpart(annotation, wp[1])
+    endif
+    let n += 1
+  endfor
+  let trow = a:item.target[0]
+  let tcol = a:item.target[1]
+  if trow == 1 && tcol >= 1 && tcol <= llen
+    let annotation = strpart(annotation, 0, tcol - 1)
+      \ . string(n) . strpart(annotation, tcol)
+  endif
+  return [annotation]
+endfunction
+
+" Add VfTarget highlights for each declared waypoint at its buffer row
+" (header_offset + item-coord row). Stores match IDs on the session so
+" they can be cleared on render_complete or the next frame.
+function! s:add_waypoint_matches(item) abort
+  let s:session.waypoint_match_ids = []
+  if !has_key(a:item, 'waypoints') || empty(a:item.waypoints)
+    return
+  endif
+  for wp in a:item.waypoints
+    let buf_row = s:session.header_offset + wp[0]
+    let id = matchaddpos('VfTarget', [[buf_row, wp[1], 1]], 20)
+    call add(s:session.waypoint_match_ids, id)
+  endfor
+endfunction
+
+function! s:clear_waypoint_matches() abort
+  if !has_key(s:session, 'waypoint_match_ids') | return | endif
+  for id in s:session.waypoint_match_ids
+    silent! call matchdelete(id)
+  endfor
+  let s:session.waypoint_match_ids = []
+endfunction
+
 function! vimfluency#log_dir() abort
   let dir = exists('$XDG_DATA_HOME') && !empty($XDG_DATA_HOME)
     \ ? $XDG_DATA_HOME . '/vimfluency'
@@ -610,6 +663,7 @@ function! vimfluency#learn(...) abort
     \ 'prev_laststatus': &laststatus,
     \ 'target_match_id': -1,
     \ 'deletion_match_id': -1,
+    \ 'waypoint_match_ids': [],
     \ 'advancing': 0,
     \ }
 
@@ -681,12 +735,16 @@ function! s:learn_show_frame() abort
   let s:session.frame_complete = 0
   let frame = s:session.frames[s:session.frame_idx]
 
-  let header = [
+  let base_header = [
     \ s:learn_header_line(),
     \ '',
     \ frame.prompt,
     \ '',
     \ ]
+  " Annotation row sits at the END of the header (just above the
+  " content), so the cur_lines comparison in s:learn_on_change still
+  " excludes it via header_offset.
+  let header = base_header + s:waypoint_annotation(frame)
   let s:session.header_offset = len(header)
 
   setlocal modifiable
@@ -701,6 +759,7 @@ function! s:learn_show_frame() abort
     silent! call matchdelete(s:session.deletion_match_id)
     let s:session.deletion_match_id = -1
   endif
+  call s:clear_waypoint_matches()
 
   if frame.kind ==# 'show'
     let buf_row = s:session.header_offset + frame.cursor[0]
@@ -721,6 +780,7 @@ function! s:learn_show_frame() abort
       endfor
       let s:session.deletion_match_id = matchaddpos('VfDeletion', positions, 10)
     endif
+    call s:add_waypoint_matches(frame)
   endif
 
   let s:session.advancing = 0
@@ -834,6 +894,7 @@ function! s:learn_render_complete() abort
     silent! call matchdelete(s:session.deletion_match_id)
     let s:session.deletion_match_id = -1
   endif
+  call s:clear_waypoint_matches()
   call setline(1, s:learn_header_line())
   let s:session.advancing = 0
   redraw
@@ -882,6 +943,7 @@ function! s:learn_show_complete() abort
     silent! call matchdelete(s:session.deletion_match_id)
     let s:session.deletion_match_id = -1
   endif
+  call s:clear_waypoint_matches()
 
   setlocal modifiable
   silent! %delete _
@@ -958,10 +1020,14 @@ function! s:learn_test_next() abort
   let item = GenFn()
   let s:session.current_test_item = item
 
+  let has_waypoints = has_key(item, 'waypoints') && !empty(item.waypoints)
+  let test_prompt = has_waypoints
+    \ ? 'Reach each numbered target in order. Fewer keystrokes is better.'
+    \ : 'Reach the target — figure out the motion. Fewer keystrokes is better.'
   let lesson_header = [
     \ s:learn_header_line(),
     \ '',
-    \ 'Reach the target — figure out the motion. Fewer keystrokes is better.',
+    \ test_prompt,
     \ '',
     \ ]
 
@@ -972,7 +1038,7 @@ function! s:learn_test_next() abort
     let prompt = get(item, 'prompt', 'edit to match the target')
     let editing_header = [prompt, repeat('─', 60)]
   endif
-  let full_header = lesson_header + editing_header
+  let full_header = lesson_header + editing_header + s:waypoint_annotation(item)
   let s:session.header_offset = len(full_header)
 
   setlocal modifiable
@@ -999,6 +1065,9 @@ function! s:learn_test_next() abort
     endfor
     let s:session.deletion_match_id = matchaddpos('VfDeletion', positions, 10)
   endif
+
+  call s:clear_waypoint_matches()
+  call s:add_waypoint_matches(item)
 
   let s:session.advancing = 0
 endfunction
