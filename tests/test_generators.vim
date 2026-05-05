@@ -402,10 +402,33 @@ function! s:test_1C_3() abort
   call Assert(get(seen, ',', 0) == 1, '1C.3: , appeared in samples')
 endfunction
 
+" 1C.4: delegates to p1C_1 / p1C_2 generators. Just verify all four
+" motions appear over N samples and every item passes a baseline
+" structural check.
+function! s:test_1C_4() abort
+  let GenFn = function('vimfluency#pinpoints#p1C_4#generate')
+  let valid = ['f', 'F', 't', 'T']
+  let seen = {}
+  for i in range(s:N)
+    let item = GenFn()
+    call s:assert_common('1C.4', item)
+    call AssertIn(item.expected_motion, valid,
+      \ '1C.4: expected_motion in {f, F, t, T}')
+    call AssertEq(item.optimal_motions, 1,
+      \ '1C.4: optimal_motions == 1')
+    let seen[item.expected_motion] = 1
+  endfor
+  for m in valid
+    call Assert(get(seen, m, 0) == 1,
+      \ '1C.4: ' . m . ' appeared in samples')
+  endfor
+endfunction
+
 call s:test_1A_1()
 call s:test_1A_2()
 call s:test_1B_1()
 call s:test_1C_1()
 call s:test_1C_2()
 call s:test_1C_3()
+call s:test_1C_4()
 call s:test_4_d()
