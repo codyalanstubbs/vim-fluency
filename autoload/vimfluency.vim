@@ -250,12 +250,15 @@ function! s:next_item() abort
     silent! call matchdelete(s:session.target_match_id)
     let s:session.target_match_id = -1
   endif
-  " Priority 20 puts the target on top of the deletion-range red, so
-  " the "where the cursor will end up" cell is still legible when the
-  " target sits inside the deletion range (e.g. dw, where target_col
-  " == start_col == first deleted cell).
-  let s:session.target_match_id = matchaddpos('VfTarget',
-    \ [[s:session.header_offset + item.target[0], item.target[1], 1]], 20)
+  " For editing-kind probes the deletion range alone tells the learner
+  " what to do; rendering a green target makes the discrimination "is
+  " green visible or not?" instead of "where is red relative to the
+  " cursor?". Motion-kind probes still get the green cell since that's
+  " the entire cue.
+  if s:session.kind !=# 'editing'
+    let s:session.target_match_id = matchaddpos('VfTarget',
+      \ [[s:session.header_offset + item.target[0], item.target[1], 1]], 20)
+  endif
 
   " Deletion-range highlight (editing probes that mark which characters
   " will be removed). Items declare deletion_range as a list of
@@ -784,8 +787,13 @@ function! s:learn_show_frame() abort
     let buf_start_row = s:session.header_offset + frame.start[0]
     let buf_target_row = s:session.header_offset + frame.target[0]
     call cursor(buf_start_row, frame.start[1])
-    let s:session.target_match_id = matchaddpos('VfTarget',
-      \ [[buf_target_row, frame.target[1], 1]], 20)
+    " See s:next_item: editing-kind lessons hide VfTarget so the
+    " learner reads the deletion range relative to the cursor instead
+    " of pattern-matching on whether a green cell is visible.
+    if get(s:session, 'kind', 'motion') !=# 'editing'
+      let s:session.target_match_id = matchaddpos('VfTarget',
+        \ [[buf_target_row, frame.target[1], 1]], 20)
+    endif
     if has_key(frame, 'deletion_range') && !empty(frame.deletion_range)
       let positions = []
       for pos in frame.deletion_range
@@ -1064,8 +1072,10 @@ function! s:learn_test_next() abort
     silent! call matchdelete(s:session.target_match_id)
     let s:session.target_match_id = -1
   endif
-  let s:session.target_match_id = matchaddpos('VfTarget',
-    \ [[s:session.header_offset + item.target[0], item.target[1], 1]], 20)
+  if get(s:session, 'kind', 'motion') !=# 'editing'
+    let s:session.target_match_id = matchaddpos('VfTarget',
+      \ [[s:session.header_offset + item.target[0], item.target[1], 1]], 20)
+  endif
 
   if s:session.deletion_match_id != -1
     silent! call matchdelete(s:session.deletion_match_id)

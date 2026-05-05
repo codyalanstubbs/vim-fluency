@@ -119,12 +119,13 @@ function! s:test_4_d() abort
     call Assert(has_key(item, 'deletion_range'), '4.d: has deletion_range')
     call Assert(!empty(item.deletion_range), '4.d: deletion_range non-empty')
 
-    let start_words = split(item.lines[0])
-    let target_words = split(item.target_lines[0])
-    call AssertEq(len(target_words), len(start_words) - 1,
-      \ '4.d: target has one fewer word')
+    " Some chars must have been removed (target line is shorter than start).
+    " Word count is no longer asserted: db from mid-word leaves a
+    " prefix-fragment of the current word, so word count can stay equal.
+    call Assert(len(item.target_lines[0]) < len(item.lines[0]),
+      \ '4.d: target_lines is shorter than lines')
 
-    " deletion_range cols + length should match the actual length removed
+    " deletion_range length should match the actual length removed
     let removed_chars = len(item.lines[0]) - len(item.target_lines[0])
     let total_len = 0
     for pos in item.deletion_range

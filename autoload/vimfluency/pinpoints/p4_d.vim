@@ -1,16 +1,26 @@
 " 4.d — delete with word motion (dw, db). The first real Tier-4
 " composite probe: the user must recognize, from the highlighted
-" deletion range AND their cursor position, which motion describes
-" the range. Same cursor position can map to either motion depending
-" on what's being deleted, so the recognition isn't bypassable.
+" deletion range and their cursor position, which motion describes
+" the range. The runner intentionally hides the green target cell for
+" editing-kind probes — the deletion range alone is the cue, and the
+" discrimination is "where is red relative to my cursor?" rather than
+" "is a green cell visible?".
 "
 " Design constraints:
 "   - single line of plain words separated by single spaces
-"   - cursor at start of a word V; the deletion is *highlighted* in red
-"   - if deletion = word V + trailing space, answer is dw
-"   - if deletion = word V-1 + trailing space (preceding word), answer is db
-"   - generator picks dw or db randomly; same buffer/cursor layout can
-"     yield either, so the user can't shortcut by cursor inspection alone
+"   - cursor anywhere in a word V (start, middle, end). Mid-word use
+"     is real-world: dw from mid-word deletes the rest of V plus the
+"     trailing space; db from mid-word deletes the prefix of V from
+"     start-of-word to cursor exclusive.
+"   - dw cases: deletion starts AT cursor, extends forward to start of
+"     next word.
+"   - db cases at start-of-V: deletion is word V-1 + trailing space,
+"     ending one column before cursor.
+"   - db cases mid-V: deletion is the prefix of V from start-of-word
+"     to cursor exclusive (a prefix-fragment delete).
+"   - in all cases the same cursor position can map to either dw or db
+"     depending on which side of the cursor red is highlighted, so the
+"     learner can't shortcut by cursor inspection alone.
 "
 " v1 ships dw and db only. de and dge added later — they introduce
 " awkward whitespace cases (de from start-of-word leaves a double space)
@@ -42,11 +52,13 @@ function! vimfluency#pinpoints#p4_d#generate() abort
 
   let line = join(words, ' ')
 
-  " 1-indexed start col of each word
+  " 1-indexed start/end col of each word
   let starts = []
+  let ends = []
   let col = 1
   for w in words
     call add(starts, col)
+    call add(ends, col + len(w) - 1)
     let col += len(w) + 1
   endfor
 
@@ -54,33 +66,36 @@ function! vimfluency#pinpoints#p4_d#generate() abort
   let motion = s:rand(2) == 0 ? 'dw' : 'db'
 
   if motion ==# 'dw'
-    " V in [1, n-1]; cursor at start of V; delete word V + trailing space
+    " V in [1, n-1]; cursor anywhere in V; deletion = [cursor, starts[V]).
     let V = 1 + s:rand(n_words - 1)
-    let cursor_col = starts[V - 1]
-    let del_start = starts[V - 1]
-    let del_len = starts[V] - starts[V - 1]   " word V length + 1 (space)
-    let removed_idx = V - 1
+    let s_v = starts[V - 1]
+    let e_v = ends[V - 1]
+    let cursor_col = s_v + s:rand(e_v - s_v + 1)
+    let del_start = cursor_col
+    let del_len = starts[V] - cursor_col
+    let target_col = cursor_col   " dw leaves cursor put
   else
-    " V in [2, n]; cursor at start of V; delete word V-1 + trailing space
+    " db: V in [2, n]; cursor anywhere in V.
+    "   cursor at start-of-V → deletion = word V-1 + trailing space
+    "   cursor mid-V         → deletion = prefix of V (start-of-V to
+    "                          cursor exclusive)
     let V = 2 + s:rand(n_words - 1)
-    let cursor_col = starts[V - 1]
-    let del_start = starts[V - 2]
-    let del_len = starts[V - 1] - starts[V - 2]   " word V-1 + 1
-    let removed_idx = V - 2
+    let s_v = starts[V - 1]
+    let e_v = ends[V - 1]
+    let cursor_col = s_v + s:rand(e_v - s_v + 1)
+    if cursor_col == s_v
+      let del_start = starts[V - 2]
+      let del_len = starts[V - 1] - starts[V - 2]
+    else
+      let del_start = s_v
+      let del_len = cursor_col - s_v
+    endif
+    let target_col = del_start   " db lands cursor where deletion began
   endif
 
-  " target_lines: words minus the removed one
-  let kept = []
-  for i in range(n_words)
-    if i != removed_idx
-      call add(kept, words[i])
-    endif
-  endfor
-  let target_line = join(kept, ' ')
-
-  " target cursor col: same as deletion start — cursor lands at where
-  " the deletion began (forward dw → stays put; backward db → jumps back)
-  let target_col = del_start
+  " Compute target line by splicing out [del_start, del_start+del_len-1].
+  let target_line = strpart(line, 0, del_start - 1)
+    \ . strpart(line, del_start - 1 + del_len)
 
   return {
     \ 'lines': [line],
