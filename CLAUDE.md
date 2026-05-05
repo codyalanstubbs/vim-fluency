@@ -162,3 +162,32 @@ integration test is the natural extension.
   part of the actual research, not premature
 - Don't pre-create sub-pinpoints for "drill just this motion" — `:Vf <id> only=motion[,motion...]` exists for that
 - Don't add `Co-Authored-By: Claude` trailers to commits in this project
+
+## Capturing learnings (marketing pipeline)
+
+`.strategy/learnings/` is an append-only log of insights surfaced while
+building. The point is to feed the marketing funnel without retroactive
+archaeology on `git log` — write the post material at the moment it's
+fresh, not months later.
+
+When you spot a content-worthy moment during dev, **propose a draft to
+the user before writing it**. Name the pillars and pitch the hook in
+plain English. If they agree, copy `.strategy/learnings/TEMPLATE.md`
+to `YYYY-MM-DD-slug.md`, fill it in, and add a one-line entry to
+`INDEX.md`.
+
+Strong signals worth capturing:
+- A probe or lesson redesign that exposed a Direct Instruction principle
+  (faultless communication, juxtaposition, the discriminant the learner
+  actually used vs. the one you intended).
+- A user complaint that revealed a wrong mental model in the design.
+- A cheat-defense that forced a clever constraint.
+- A "we removed feature X because…" decision with a real reason.
+- A non-obvious vim observation that working developers would find
+  surprising.
+
+Skip routine bug fixes, refactors, and plain feature merges. Bar is
+~70% odds the entry yields publishable content within a few months.
+
+Pillars and the funnel position each one feeds are documented in
+`.strategy/learnings/PILLARS.md`.
