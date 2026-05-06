@@ -40,9 +40,10 @@ Composite emergence test: "open a file, change one word, save, quit" cold, ≤ 5
 
 | ID | Pinpoint | Probe | Aim | Prereqs |
 |---|---|---|---|---|
-| 1B.1 | Forward/back word (`w`, `b`, `e`, `ge`) | S→K | 45 | 1A |
-| 1B.2 | WORD variants (`W`, `B`, `E`) | S→K | 45 | 1B.1 |
-| 1B.3 | Discriminate `w` vs `W` on punctuated text | Disc | 30 | 1B.1, 1B.2 |
+| 1B.1 | Forward/back word start (`w`, `b`) | S→K | 45 | 1A |
+| 1B.2 | Forward/back word end (`e`, `ge`) | S→K | 40 | 1A |
+| 1B.3 | WORD variants (`W`, `B`, `E`) | S→K | 45 | 1B.1, 1B.2 |
+| 1B.4 | Discriminate `w` vs `W` on punctuated text | Disc | 30 | 1B.1, 1B.2, 1B.3 |
 
 ### 1C — Char-find on line
 

@@ -32,7 +32,7 @@ let s:words = ['alpha', 'beta', 'gamma', 'delta', 'epsilon',
 function! vimfluency#pinpoints#p4_1#meta() abort
   return {'id': '4.1', 'name': 'delete with word motion (dw, db)',
     \ 'aim': 60, 'allowed_keys': 'dwb', 'kind': 'editing',
-    \ 'prereqs': ['2', '1B']}
+    \ 'prereqs': ['2', '1B.1']}
 endfunction
 
 function! s:rand(n) abort

@@ -86,18 +86,53 @@ function! s:test_1A_2() abort
   endfor
 endfunction
 
-" 1B.1: expected_motion ∈ {w, b, e, ge}; optimal_motions in [2, 5].
+" 1B.1: expected_motion ∈ {w, b}; optimal_motions == dist (which is
+" the same as the manhattan word-distance, in [2, 4]).
 function! s:test_1B_1() abort
   let GenFn = function('vimfluency#pinpoints#p1B_1#generate')
-  let valid = ['w', 'b', 'e', 'ge']
+  let valid = ['w', 'b']
+  let seen = {}
   for i in range(s:N)
     let item = GenFn()
     call s:assert_common('1B.1', item)
     call AssertIn(item.expected_motion, valid,
-      \ '1B.1: expected_motion in {w, b, e, ge}')
-    call Assert(item.optimal_motions >= 2 && item.optimal_motions <= 5,
-      \ '1B.1: optimal_motions in [2, 5], got ' . item.optimal_motions)
+      \ '1B.1: expected_motion in {w, b}')
+    call Assert(item.optimal_motions >= 2 && item.optimal_motions <= 4,
+      \ '1B.1: optimal_motions in [2, 4], got ' . item.optimal_motions)
+    let seen[item.expected_motion] = 1
   endfor
+  call Assert(get(seen, 'w', 0) == 1, '1B.1: w appeared in samples')
+  call Assert(get(seen, 'b', 0) == 1, '1B.1: b appeared in samples')
+endfunction
+
+" 1B.2: expected_motion ∈ {e, ge}; optimal_motions == dist+1 for
+" forward (e), dist for backward (ge). Range [2, 5].
+function! s:test_1B_2() abort
+  let GenFn = function('vimfluency#pinpoints#p1B_2#generate')
+  let valid = ['e', 'ge']
+  let seen = {}
+  for i in range(s:N)
+    let item = GenFn()
+    call s:assert_common('1B.2', item)
+    call AssertIn(item.expected_motion, valid,
+      \ '1B.2: expected_motion in {e, ge}')
+    call Assert(item.optimal_motions >= 2 && item.optimal_motions <= 5,
+      \ '1B.2: optimal_motions in [2, 5], got ' . item.optimal_motions)
+
+    " Forward (e): one extra motion beyond word distance because the
+    " first e lands at end of current word.
+    " Backward (ge): one motion per word stepped.
+    if item.expected_motion ==# 'e'
+      call Assert(item.target[1] > item.start[1],
+        \ '1B.2/e: target col > start col (forward)')
+    else
+      call Assert(item.target[1] < item.start[1],
+        \ '1B.2/ge: target col < start col (backward)')
+    endif
+    let seen[item.expected_motion] = 1
+  endfor
+  call Assert(get(seen, 'e', 0) == 1, '1B.2: e appeared in samples')
+  call Assert(get(seen, 'ge', 0) == 1, '1B.2: ge appeared in samples')
 endfunction
 
 " 4.1: editing kind; expected_motion ∈ {dw, db}; deletion_range matches
@@ -427,6 +462,7 @@ endfunction
 call s:test_1A_1()
 call s:test_1A_2()
 call s:test_1B_1()
+call s:test_1B_2()
 call s:test_1C_1()
 call s:test_1C_2()
 call s:test_1C_3()
