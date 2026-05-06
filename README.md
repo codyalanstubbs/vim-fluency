@@ -48,5 +48,5 @@ See `:help vf-pinpoints` or copy `autoload/vimfluency/pinpoints/p1A_1.vim` as a 
 
 - **No keystroke counting.** Vim's autocmds fire post-aggregate (`5w` is one event), so individual keys aren't observable without taking over the input loop with `getchar()`. Rate is what's measured. A `getchar()` mode for keystroke-efficiency analysis can come later.
 - **No input restriction.** A pinpoint declares `allowed_keys` in its metadata, but the plugin doesn't currently remap forbidden keys. Honest measurement of what the user does. Can be added as opt-in later.
-- **Eight pinpoints shipped** (1A.1 hjkl, 1A.2 line start/end, 1B.1 word motions, 1C.1 find char, 1C.2 till char, 1C.3 repeat last find, 1C.4 discriminate f/t, 4.d delete with word motion). See `CATALOG.md` for the planned ~80.
+- **Eight pinpoints shipped** (1A.1 hjkl, 1A.2 line start/end, 1B.1 word motions, 1C.1 find char, 1C.2 till char, 1C.3 repeat last find, 1C.4 discriminate f/t, 4.1 delete with word motion). See `CATALOG.md` for the planned ~80.
 - **Vim 8.1+** required.

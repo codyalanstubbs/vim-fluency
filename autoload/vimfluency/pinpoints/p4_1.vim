@@ -1,4 +1,4 @@
-" 4.d — delete with word motion (dw, db). The first real Tier-4
+" 4.1 — delete with word motion (dw, db). The first real Tier-4
 " composite probe: the user must recognize, from the highlighted
 " deletion range and their cursor position, which motion describes
 " the range. The runner intentionally hides the green target cell for
@@ -29,8 +29,8 @@
 let s:words = ['alpha', 'beta', 'gamma', 'delta', 'epsilon',
   \ 'zeta', 'eta', 'theta', 'iota', 'kappa']
 
-function! vimfluency#pinpoints#p4_d#meta() abort
-  return {'id': '4.d', 'name': 'delete with word motion (dw, db)',
+function! vimfluency#pinpoints#p4_1#meta() abort
+  return {'id': '4.1', 'name': 'delete with word motion (dw, db)',
     \ 'aim': 60, 'allowed_keys': 'dwb', 'kind': 'editing',
     \ 'prereqs': ['2', '1B']}
 endfunction
@@ -39,7 +39,7 @@ function! s:rand(n) abort
   return rand() % a:n
 endfunction
 
-function! vimfluency#pinpoints#p4_d#generate() abort
+function! vimfluency#pinpoints#p4_1#generate() abort
   let n_words = 5
   let words = []
   let used = {}
@@ -110,7 +110,7 @@ function! vimfluency#pinpoints#p4_d#generate() abort
     \ }
 endfunction
 
-function! vimfluency#pinpoints#p4_d#lesson() abort
+function! vimfluency#pinpoints#p4_1#lesson() abort
   " Teaches the d-operator + word-motion composition rule, focusing on
   " the dw/db discrimination. The opening show frame names the meta-rule
   " (no specific motion to demo); the dw/db demos are try frames so the

@@ -100,30 +100,30 @@ function! s:test_1B_1() abort
   endfor
 endfunction
 
-" 4.d: editing kind; expected_motion ∈ {dw, db}; deletion_range matches
+" 4.1: editing kind; expected_motion ∈ {dw, db}; deletion_range matches
 " the actual delta between start_lines and target_lines.
-function! s:test_4_d() abort
-  let GenFn = function('vimfluency#pinpoints#p4_d#generate')
+function! s:test_4_1() abort
+  let GenFn = function('vimfluency#pinpoints#p4_1#generate')
   let valid = ['dw', 'db']
   let seen = {}
   for i in range(s:N)
     let item = GenFn()
-    call s:assert_common('4.d', item)
+    call s:assert_common('4.1', item)
     call AssertIn(item.expected_motion, valid,
-      \ '4.d: expected_motion in {dw, db}')
-    call AssertEq(item.optimal_motions, 1, '4.d: optimal_motions == 1')
+      \ '4.1: expected_motion in {dw, db}')
+    call AssertEq(item.optimal_motions, 1, '4.1: optimal_motions == 1')
     let seen[item.expected_motion] = 1
 
     " editing-kind invariants
-    call Assert(has_key(item, 'target_lines'), '4.d: has target_lines')
-    call Assert(has_key(item, 'deletion_range'), '4.d: has deletion_range')
-    call Assert(!empty(item.deletion_range), '4.d: deletion_range non-empty')
+    call Assert(has_key(item, 'target_lines'), '4.1: has target_lines')
+    call Assert(has_key(item, 'deletion_range'), '4.1: has deletion_range')
+    call Assert(!empty(item.deletion_range), '4.1: deletion_range non-empty')
 
     " Some chars must have been removed (target line is shorter than start).
     " Word count is no longer asserted: db from mid-word leaves a
     " prefix-fragment of the current word, so word count can stay equal.
     call Assert(len(item.target_lines[0]) < len(item.lines[0]),
-      \ '4.d: target_lines is shorter than lines')
+      \ '4.1: target_lines is shorter than lines')
 
     " deletion_range length should match the actual length removed
     let removed_chars = len(item.lines[0]) - len(item.target_lines[0])
@@ -132,26 +132,26 @@ function! s:test_4_d() abort
       let total_len += pos[2]
     endfor
     call AssertEq(total_len, removed_chars,
-      \ '4.d: deletion_range length matches chars actually removed')
+      \ '4.1: deletion_range length matches chars actually removed')
 
     " for dw: target_cursor col == start_cursor col (cursor stays put)
     " for db: target_cursor col < start_cursor col (cursor jumps back)
     if item.expected_motion ==# 'dw'
       call AssertEq(item.target[1], item.start[1],
-        \ '4.d/dw: target col == start col')
+        \ '4.1/dw: target col == start col')
     else
       call Assert(item.target[1] < item.start[1],
-        \ '4.d/db: target col < start col')
+        \ '4.1/db: target col < start col')
     endif
   endfor
 
   " Both motions should appear in 50 generates with high probability
-  call Assert(get(seen, 'dw', 0) == 1, '4.d: dw appeared in samples')
-  call Assert(get(seen, 'db', 0) == 1, '4.d: db appeared in samples')
+  call Assert(get(seen, 'dw', 0) == 1, '4.1: dw appeared in samples')
+  call Assert(get(seen, 'db', 0) == 1, '4.1: db appeared in samples')
 
-  let meta = vimfluency#pinpoints#p4_d#meta()
+  let meta = vimfluency#pinpoints#p4_1#meta()
   call AssertEq(get(meta, 'kind', 'motion'), 'editing',
-    \ '4.d: meta.kind == editing')
+    \ '4.1: meta.kind == editing')
 endfunction
 
 " 1C.1: expected_motion ∈ {f, F}; optimal_motions == 1; target unique in
@@ -431,4 +431,4 @@ call s:test_1C_1()
 call s:test_1C_2()
 call s:test_1C_3()
 call s:test_1C_4()
-call s:test_4_d()
+call s:test_4_1()
