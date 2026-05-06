@@ -21,6 +21,22 @@ function! vimfluency#_test_render_chart(id, sessions) abort
   return s:render_chart(a:id, a:sessions)
 endfunction
 
+function! vimfluency#_test_render_list(registry, sessions_by_id) abort
+  return s:render_list(a:registry, a:sessions_by_id)
+endfunction
+
+function! vimfluency#_test_parse_id(id) abort
+  return s:parse_id(a:id)
+endfunction
+
+function! vimfluency#_test_status_from_sessions(meta, sessions) abort
+  return s:status_from_sessions(a:meta, a:sessions)
+endfunction
+
+function! vimfluency#_test_unmet_prereqs(meta, registry, status_map) abort
+  return s:unmet_prereqs(a:meta, a:registry, a:status_map)
+endfunction
+
 function! s:round3(x) abort
   return str2float(printf('%.3f', a:x))
 endfunction
@@ -106,16 +122,219 @@ function! vimfluency#complete(arglead, cmdline, cursorpos) abort
   return filter(sort(keys(registry)), 'v:val =~# "^" . a:arglead')
 endfunction
 
+" Tier and sub-group human names — reads as catalog labels, not as a
+" data store. The CATALOG is the source of truth; if a tier ever
+" changes its name, update both. Group names only exist for tier 1
+" (1A–1F have meaningful sub-categories); other tiers don't subgroup.
+let s:TIER_NAMES = {
+  \ 0: 'Survival',
+  \ 1: 'Motions',
+  \ 2: 'Operators',
+  \ 3: 'Text Objects',
+  \ 4: 'Adduction (op × motion / op × text-object)',
+  \ 5: 'Counts and repetition',
+  \ 6: 'Insert-mode editing',
+  \ 7: 'Visual mode',
+  \ 8: 'Yank, paste, registers',
+  \ 9: 'Marks and jumps',
+  \ 10: 'Search & substitute',
+  \ 11: 'Ex commands & buffers',
+  \ 12: 'Macros',
+  \ 13: 'Composite skills (validation set, untaught)',
+  \ }
+
+let s:GROUP_NAMES = {
+  \ '1A': 'Char & line',
+  \ '1B': 'Word',
+  \ '1C': 'Char-find on line',
+  \ '1D': 'Buffer/screen jumps',
+  \ '1E': 'Block / paragraph / sentence',
+  \ '1F': 'Search',
+  \ }
+
+" Parse '1A.1' → {tier:1, group:'1A', seq:'1'}.
+" T0 and C (composites tier 13) are special-cased.
+function! s:parse_id(id) abort
+  if a:id =~# '^T0\.'
+    return {'tier': 0, 'group': 'T0',
+      \ 'seq': matchstr(a:id, 'T0\.\zs.*')}
+  elseif a:id =~# '^C\.'
+    return {'tier': 13, 'group': 'C',
+      \ 'seq': matchstr(a:id, 'C\.\zs.*')}
+  endif
+  let m = matchlist(a:id, '^\(\d\+\)\([A-Z]\)\?\.\(.\+\)$')
+  if empty(m) | return {'tier': -1, 'group': '?', 'seq': a:id} | endif
+  return {'tier': str2nr(m[1]), 'group': m[1] . m[2], 'seq': m[3]}
+endfunction
+
+" Read sessions.jsonl once, return {pinpoint_id → list of records}.
+function! s:load_sessions_grouped() abort
+  let log_path = vimfluency#log_dir() . '/sessions.jsonl'
+  let by_id = {}
+  if !filereadable(log_path) | return by_id | endif
+  for line in readfile(log_path)
+    if empty(line) | continue | endif
+    try
+      let r = json_decode(line)
+      let id = get(r, 'pinpoint_id', '')
+      if empty(id) | continue | endif
+      if !has_key(by_id, id) | let by_id[id] = [] | endif
+      call add(by_id[id], r)
+    catch
+    endtry
+  endfor
+  return by_id
+endfunction
+
+" Status from session history. PT convention: 'at_aim' requires three
+" consecutive recent non-zero-rate sessions at-or-above aim. Anything
+" run-but-not-yet-stable is 'climbing'. No sessions (or only zero-rate
+" quits) is 'not_started'.
+function! s:status_from_sessions(meta, sessions) abort
+  if empty(a:sessions) | return 'not_started' | endif
+  let usable = filter(copy(a:sessions),
+    \ 'get(v:val, "frequency_per_min", 0) > 0')
+  if empty(usable) | return 'not_started' | endif
+  call sort(usable, {a, b -> a.timestamp ==# b.timestamp ? 0
+    \ : (a.timestamp <# b.timestamp ? -1 : 1)})
+  if len(usable) < 3 | return 'climbing' | endif
+  for s in usable[-3:]
+    if s.frequency_per_min < a:meta.aim | return 'climbing' | endif
+  endfor
+  return 'at_aim'
+endfunction
+
+" Most recent non-zero rate, or 0.0 if none.
+function! s:last_rate_from_sessions(sessions) abort
+  if empty(a:sessions) | return 0.0 | endif
+  let usable = filter(copy(a:sessions),
+    \ 'get(v:val, "frequency_per_min", 0) > 0')
+  if empty(usable) | return 0.0 | endif
+  call sort(usable, {a, b -> a.timestamp ==# b.timestamp ? 0
+    \ : (a.timestamp <# b.timestamp ? 1 : -1)})
+  return usable[0].frequency_per_min
+endfunction
+
+function! s:status_label(status) abort
+  if a:status ==# 'at_aim'       | return '✓ at aim'
+  elseif a:status ==# 'climbing' | return '▶ climbing'
+  else                           | return '○ not started'
+  endif
+endfunction
+
+" Resolve prereqs against the registry. A prereq is either a specific
+" pinpoint ID ('1C.1') or a group/tier prefix ('1A', '2', 'T0'). Group
+" prefixes match every built pinpoint whose ID starts with that prefix
+" plus '.'. Empty matches (nothing built in that group yet) count as
+" satisfied — you can't be blocked by what doesn't exist.
+function! s:unmet_prereqs(meta, registry, status_map) abort
+  let unmet = []
+  for prereq in get(a:meta, 'prereqs', [])
+    if has_key(a:registry, prereq)
+      if a:status_map[prereq] !=# 'at_aim'
+        call add(unmet, prereq)
+      endif
+      continue
+    endif
+    let matching = filter(keys(a:registry),
+      \ 'v:val ==# prereq || v:val =~# "^" . prereq . "\\."')
+    if empty(matching) | continue | endif
+    for m in matching
+      if a:status_map[m] !=# 'at_aim'
+        call add(unmet, prereq)
+        break
+      endif
+    endfor
+  endfor
+  return unmet
+endfunction
+
+" Build the list-view lines. Pure function over registry + sessions
+" so tests can drive it without touching the user's real log.
+function! s:render_list(registry, sessions_by_id) abort
+  let status_map = {}
+  let last_rate = {}
+  for [id, m] in items(a:registry)
+    let s = get(a:sessions_by_id, id, [])
+    let status_map[id] = s:status_from_sessions(m, s)
+    let last_rate[id] = s:last_rate_from_sessions(s)
+  endfor
+
+  " Group by tier → group → ids.
+  let groups = {}
+  for id in keys(a:registry)
+    let p = s:parse_id(id)
+    if !has_key(groups, p.tier) | let groups[p.tier] = {} | endif
+    if !has_key(groups[p.tier], p.group) | let groups[p.tier][p.group] = [] | endif
+    call add(groups[p.tier][p.group], id)
+  endfor
+
+  let lines = []
+  call add(lines, printf('vim-fluency: %d pinpoint(s) built — see CATALOG.md for the planned ~80',
+    \ len(a:registry)))
+  call add(lines, '')
+  for tier in sort(keys(groups), 'N')
+    let tier_int = str2nr(tier)
+    let tier_label = tier_int == 0 ? 'T0' : tier
+    call add(lines, printf('Tier %s — %s', tier_label, get(s:TIER_NAMES, tier_int, '?')))
+    for group in sort(keys(groups[tier]))
+      " Sub-group header only when group differs from the tier label
+      " (i.e. tier 1's 1A/1B/1C/...). Other tiers fall straight to items.
+      if group !=# tier && group !=# tier_label
+        let gname = get(s:GROUP_NAMES, group, '')
+        call add(lines, empty(gname)
+          \ ? printf('  %s', group)
+          \ : printf('  %s — %s', group, gname))
+      endif
+      for id in sort(groups[tier][group])
+        let m = a:registry[id]
+        let status = status_map[id]
+        let rate = last_rate[id]
+        let unmet = s:unmet_prereqs(m, a:registry, status_map)
+        let rate_str = rate > 0
+          \ ? printf('%d/min', float2nr(rate + 0.5)) : '—'
+        let need_str = empty(unmet) ? ''
+          \ : '  (needs ' . join(unmet, ', ') . ' at aim)'
+        call add(lines, printf('    %-6s  %-38s  %7s  aim %-3d  %s%s',
+          \ id, m.name, rate_str, m.aim,
+          \ s:status_label(status), need_str))
+      endfor
+    endfor
+    call add(lines, '')
+  endfor
+
+  let climbing = []
+  let at_aim = []
+  let not_started = []
+  for id in sort(keys(a:registry))
+    if status_map[id] ==# 'at_aim'
+      call add(at_aim, id)
+    elseif status_map[id] ==# 'climbing'
+      call add(climbing, id)
+    else
+      call add(not_started, id)
+    endif
+  endfor
+  if !empty(climbing)
+    call add(lines, "Today's set (climbing):  " . join(climbing, ', '))
+  endif
+  if !empty(not_started)
+    call add(lines, "Not started yet:  " . join(not_started, ', '))
+  endif
+  if !empty(at_aim)
+    call add(lines, "At aim — consider retiring or revising aim:  " . join(at_aim, ', '))
+  endif
+  return lines
+endfunction
+
 function! vimfluency#list() abort
   let registry = vimfluency#discover_pinpoints()
   if empty(registry)
-    echo 'no pinpoints found on runtimepath'
+    echo 'no pinpoints built — see CATALOG.md'
     return
   endif
-  echo printf('%-8s %-32s %s', 'id', 'name', 'aim/min')
-  for id in sort(keys(registry))
-    let p = registry[id]
-    echo printf('%-8s %-32s %d', p.id, p.name, p.aim)
+  for line in s:render_list(registry, s:load_sessions_grouped())
+    echo line
   endfor
 endfunction
 
