@@ -14,6 +14,13 @@ function! vimfluency#_test_skip() abort
   call s:skip()
 endfunction
 
+" Test-only render accessor. Returns the chart lines as a list — same
+" content :VfChart shows in its tab buffer, but addressable from
+" headless mode (where tabnew + getline misbehaves under -Es).
+function! vimfluency#_test_render_chart(id, sessions) abort
+  return s:render_chart(a:id, a:sessions)
+endfunction
+
 function! s:round3(x) abort
   return str2float(printf('%.3f', a:x))
 endfunction
@@ -1117,7 +1124,9 @@ let s:CHART_DECADES = 3
 let s:CHART_LOG_TOP = 3.0    " log10(1000)
 let s:CHART_LOG_BOT = 0.0    " log10(1)
 let s:CHART_LABEL_W = 6
-let s:CHART_COLS_PER_SESSION = 2
+" One column per calendar day (PT convention). Days with no probe show
+" as a gap, multi-probe days stack at the same column.
+let s:CHART_COLS_PER_DAY = 2
 
 function! s:chart_y(rate) abort
   if a:rate <= 0
@@ -1132,6 +1141,20 @@ function! s:chart_y(rate) abort
   endif
   let span = s:CHART_LOG_TOP - s:CHART_LOG_BOT
   return float2nr(round((s:CHART_LOG_TOP - lr) / span * s:CHART_HEIGHT))
+endfunction
+
+" Julian day number for a YYYY-MM-DD prefix. Used as an integer day index
+" so we can compute "days since first session" without depending on
+" strptime() (which isn't on every platform).
+function! s:julian_from_iso(ts) abort
+  let y = str2nr(a:ts[0:3])
+  let m = str2nr(a:ts[5:6])
+  let d = str2nr(a:ts[8:9])
+  let a = (14 - m) / 12
+  let y2 = y + 4800 - a
+  let m2 = m + 12 * a - 3
+  return d + (153 * m2 + 2) / 5 + 365 * y2
+    \ + y2 / 4 - y2 / 100 + y2 / 400 - 32045
 endfunction
 
 function! vimfluency#chart(...) abort
@@ -1174,7 +1197,10 @@ function! s:render_chart(id, sessions) abort
   let n = len(a:sessions)
   let pinpoint_name = a:sessions[0].pinpoint_name
   let aim = a:sessions[0].aim
-  let chart_w = n * s:CHART_COLS_PER_SESSION
+  let base_jul = s:julian_from_iso(a:sessions[0].timestamp)
+  let last_jul = s:julian_from_iso(a:sessions[-1].timestamp)
+  let n_days = last_jul - base_jul + 1
+  let chart_w = n_days * s:CHART_COLS_PER_DAY
   let total_w = s:CHART_LABEL_W + 1 + chart_w + 1
 
   " Initialize grid: each row is a list of single-char strings
@@ -1213,13 +1239,20 @@ function! s:render_chart(id, sessions) abort
     endfor
   endif
 
-  " Plot each session
+  " Plot each session at its calendar-day column. Multi-session days
+  " overlap at the same column (showing the spread when rates differ).
+  " Sessions with frequency_per_min == 0 (user quit before any item, or
+  " timed out at zero) are skipped — they pile on the axis floor and
+  " distort the visual read. The raw record is still in sessions.jsonl
+  " for any downstream analysis.
   for i in range(n)
     let session = a:sessions[i]
-    let col = s:CHART_LABEL_W + 1 + i * s:CHART_COLS_PER_SESSION
+    let crate = get(session, 'frequency_per_min', 0)
+    if crate <= 0 | continue | endif
+    let day_idx = s:julian_from_iso(session.timestamp) - base_jul
+    let col = s:CHART_LABEL_W + 1 + day_idx * s:CHART_COLS_PER_DAY
     if col >= total_w | break | endif
 
-    let crate = get(session, 'frequency_per_min', 0)
     let crow = s:chart_y(crate)
     if crow >= 0 && crow <= s:CHART_HEIGHT
       let grid[crow][col] = '●'
@@ -1244,15 +1277,6 @@ function! s:render_chart(id, sessions) abort
     call add(out, join(row_chars, ''))
   endfor
 
-  " Compute first→last celeration for the corrects line
-  if n >= 2
-    let first = a:sessions[0].frequency_per_min
-    let last = a:sessions[-1].frequency_per_min
-    if first > 0
-      call add(out, printf(' first→last on corrects: ×%.2f over %d sessions',
-        \ last / first, n))
-    endif
-  endif
   call add(out, printf(' first session: %s', a:sessions[0].timestamp))
   call add(out, printf(' last  session: %s', a:sessions[-1].timestamp))
   call add(out, '')
