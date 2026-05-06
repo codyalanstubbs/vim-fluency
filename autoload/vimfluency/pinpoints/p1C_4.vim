@@ -15,7 +15,7 @@
 
 function! vimfluency#pinpoints#p1C_4#meta() abort
   return {'id': '1C.4', 'name': 'discriminate f/t (F/T)',
-    \ 'aim': 35, 'allowed_keys': 'fFtT'}
+    \ 'aim': 35, 'allowed_keys': 'fFtT', 'prereqs': ['1C.1', '1C.2']}
 endfunction
 
 function! vimfluency#pinpoints#p1C_4#lesson() abort

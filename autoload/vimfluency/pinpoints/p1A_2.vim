@@ -4,7 +4,8 @@ let s:words = ['def', 'class', 'return', 'import', 'from', 'while', 'if',
   \ 'else', 'for', 'in', 'True', 'False', 'None', 'self', 'data', 'value']
 
 function! vimfluency#pinpoints#p1A_2#meta() abort
-  return {'id': '1A.2', 'name': 'line start/end (0 ^ $ g_)', 'aim': 50, 'allowed_keys': '0^$g_'}
+  return {'id': '1A.2', 'name': 'line start/end (0 ^ $ g_)', 'aim': 50,
+    \ 'allowed_keys': '0^$g_', 'prereqs': ['T0']}
 endfunction
 
 function! s:rand(n) abort

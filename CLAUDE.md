@@ -32,12 +32,20 @@ tests/                                  vim-headless test runner
 
 Each `autoload/vimfluency/pinpoints/p<ID>.vim` must export:
 
-- `vimfluency#pinpoints#p<ID>#meta()` → `{id, name, aim, allowed_keys}`
+- `vimfluency#pinpoints#p<ID>#meta()` → `{id, name, aim, allowed_keys, prereqs}`
 - `vimfluency#pinpoints#p<ID>#generate()` → `{lines, start, target, expected_motion, optimal_motions}`
 - `vimfluency#pinpoints#p<ID>#lesson()` → list of show/try frames (optional)
 
 The leading `p` is required — vim autoload segments can't start with a digit.
 `{id}` is a free-form string (e.g. `"1A.2"`).
+
+`prereqs` is a list of pinpoint IDs or group/tier prefixes that must be at
+aim before drilling this one. Mirror `CATALOG.md` exactly — `['T0']` means
+"tier 0 must be at aim", `['1A']` means "all of group 1A must be at aim",
+`['1C.1', '1C.2']` names specific siblings. Tier and group are derived
+from the ID at runtime, not stored in `meta()`. The `:VfList` navigator
+will use these to grey out blocked pinpoints and surface what's eligible
+to drill today.
 
 ## Cheat-analysis discipline
 

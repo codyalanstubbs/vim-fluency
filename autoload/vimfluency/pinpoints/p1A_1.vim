@@ -13,7 +13,8 @@ let s:chars = ['a','b','c','d','e','f','g','h','i','j','k','m','n','p',
   \ '2','3','4','5','6','7','8','9']
 
 function! vimfluency#pinpoints#p1A_1#meta() abort
-  return {'id': '1A.1', 'name': 'hjkl', 'aim': 60, 'allowed_keys': 'hjkl'}
+  return {'id': '1A.1', 'name': 'hjkl', 'aim': 60,
+    \ 'allowed_keys': 'hjkl', 'prereqs': ['T0']}
 endfunction
 
 function! vimfluency#pinpoints#p1A_1#lesson() abort

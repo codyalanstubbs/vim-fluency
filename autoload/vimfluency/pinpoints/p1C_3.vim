@@ -54,7 +54,7 @@ let s:WORDS = ['return', 'import', 'while', 'range', 'class', 'value',
 
 function! vimfluency#pinpoints#p1C_3#meta() abort
   return {'id': '1C.3', 'name': 'repeat last find (; ,)',
-    \ 'aim': 40, 'allowed_keys': ';,fFtT'}
+    \ 'aim': 40, 'allowed_keys': ';,fFtT', 'prereqs': ['1C.1', '1C.2']}
 endfunction
 
 function! vimfluency#pinpoints#p1C_3#lesson() abort

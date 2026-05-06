@@ -13,7 +13,8 @@
 let s:chars = ['a', 'e', 'i', 'o', 'r', 's']
 
 function! vimfluency#pinpoints#p1B_1#meta() abort
-  return {'id': '1B.1', 'name': 'w b e ge', 'aim': 45, 'allowed_keys': 'wbeg'}
+  return {'id': '1B.1', 'name': 'w b e ge', 'aim': 45,
+    \ 'allowed_keys': 'wbeg', 'prereqs': ['1A']}
 endfunction
 
 function! vimfluency#pinpoints#p1B_1#lesson() abort
