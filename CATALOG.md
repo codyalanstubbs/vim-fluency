@@ -86,10 +86,10 @@ Composite emergence test: "open a file, change one word, save, quit" cold, ≤ 5
 | ID | Pinpoint | Probe | Aim | Prereqs |
 |---|---|---|---|---|
 | 2.1 | Discriminate `x` vs `dd` (single-char delete vs linewise) | Disc | 40 | T0 |
-| 2.2 | Change line (`cc`/`S`) | S→K | 45 | T0 |
-| 2.3 | Yank line (`yy`/`Y`) | S→K | 45 | T0 |
-| 2.4 | Indent/dedent line (`>>`, `<<`) | S→K | 40 | T0 |
-| 2.5 | Filter line (`==`, `!!`) | S→K | 30 | T0 |
+| 2.2 | Discriminate `>>` vs `<<` (indent vs dedent direction) | Disc | 35 | T0 |
+| 2.3 | Change line (`cc`/`S`) — under review, aliases not a minimal pair | S→K | 45 | T0 |
+| 2.4 | Yank line (`yy`/`Y`) — under review, aliases not a minimal pair | S→K | 45 | T0 |
+| 2.5 | Filter line (`==`, `!!`) — under review, different concepts not a minimal pair | S→K | 30 | T0 |
 | 2.6 | Recall the operator family (`d`, `c`, `y`, `>`, `<`, `=`, `gu`, `gU`, `~`, `!`) | Recall | 30 | — |
 
 Discrimination probe **2.D**: given a goal, pick `d` vs `c` (composite emergence — does the learner know `c` enters insert mode, `d` doesn't?). Aim 35.

@@ -444,6 +444,10 @@ function! s:setup_window() abort
   setlocal buftype=nofile bufhidden=wipe noswapfile nobuflisted
   setlocal nonumber norelativenumber nowrap signcolumn=no
   setlocal list listchars=trail:·,nbsp:·
+  " Predictable indent semantics for operators like >> and <<.
+  " Override whatever the user has globally so probe behavior is
+  " consistent across vimrcs.
+  setlocal shiftwidth=4 softtabstop=4 expandtab
   silent! execute 'keepalt file vf-' . s:session.id
   let &l:statusline = '%{vimfluency#statusline()}'
   set laststatus=2
@@ -954,6 +958,7 @@ function! s:learn_setup_window() abort
   setlocal buftype=nofile bufhidden=wipe noswapfile nobuflisted
   setlocal nonumber norelativenumber nowrap signcolumn=no
   setlocal list listchars=trail:·,nbsp:·
+  setlocal shiftwidth=4 softtabstop=4 expandtab
   silent! execute 'keepalt file vf-lesson-' . s:session.id
   let s:session.you_win = win_getid()
 endfunction

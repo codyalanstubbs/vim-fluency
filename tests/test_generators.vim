@@ -192,6 +192,55 @@ function! s:test_2_1() abort
   call Assert(get(seen, 'dd', 0) == 1, '2.1: dd appeared in samples')
 endfunction
 
+" 2.2: indent/dedent discrimination. Two-line buffer where line 1 is
+" the active line and line 2 is the reference; they differ by exactly
+" one shiftwidth (4 spaces). Both motions appear over many samples.
+function! s:test_2_2() abort
+  let GenFn = function('vimfluency#pinpoints#p2_2#generate')
+  let SW = 4
+  let valid = ['>>', '<<']
+  let seen = {}
+  for i in range(s:N)
+    let item = GenFn()
+    call s:assert_common('2.2', item)
+    call AssertIn(item.expected_motion, valid,
+      \ '2.2: expected_motion in {>>, <<}')
+    call AssertEq(item.optimal_motions, 1, '2.2: optimal_motions == 1')
+
+    call AssertEq(len(item.lines), 2, '2.2: 2-line buffer')
+    call AssertEq(len(item.target_lines), 2, '2.2: target also 2-line')
+
+    " Line 2 (reference) is unchanged in target.
+    call AssertEq(item.target_lines[1], item.lines[1],
+      \ '2.2: line 2 reference is not modified')
+
+    " Cursor starts on line 1 at first non-blank, lands on line 1 at
+    " first non-blank of the new indent.
+    call AssertEq(item.start[0], 1, '2.2: cursor starts on line 1')
+    call AssertEq(item.target[0], 1, '2.2: cursor lands on line 1')
+
+    " Indent difference between line 1 and line 2 is one shiftwidth.
+    let l1_indent = match(item.lines[0], '\S')
+    let l2_indent = match(item.lines[1], '\S')
+    let diff = l2_indent - l1_indent
+    if item.expected_motion ==# '>>'
+      call AssertEq(diff, SW,
+        \ '2.2/>>: line 2 has +1 shiftwidth more indent than line 1')
+    else
+      call AssertEq(diff, -SW,
+        \ '2.2/<<: line 2 has -1 shiftwidth less indent than line 1')
+    endif
+
+    " After the operation, line 1's indent equals line 2's.
+    let new_l1_indent = match(item.target_lines[0], '\S')
+    call AssertEq(new_l1_indent, l2_indent,
+      \ '2.2: line 1 target indent matches line 2')
+    let seen[item.expected_motion] = 1
+  endfor
+  call Assert(get(seen, '>>', 0) == 1, '2.2: >> appeared in samples')
+  call Assert(get(seen, '<<', 0) == 1, '2.2: << appeared in samples')
+endfunction
+
 " 4.1: editing kind; expected_motion ∈ {dw, db}; deletion_range matches
 " the actual delta between start_lines and target_lines.
 function! s:test_4_1() abort
@@ -525,4 +574,5 @@ call s:test_1C_2()
 call s:test_1C_3()
 call s:test_1C_4()
 call s:test_2_1()
+call s:test_2_2()
 call s:test_4_1()
