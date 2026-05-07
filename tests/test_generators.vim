@@ -135,6 +135,53 @@ function! s:test_1B_2() abort
   call Assert(get(seen, 'ge', 0) == 1, '1B.2: ge appeared in samples')
 endfunction
 
+" 2.1: editing kind; expected_motion always 'dd'; target buffer has
+" exactly one fewer line than start, and the removed line equals the
+" line under the cursor.
+function! s:test_2_1() abort
+  let GenFn = function('vimfluency#pinpoints#p2_1#generate')
+  for i in range(s:N)
+    let item = GenFn()
+    call s:assert_common('2.1', item)
+    call AssertEq(item.expected_motion, 'dd', '2.1: expected_motion == dd')
+    call AssertEq(item.optimal_motions, 1, '2.1: optimal_motions == 1')
+
+    call Assert(has_key(item, 'target_lines'), '2.1: has target_lines')
+    call AssertEq(len(item.target_lines), len(item.lines) - 1,
+      \ '2.1: target has exactly one fewer line')
+
+    " The removed line is the one under the cursor (1-indexed).
+    let K = item.start[0]
+    let expected_target = copy(item.lines)
+    call remove(expected_target, K - 1)
+    call AssertEq(item.target_lines, expected_target,
+      \ '2.1: target_lines == lines with cursor''s line removed')
+
+    " Cursor lands at col 1 after dd.
+    call AssertEq(item.target[1], 1, '2.1: target col == 1 after dd')
+
+    " Cursor row: stays at K if K < n_lines, jumps to K-1 if K was last.
+    let n = len(item.lines)
+    if K < n
+      call AssertEq(item.target[0], K,
+        \ '2.1: cursor stays on (new) line K when K is not last')
+    else
+      call AssertEq(item.target[0], K - 1,
+        \ '2.1: cursor jumps to K-1 when deleted line was last')
+    endif
+
+    " deletion_range covers the full cursor line.
+    call Assert(has_key(item, 'deletion_range'), '2.1: has deletion_range')
+    call AssertEq(len(item.deletion_range), 1,
+      \ '2.1: deletion_range is a single span')
+    let dr = item.deletion_range[0]
+    call AssertEq(dr[0], K, '2.1: deletion_range row == cursor row')
+    call AssertEq(dr[1], 1, '2.1: deletion_range starts at col 1')
+    call AssertEq(dr[2], len(item.lines[K - 1]),
+      \ '2.1: deletion_range length == line length')
+  endfor
+endfunction
+
 " 4.1: editing kind; expected_motion ∈ {dw, db}; deletion_range matches
 " the actual delta between start_lines and target_lines.
 function! s:test_4_1() abort
@@ -467,4 +514,5 @@ call s:test_1C_1()
 call s:test_1C_2()
 call s:test_1C_3()
 call s:test_1C_4()
+call s:test_2_1()
 call s:test_4_1()

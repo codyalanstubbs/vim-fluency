@@ -12,7 +12,8 @@ let s:expected = [
   \ {'id': '1C.2', 'prereqs': ['1C.1']},
   \ {'id': '1C.3', 'prereqs': ['1C.1', '1C.2']},
   \ {'id': '1C.4', 'prereqs': ['1C.1', '1C.2']},
-  \ {'id': '4.1',  'prereqs': ['2', '1B.1']},
+  \ {'id': '2.1',  'prereqs': ['T0']},
+  \ {'id': '4.1',  'prereqs': ['2.1', '1B.1']},
   \ ]
 
 let s:registry = vimfluency#discover_pinpoints()
