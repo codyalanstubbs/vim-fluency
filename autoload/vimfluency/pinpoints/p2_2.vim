@@ -54,16 +54,23 @@ function! vimfluency#pinpoints#p2_2#generate() abort
   let SW = 4
   let text = s:make_line()
   let pick_indent = s:rand(2) == 0  " true → >>, false → <<
+  " Step count: 1 or 2 shiftwidths. Mixing both means the user
+  " occasionally sees the line move twice — visible feedback that
+  " the operator is doing what the keystrokes describe — and has
+  " to read the gap rather than reflexively pressing once.
+  let steps = 1 + s:rand(2)
 
-  " Pick a base indent in {0, 4} so neither line ends up with crazy
-  " whitespace, and pair it so line 1 and line 2 differ by exactly
-  " one shiftwidth in the chosen direction.
-  let base = SW * s:rand(2)
+  " Pick a base indent so the endpoints stay in {0, 4, 8, 12} and
+  " line 1, line 2 differ by exactly steps × shiftwidth in the
+  " chosen direction.
+  let max_base = 12 - steps * SW   " keeps the larger end ≤ 12
+  let base_choices = (max_base / SW) + 1
+  let base = SW * s:rand(base_choices)
   if pick_indent
     let l1_indent = base
-    let l2_indent = base + SW
+    let l2_indent = base + steps * SW
   else
-    let l1_indent = base + SW
+    let l1_indent = base + steps * SW
     let l2_indent = base
   endif
 
@@ -71,8 +78,9 @@ function! vimfluency#pinpoints#p2_2#generate() abort
   let l2 = repeat(' ', l2_indent) . text
   let new_l1 = repeat(' ', l2_indent) . text
 
-  " Cursor on line 1 at first non-blank. After >> or <<, vim places
-  " the cursor at first non-blank of the modified line.
+  " Cursor on line 1 at first non-blank. After each >> or <<, vim
+  " places the cursor at first non-blank of the modified line, so
+  " after `steps` presses the cursor lands at l2_indent + 1.
   let start_col = l1_indent + 1
   let target_col = l2_indent + 1
 
@@ -82,20 +90,21 @@ function! vimfluency#pinpoints#p2_2#generate() abort
     \ 'start': [1, start_col],
     \ 'target': [1, target_col],
     \ 'expected_motion': pick_indent ? '>>' : '<<',
-    \ 'optimal_motions': 1,
+    \ 'optimal_motions': steps,
     \ 'prompt': 'Match the indent of line 2 (the reference). Cursor is on line 1.',
     \ }
 endfunction
 
 function! vimfluency#pinpoints#p2_2#lesson() abort
-  " Try frames in both directions, then a rule-statement show frame.
-  " The lesson teaches the 2-line "match the reference" convention
-  " that the probe will reuse — line 1 is the active line, line 2
-  " is the indent target.
+  " Try frames in both directions plus a 2-shiftwidth case so the
+  " learner sees a multi-press item before facing one cold in the
+  " test phase. Closes with a rule-statement show frame.
   let buf_indent = ['    alpha beta', '        alpha beta']
   let buf_dedent = ['        alpha beta', '    alpha beta']
+  let buf_indent_2x = ['alpha beta', '        alpha beta']
   let after_indent = ['        alpha beta', '        alpha beta']
   let after_dedent = ['    alpha beta', '    alpha beta']
+  let after_indent_2x = ['        alpha beta', '        alpha beta']
   return [
     \ {'kind': 'try', 'lines': buf_indent,
     \  'start': [1, 5], 'target': [1, 9],
@@ -105,7 +114,11 @@ function! vimfluency#pinpoints#p2_2#lesson() abort
     \  'start': [1, 9], 'target': [1, 5],
     \  'target_lines': after_dedent,
     \  'prompt': 'Press << — dedents the cursor''s line by one shiftwidth. Match line 2.'},
+    \ {'kind': 'try', 'lines': buf_indent_2x,
+    \  'start': [1, 1], 'target': [1, 9],
+    \  'target_lines': after_indent_2x,
+    \  'prompt': 'When the gap is two shiftwidths, press >> twice. Watch line 1 jump each time.'},
     \ {'kind': 'show', 'lines': buf_indent, 'cursor': [1, 5],
-    \  'prompt': '>> indents the cursor''s line; << dedents it. Compare to the reference (line 2) and pick the direction that closes the gap.'},
+    \  'prompt': '>> indents the cursor''s line; << dedents it. Read the gap to line 2 — it may be one or two shiftwidths — and press the operator that many times.'},
     \ ]
 endfunction

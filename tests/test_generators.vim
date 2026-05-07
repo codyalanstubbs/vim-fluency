@@ -32,9 +32,15 @@ function! s:assert_common(id, item) abort
 
   let trow = item.target[0]
   let tcol = item.target[1]
-  call Assert(trow >= 1 && trow <= len(item.lines),
-    \ prefix . 'target row in bounds (' . trow . '/' . len(item.lines) . ')')
-  let tline = item.lines[trow - 1]
+  " For editing-kind pinpoints the cursor lands inside target_lines
+  " (the post-edit buffer), not item.lines. For motion-only items
+  " the two are the same. Always check against target_lines so
+  " operations that lengthen the line (like 2.2's >>) don't fail
+  " the bound check against a shorter pre-edit line.
+  let after_lines = get(item, 'target_lines', item.lines)
+  call Assert(trow >= 1 && trow <= len(after_lines),
+    \ prefix . 'target row in bounds (' . trow . '/' . len(after_lines) . ')')
+  let tline = after_lines[trow - 1]
   call Assert(tcol >= 1 && tcol <= max([1, len(tline)]),
     \ prefix . 'target col in bounds (' . tcol . '/' . len(tline) . ')')
 endfunction
@@ -213,20 +219,23 @@ function! s:test_2_1() abort
     \ '2.1: items where the user navigates up (k) appeared')
 endfunction
 
-" 2.2: indent/dedent discrimination. Two-line buffer where line 1 is
-" the active line and line 2 is the reference; they differ by exactly
-" one shiftwidth (4 spaces). Both motions appear over many samples.
+" 2.2: indent/dedent discrimination. 2-line buffer; line 1 is the
+" active line, line 2 is the reference. They differ by 1 or 2
+" shiftwidths in the picked direction. Both motions and both step
+" counts appear over many samples.
 function! s:test_2_2() abort
   let GenFn = function('vimfluency#pinpoints#p2_2#generate')
   let SW = 4
   let valid = ['>>', '<<']
   let seen = {}
+  let step_counts = {}
   for i in range(s:N)
     let item = GenFn()
     call s:assert_common('2.2', item)
     call AssertIn(item.expected_motion, valid,
       \ '2.2: expected_motion in {>>, <<}')
-    call AssertEq(item.optimal_motions, 1, '2.2: optimal_motions == 1')
+    call AssertIn(item.optimal_motions, [1, 2],
+      \ '2.2: optimal_motions in {1, 2}')
 
     call AssertEq(len(item.lines), 2, '2.2: 2-line buffer')
     call AssertEq(len(item.target_lines), 2, '2.2: target also 2-line')
@@ -240,26 +249,33 @@ function! s:test_2_2() abort
     call AssertEq(item.start[0], 1, '2.2: cursor starts on line 1')
     call AssertEq(item.target[0], 1, '2.2: cursor lands on line 1')
 
-    " Indent difference between line 1 and line 2 is one shiftwidth.
+    " Indent difference between line 1 and line 2 is steps × SW.
     let l1_indent = match(item.lines[0], '\S')
     let l2_indent = match(item.lines[1], '\S')
     let diff = l2_indent - l1_indent
-    if item.expected_motion ==# '>>'
-      call AssertEq(diff, SW,
-        \ '2.2/>>: line 2 has +1 shiftwidth more indent than line 1')
-    else
-      call AssertEq(diff, -SW,
-        \ '2.2/<<: line 2 has -1 shiftwidth less indent than line 1')
-    endif
+    let signed = item.expected_motion ==# '>>'
+      \ ? item.optimal_motions * SW
+      \ : -1 * item.optimal_motions * SW
+    call AssertEq(diff, signed,
+      \ '2.2: line 2 indent matches signed steps × shiftwidth')
 
     " After the operation, line 1's indent equals line 2's.
     let new_l1_indent = match(item.target_lines[0], '\S')
     call AssertEq(new_l1_indent, l2_indent,
       \ '2.2: line 1 target indent matches line 2')
+
+    " Indents stay non-negative and within the bounded range.
+    call Assert(l1_indent >= 0, '2.2: line 1 indent non-negative')
+    call Assert(l2_indent >= 0, '2.2: line 2 indent non-negative')
+    call Assert(l1_indent <= 12 && l2_indent <= 12,
+      \ '2.2: indents capped at 12 spaces')
     let seen[item.expected_motion] = 1
+    let step_counts[item.optimal_motions] = 1
   endfor
   call Assert(get(seen, '>>', 0) == 1, '2.2: >> appeared in samples')
   call Assert(get(seen, '<<', 0) == 1, '2.2: << appeared in samples')
+  call Assert(get(step_counts, 1, 0) == 1, '2.2: 1-step items appeared')
+  call Assert(get(step_counts, 2, 0) == 1, '2.2: 2-step items appeared')
 endfunction
 
 " 4.1: editing kind; expected_motion ∈ {dw, db}; deletion_range matches
