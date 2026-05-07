@@ -1045,8 +1045,18 @@ function! s:learn_show_frame() abort
   if frame.kind ==# 'show'
     let buf_row = s:session.header_offset + frame.cursor[0]
     call cursor(buf_row, frame.cursor[1])
-    let s:session.target_match_id = matchaddpos('VfLearnShow',
-      \ [[buf_row, frame.cursor[1], 1]])
+    " Optional 'highlight' field marks a non-cursor cell the prompt
+    " is calling attention to (e.g. "look at column N"). If omitted,
+    " the cursor block alone is the position indicator — we
+    " deliberately don't auto-highlight the cursor's own cell,
+    " because a same-cell highlight is hidden under the cursor and
+    " conveys no extra information (same failure shape as 4.d's
+    " green-target-under-cursor problem, at the lesson layer).
+    if has_key(frame, 'highlight')
+      let h_row = s:session.header_offset + frame.highlight[0]
+      let s:session.target_match_id = matchaddpos('VfLearnShow',
+        \ [[h_row, frame.highlight[1], 1]])
+    endif
   else
     let buf_start_row = s:session.header_offset + frame.start[0]
     let buf_target_row = s:session.header_offset + frame.target[0]

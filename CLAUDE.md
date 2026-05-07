@@ -102,6 +102,16 @@ accumulates per-motion rate, average actual motions, and total wasted motions
   "no leading whitespace → 0 and ^ are the same column" — the rule is
   about positions being equal, not about a motion).
 
+- **Show frame schema: `cursor` is required, `highlight` is optional.**
+  The cursor block is the default position indicator. If the prompt
+  is calling attention to a buffer cell *different* from where the
+  cursor sits ("look at column 8 — that's where dd lands the cursor
+  on the next line"), add a `highlight: [row, col]` field and the
+  runner draws a `VfLearnShow` cell there. Don't put `highlight` at
+  the same cell as `cursor` — same-cell highlights are hidden under
+  the cursor block and convey no extra information (the runner now
+  ignores cursor-coincident highlights by design).
+
 - **Faultless-communication structure (Engelmann/Carnine).** A lesson
   has two phases: **setup** (the static frames returned from
   `lesson()`, where each motion is introduced and named in the
