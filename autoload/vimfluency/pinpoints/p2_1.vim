@@ -10,40 +10,53 @@
 " cognitive task — the learner just smashes the same key. Pairing
 " dd with x gives a real read-and-pick that fits the
 " minimal-pair-pinpoint principle while staying inside tier 2's
-" "operator without a motion" frame. CATALOG.md updated.
+" "operator without a motion" frame.
 "
-" Buffer shape note: items use a 2-line buffer, not 1-line. dd in a
-" 1-line buffer leaves vim's minimum '' (works in standalone probes
-" where the content is the only buffer line); but in the lesson
-" buffer the content sits below header rows, and dd of the only
-" content line removes it entirely — the content area goes empty
-" and the runner's getline(header_offset+1,'$') returns []. A
-" 2-line buffer survives dd in either context: vim removes the
-" target line, the other survives, the cursor lands on the
-" surviving line, and target_lines stays a non-empty list.
+" Probe design: 2-line buffer where the cursor sits on one line
+" (always col 1) and the highlight is on the OTHER line — either a
+" single char (col 1) or the whole line. The learner reads the
+" highlight, moves one line up or down (j or k), and then presses
+" the matching operator.
+"
+" The j/k step is intentional friction:
+"   - The cursor and highlight sit on different lines, so the
+"     cursor block can't obscure the highlight (the failure mode
+"     we hit in the v1 design and in 4.d's degenerate green cell).
+"   - The 1-line movement is irrelevant to the operator
+"     discrimination but facilitates clear visual juxtaposition
+"     between the two cases (whole-line red vs single-char red).
+"   - It mirrors how a real edit happens: navigate first, then
+"     operate.
+"
+" Per-motion accounting: expected_motion is the operator (x or dd)
+" alone. The j/k navigation is folded into the operator's
+" per-motion rate as overhead — a small inflation of the timing
+" stat in exchange for a much clearer probe. Acceptable tradeoff.
 "
 " Cheat-defense:
-"   - Single-line content per item, but two such lines in the
-"     buffer. Cursor on the target line.
-"   - For x: cursor sits on the char to delete; one event.
-"   - For dd: cursor anywhere on the target line; one event.
-"   - The probe's highlight is the cue: whole line → dd; single
-"     char → x. Cursor on the target line either way; the learner
-"     can't shortcut by reading cursor position alone.
-"   - dl is event-equivalent to x. The runner credits success on
-"     buffer match regardless; per-motion stats get attributed to
-"     x in the typical case.
+"   - For x items the highlight is always at col 1 of the target
+"     line, so j/k (which preserves column) lands the cursor on the
+"     highlighted char in one event. No extra navigation needed; x
+"     is then 1 event. Total: 2.
+"   - For dd items the cursor's column doesn't matter on the
+"     target line — j/k + dd is 2 events. dd applies linewise.
+"   - Alternative paths (V on target line then d, : commands, etc.)
+"     all take more events; the runner's motion-event count makes
+"     them less efficient.
+"   - dl is event-equivalent to x on a single char. Buffer-state
+"     match credits success regardless; per-motion stats get
+"     attributed to x in the typical case.
 
 let s:words = ['alpha', 'beta', 'gamma', 'delta', 'epsilon',
   \ 'zeta', 'eta', 'theta', 'iota', 'kappa']
 
 function! vimfluency#pinpoints#p2_1#meta() abort
   " Discrimination probes carry a cognitive cost beyond fluency
-  " probes (read the highlight, pick the operator), so the aim is
-  " set lower than 1A.1's hjkl drill. Starting guess; revise on
-  " data. Same band as the 1C.4 disc probe (35).
+  " probes (read the highlight, navigate, pick the operator), so
+  " the aim is set lower than 1A.1's hjkl drill. Starting guess;
+  " revise on data. Same band as 1C.4 and 2.2 disc probes.
   return {'id': '2.1', 'name': 'discriminate x vs dd',
-    \ 'aim': 40, 'allowed_keys': 'xd', 'kind': 'editing',
+    \ 'aim': 35, 'allowed_keys': 'xdjk', 'kind': 'editing',
     \ 'prereqs': ['T0']}
 endfunction
 
@@ -71,47 +84,45 @@ endfunction
 
 function! vimfluency#pinpoints#p2_1#generate() abort
   let lines = s:make_distinct_lines()
-  let K = 1 + s:rand(2)  " target line index (1 or 2)
-  let target_line = lines[K - 1]
-  let target_len = len(target_line)
+  let cursor_line = 1 + s:rand(2)        " 1 or 2 — where cursor starts
+  let target_line = cursor_line == 1 ? 2 : 1
+  let target_text = lines[target_line - 1]
+  let target_len = len(target_text)
   let pick_dd = s:rand(2) == 0
 
   if pick_dd
-    " dd item: cursor anywhere on line K; highlight covers all of
-    " line K. After dd, line K is removed, the other line survives
-    " and becomes the buffer's only content row, cursor lands at
-    " col 1 of that surviving line.
-    let cursor_col = 1 + s:rand(target_len)
-    let surviving = lines[K == 1 ? 1 : 0]
+    " dd item: highlight covers the whole target line. After j/k +
+    " dd, the target line is removed and only the cursor's original
+    " line survives as the only buffer row, cursor at line 1 col 1.
+    let surviving = lines[cursor_line - 1]
     return {
       \ 'lines': lines,
       \ 'target_lines': [surviving],
-      \ 'start': [K, cursor_col],
+      \ 'start': [cursor_line, 1],
       \ 'target': [1, 1],
-      \ 'deletion_range': [[K, 1, target_len]],
+      \ 'deletion_range': [[target_line, 1, target_len]],
       \ 'expected_motion': 'dd',
-      \ 'optimal_motions': 1,
+      \ 'optimal_motions': 2,
       \ 'prompt': 'Delete the highlighted region.',
       \ }
   else
-    " x item: cursor on the char to delete in line K. Other line
-    " is unchanged. After x, vim leaves the cursor at the same
-    " column unless the deleted char was last on the line — then
-    " the cursor falls back to col-1.
-    let target_col = 1 + s:rand(target_len)
-    let new_line = strpart(target_line, 0, target_col - 1)
-      \ . strpart(target_line, target_col)
-    let cursor_after = target_col == target_len
-      \ ? target_col - 1 : target_col
-    let new_lines = K == 1 ? [new_line, lines[1]] : [lines[0], new_line]
+    " x item: highlight is a single char at col 1 of the target
+    " line. j/k preserves column, so cursor lands directly on the
+    " highlighted char. After x, the target line is one char
+    " shorter, the other line is unchanged, cursor stays at col 1
+    " of the target line.
+    let new_target_text = strpart(target_text, 1)
+    let new_lines = cursor_line == 1
+      \ ? [lines[0], new_target_text]
+      \ : [new_target_text, lines[1]]
     return {
       \ 'lines': lines,
       \ 'target_lines': new_lines,
-      \ 'start': [K, target_col],
-      \ 'target': [K, cursor_after],
-      \ 'deletion_range': [[K, target_col, 1]],
+      \ 'start': [cursor_line, 1],
+      \ 'target': [target_line, 1],
+      \ 'deletion_range': [[target_line, 1, 1]],
       \ 'expected_motion': 'x',
-      \ 'optimal_motions': 1,
+      \ 'optimal_motions': 2,
       \ 'prompt': 'Delete the highlighted region.',
       \ }
   endif
@@ -119,23 +130,20 @@ endfunction
 
 function! vimfluency#pinpoints#p2_1#lesson() abort
   " Each operator gets its own try frame so the learner performs
-  " the deletion and watches the buffer change. Two-line content
-  " for the same reason the generator uses two lines: dd needs a
-  " survivor line in the lesson buffer so the runner's
-  " target_lines check can match a non-empty list.
+  " the navigation + deletion sequence and watches the buffer
+  " change. The closing show frame names the discrimination rule
+  " — both the navigation step (j/k) and the operator pick (x/dd).
   let buf = ['alpha beta gamma', 'delta epsilon zeta']
-  let after_x = ['lpha beta gamma', 'delta epsilon zeta']
-  let after_dd = ['delta epsilon zeta']
   return [
+    \ {'kind': 'try', 'lines': buf, 'start': [1, 1], 'target': [2, 1],
+    \  'target_lines': ['alpha beta gamma', 'elta epsilon zeta'],
+    \  'deletion_range': [[2, 1, 1]],
+    \  'prompt': 'Move down (j) to line 2, then press x to delete the highlighted character.'},
     \ {'kind': 'try', 'lines': buf, 'start': [1, 1], 'target': [1, 1],
-    \  'target_lines': after_x,
-    \  'deletion_range': [[1, 1, 1]],
-    \  'prompt': 'Press x — deletes the single character under the cursor.'},
-    \ {'kind': 'try', 'lines': buf, 'start': [1, 5], 'target': [1, 1],
-    \  'target_lines': after_dd,
-    \  'deletion_range': [[1, 1, len(buf[0])]],
-    \  'prompt': 'Press dd — deletes the entire line, regardless of where the cursor sits on it.'},
+    \  'target_lines': ['alpha beta gamma'],
+    \  'deletion_range': [[2, 1, len(buf[1])]],
+    \  'prompt': 'Move down (j) to line 2, then press dd to delete the entire line.'},
     \ {'kind': 'show', 'lines': buf, 'cursor': [1, 1],
-    \  'prompt': 'x removes one character; dd removes the whole line. The probe''s highlight tells you which to use — single char or whole line.'},
+    \  'prompt': 'x removes one character; dd removes the whole line. Move to the highlighted line (j or k), then read the highlight — single char vs whole line — to pick the operator.'},
     \ ]
 endfunction
