@@ -37,6 +37,10 @@ function! vimfluency#_test_unmet_prereqs(meta, registry, status_map) abort
   return s:unmet_prereqs(a:meta, a:registry, a:status_map)
 endfunction
 
+function! vimfluency#_test_per_motion_from_sessions(sessions) abort
+  return s:per_motion_from_sessions(a:sessions)
+endfunction
+
 function! s:round3(x) abort
   return str2float(printf('%.3f', a:x))
 endfunction
@@ -222,6 +226,24 @@ function! s:status_label(status) abort
   endif
 endfunction
 
+" Most recent non-zero session's per_motion dict, or {} if none. The
+" runner stores per_motion as {motion → {rate_per_min, correct, ...}}.
+" Returns a flat {motion → rate_per_min (float)} for display.
+function! s:per_motion_from_sessions(sessions) abort
+  if empty(a:sessions) | return {} | endif
+  let usable = filter(copy(a:sessions),
+    \ 'get(v:val, "frequency_per_min", 0) > 0')
+  if empty(usable) | return {} | endif
+  call sort(usable, {a, b -> a.timestamp ==# b.timestamp ? 0
+    \ : (a.timestamp <# b.timestamp ? 1 : -1)})
+  let pm = get(usable[0], 'per_motion', {})
+  let out = {}
+  for [motion, stats] in items(pm)
+    let out[motion] = get(stats, 'rate_per_min', 0)
+  endfor
+  return out
+endfunction
+
 " Resolve prereqs against the registry. A prereq is either a specific
 " pinpoint ID ('1C.1') or a group/tier prefix ('1A', '2', 'T0'). Group
 " prefixes match every built pinpoint whose ID starts with that prefix
@@ -298,6 +320,17 @@ function! s:render_list(registry, sessions_by_id) abort
         call add(lines, printf('    %-6s  %-38s  %7s  aim %-3d  %s%s',
           \ id, m.name, rate_str, m.aim,
           \ s:status_label(status), need_str))
+        " Per-motion breakdown from the most recent session, when there
+        " are 2+ motions to compare. Reveals heterogeneity hiding inside
+        " a multi-motion pinpoint (e.g. ge dragging the e/ge bundle).
+        let pm = s:per_motion_from_sessions(get(a:sessions_by_id, id, []))
+        if len(pm) >= 2
+          let parts = []
+          for motion in sort(keys(pm))
+            call add(parts, printf('%s %d/min', motion, float2nr(pm[motion] + 0.5)))
+          endfor
+          call add(lines, '              ' . join(parts, '   '))
+        endif
       endfor
     endfor
     call add(lines, '')

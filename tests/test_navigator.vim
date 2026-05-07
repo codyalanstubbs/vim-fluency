@@ -107,15 +107,58 @@ let s:u_d = vimfluency#_test_unmet_prereqs(s:registry['1A.1'], s:registry, s:sta
 call AssertEq(s:u_d, [],
   \ 'unmet_prereqs: T0 prereq satisfied vacuously when nothing in T0 is built')
 
+" -- s:per_motion_from_sessions --
+
+let s:pm_empty = vimfluency#_test_per_motion_from_sessions([])
+call AssertEq(s:pm_empty, {}, 'per_motion: empty sessions → {}')
+
+let s:sess_with_pm = [{
+  \ 'timestamp': '2026-01-01T12:00:00',
+  \ 'frequency_per_min': 30.0,
+  \ 'per_motion': {'w': {'rate_per_min': 40.0}, 'b': {'rate_per_min': 20.0}}
+  \ }]
+let s:pm = vimfluency#_test_per_motion_from_sessions(s:sess_with_pm)
+call AssertEq(s:pm, {'w': 40.0, 'b': 20.0},
+  \ 'per_motion: flattens to {motion → rate_per_min}')
+
+" Picks the most recent non-zero session, not just the last in the list.
+let s:sess_multi = [
+  \ {'timestamp': '2026-01-03T12:00:00', 'frequency_per_min': 50.0,
+  \  'per_motion': {'w': {'rate_per_min': 50.0}}},
+  \ {'timestamp': '2026-01-02T12:00:00', 'frequency_per_min': 30.0,
+  \  'per_motion': {'w': {'rate_per_min': 30.0}}},
+  \ {'timestamp': '2026-01-04T12:00:00', 'frequency_per_min': 0.0,
+  \  'per_motion': {}},
+  \ ]
+let s:pm_recent = vimfluency#_test_per_motion_from_sessions(s:sess_multi)
+call AssertEq(s:pm_recent, {'w': 50.0},
+  \ 'per_motion: most recent non-zero session wins, zero-rate skipped')
+
 " -- render_list smoke test --
 
+" 1A.1 has per_motion data so the breakdown line should render below
+" its main row. 1A.2 has only frequency_per_min, no per_motion, so it
+" should not get a breakdown line.
+function! s:sess_pm(date, rate, pm) abort
+  return {'timestamp': a:date . 'T12:00:00',
+    \ 'frequency_per_min': a:rate, 'per_motion': a:pm}
+endfunction
+
 let s:sessions_by_id = {
-  \ '1A.1': [s:sess('2026-01-01', 70.0), s:sess('2026-01-02', 70.0), s:sess('2026-01-03', 70.0)],
+  \ '1A.1': [
+  \   s:sess_pm('2026-01-01', 70.0, {'h': {'rate_per_min': 80.0}, 'l': {'rate_per_min': 60.0}}),
+  \   s:sess_pm('2026-01-02', 70.0, {'h': {'rate_per_min': 80.0}, 'l': {'rate_per_min': 60.0}}),
+  \   s:sess_pm('2026-01-03', 70.0, {'h': {'rate_per_min': 80.0}, 'l': {'rate_per_min': 60.0}}),
+  \   ],
   \ '1A.2': [s:sess('2026-01-03', 30.0)],
   \ }
 let s:rendered = join(vimfluency#_test_render_list(s:registry, s:sessions_by_id), "\n")
 call Assert(s:rendered =~# 'Tier 1 — Motions',
   \ 'render_list: tier header rendered')
+call Assert(s:rendered =~# 'h 80/min',
+  \ 'render_list: per-motion breakdown line shows individual motion rates')
+call Assert(s:rendered =~# 'l 60/min',
+  \ 'render_list: per-motion breakdown lists all motions in the dict')
 call Assert(s:rendered =~# '1A — Char & line',
   \ 'render_list: sub-group header rendered for tier 1')
 call Assert(s:rendered =~# '✓ at aim',
