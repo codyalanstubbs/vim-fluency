@@ -12,19 +12,27 @@
 " minimal-pair-pinpoint principle while staying inside tier 2's
 " "operator without a motion" frame. CATALOG.md updated.
 "
+" Buffer shape note: items use a 2-line buffer, not 1-line. dd in a
+" 1-line buffer leaves vim's minimum '' (works in standalone probes
+" where the content is the only buffer line); but in the lesson
+" buffer the content sits below header rows, and dd of the only
+" content line removes it entirely — the content area goes empty
+" and the runner's getline(header_offset+1,'$') returns []. A
+" 2-line buffer survives dd in either context: vim removes the
+" target line, the other survives, the cursor lands on the
+" surviving line, and target_lines stays a non-empty list.
+"
 " Cheat-defense:
-"   - Single line of plain words. Cursor placed on the deletion
-"     target (on the char for x, anywhere on the line for dd) so
-"     each motion is a single event; no navigation noise inflates
-"     the per-motion timing.
+"   - Single-line content per item, but two such lines in the
+"     buffer. Cursor on the target line.
+"   - For x: cursor sits on the char to delete; one event.
+"   - For dd: cursor anywhere on the target line; one event.
 "   - The probe's highlight is the cue: whole line → dd; single
-"     char → x. The cursor sits on the target either way, so the
-"     learner can't shortcut by reading cursor position alone — they
-"     have to look at the deletion range.
+"     char → x. Cursor on the target line either way; the learner
+"     can't shortcut by reading cursor position alone.
 "   - dl is event-equivalent to x. The runner credits success on
-"     buffer match regardless, but learners almost always use x in
-"     practice; per-motion stats get attributed to x correctly in
-"     the typical case.
+"     buffer match regardless; per-motion stats get attributed to
+"     x in the typical case.
 
 let s:words = ['alpha', 'beta', 'gamma', 'delta', 'epsilon',
   \ 'zeta', 'eta', 'theta', 'iota', 'kappa']
@@ -52,42 +60,56 @@ function! s:make_line() abort
   return join(words, ' ')
 endfunction
 
+function! s:make_distinct_lines() abort
+  let a = s:make_line()
+  let b = s:make_line()
+  while b ==# a
+    let b = s:make_line()
+  endwhile
+  return [a, b]
+endfunction
+
 function! vimfluency#pinpoints#p2_1#generate() abort
-  let line = s:make_line()
-  let line_len = len(line)
+  let lines = s:make_distinct_lines()
+  let K = 1 + s:rand(2)  " target line index (1 or 2)
+  let target_line = lines[K - 1]
+  let target_len = len(target_line)
   let pick_dd = s:rand(2) == 0
 
   if pick_dd
-    " dd item: cursor anywhere on the line, highlight is the entire
-    " line. After dd on a 1-line buffer the line goes empty and the
-    " cursor lands at col 1.
-    let cursor_col = 1 + s:rand(line_len)
+    " dd item: cursor anywhere on line K; highlight covers all of
+    " line K. After dd, line K is removed, the other line survives
+    " and becomes the buffer's only content row, cursor lands at
+    " col 1 of that surviving line.
+    let cursor_col = 1 + s:rand(target_len)
+    let surviving = lines[K == 1 ? 1 : 0]
     return {
-      \ 'lines': [line],
-      \ 'target_lines': [''],
-      \ 'start': [1, cursor_col],
+      \ 'lines': lines,
+      \ 'target_lines': [surviving],
+      \ 'start': [K, cursor_col],
       \ 'target': [1, 1],
-      \ 'deletion_range': [[1, 1, line_len]],
+      \ 'deletion_range': [[K, 1, target_len]],
       \ 'expected_motion': 'dd',
       \ 'optimal_motions': 1,
       \ 'prompt': 'Delete the highlighted region.',
       \ }
   else
-    " x item: cursor sits on the char to delete; highlight covers
-    " just that one char. After x, vim leaves the cursor at the
-    " same column unless the deleted char was the line's last —
-    " then the cursor falls back to col-1.
-    let target_col = 1 + s:rand(line_len)
-    let target_line = strpart(line, 0, target_col - 1)
-      \ . strpart(line, target_col)
-    let cursor_after = target_col == line_len
+    " x item: cursor on the char to delete in line K. Other line
+    " is unchanged. After x, vim leaves the cursor at the same
+    " column unless the deleted char was last on the line — then
+    " the cursor falls back to col-1.
+    let target_col = 1 + s:rand(target_len)
+    let new_line = strpart(target_line, 0, target_col - 1)
+      \ . strpart(target_line, target_col)
+    let cursor_after = target_col == target_len
       \ ? target_col - 1 : target_col
+    let new_lines = K == 1 ? [new_line, lines[1]] : [lines[0], new_line]
     return {
-      \ 'lines': [line],
-      \ 'target_lines': [target_line],
-      \ 'start': [1, target_col],
-      \ 'target': [1, cursor_after],
-      \ 'deletion_range': [[1, target_col, 1]],
+      \ 'lines': lines,
+      \ 'target_lines': new_lines,
+      \ 'start': [K, target_col],
+      \ 'target': [K, cursor_after],
+      \ 'deletion_range': [[K, target_col, 1]],
       \ 'expected_motion': 'x',
       \ 'optimal_motions': 1,
       \ 'prompt': 'Delete the highlighted region.',
@@ -97,20 +119,21 @@ endfunction
 
 function! vimfluency#pinpoints#p2_1#lesson() abort
   " Each operator gets its own try frame so the learner performs
-  " the deletion and watches the buffer change. The closing show
-  " frame names the discrimination rule. The auto-test phase that
-  " follows the lesson generates novel items mixing both — that's
-  " where the read-and-pick gets exercised cold.
-  let buf = ['alpha beta gamma']
-  let line_len = len(buf[0])
+  " the deletion and watches the buffer change. Two-line content
+  " for the same reason the generator uses two lines: dd needs a
+  " survivor line in the lesson buffer so the runner's
+  " target_lines check can match a non-empty list.
+  let buf = ['alpha beta gamma', 'delta epsilon zeta']
+  let after_x = ['lpha beta gamma', 'delta epsilon zeta']
+  let after_dd = ['delta epsilon zeta']
   return [
     \ {'kind': 'try', 'lines': buf, 'start': [1, 1], 'target': [1, 1],
-    \  'target_lines': ['lpha beta gamma'],
+    \  'target_lines': after_x,
     \  'deletion_range': [[1, 1, 1]],
     \  'prompt': 'Press x — deletes the single character under the cursor.'},
     \ {'kind': 'try', 'lines': buf, 'start': [1, 5], 'target': [1, 1],
-    \  'target_lines': [''],
-    \  'deletion_range': [[1, 1, line_len]],
+    \  'target_lines': after_dd,
+    \  'deletion_range': [[1, 1, len(buf[0])]],
     \  'prompt': 'Press dd — deletes the entire line, regardless of where the cursor sits on it.'},
     \ {'kind': 'show', 'lines': buf, 'cursor': [1, 1],
     \  'prompt': 'x removes one character; dd removes the whole line. The probe''s highlight tells you which to use — single char or whole line.'},

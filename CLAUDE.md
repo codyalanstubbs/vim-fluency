@@ -59,6 +59,21 @@ for worked examples.
 Visual aesthetics are negotiable; pinpoint integrity is not. The 1B.1
 vowel-heavy alphabet looks like soup — that's intentional.
 
+## Buffer-shape gotcha for line-removing operators
+
+`dd` and other line-removing operators (`dG`, multi-line visual delete, etc.)
+behave differently in the standalone probe buffer (no header rows) vs. the
+lesson buffer (header rows above the content). In the probe buffer, vim's
+"buffer can't be empty" rule preserves a deleted-only-line as `''` — so
+`target_lines: ['']` works. In the lesson buffer, the same operation
+removes the line entirely because the header rows above it satisfy vim's
+minimum-1-line rule, leaving zero content rows. The runner's
+`getline(header_offset+1, '$')` returns `[]`, no match against `['']`, the
+frame never advances. See `p2_1.vim` for a worked-around example: items
+use a 2-line buffer so any `dd` leaves a survivor line that satisfies the
+target check in either context. Future pinpoints that delete entire lines
+should follow the same pattern.
+
 ## Per-motion tracking
 
 Every generator labels items with `expected_motion` (the canonical answer)

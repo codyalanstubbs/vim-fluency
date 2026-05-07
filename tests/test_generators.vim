@@ -136,8 +136,9 @@ function! s:test_1B_2() abort
 endfunction
 
 " 2.1: editing-kind discrimination probe. expected_motion ∈ {x, dd}.
-" 1-line buffer; cursor placed on the deletion target so each item is
-" a single-event press. Both motions appear over many samples.
+" 2-line buffer (so dd has a survivor line in the lesson buffer
+" where the content sits below header rows). Both motions appear
+" over many samples.
 function! s:test_2_1() abort
   let GenFn = function('vimfluency#pinpoints#p2_1#generate')
   let valid = ['x', 'dd']
@@ -149,42 +150,51 @@ function! s:test_2_1() abort
       \ '2.1: expected_motion in {x, dd}')
     call AssertEq(item.optimal_motions, 1, '2.1: optimal_motions == 1')
 
-    call AssertEq(len(item.lines), 1, '2.1: single-line buffer')
+    call AssertEq(len(item.lines), 2, '2.1: two-line buffer')
     call Assert(has_key(item, 'target_lines'), '2.1: has target_lines')
-    call AssertEq(len(item.target_lines), 1,
-      \ '2.1: target also single-line (dd empties, x shortens)')
     call Assert(has_key(item, 'deletion_range'), '2.1: has deletion_range')
 
     let dr = item.deletion_range[0]
-    let line_len = len(item.lines[0])
+    let K = item.start[0]
+    let target_line = item.lines[K - 1]
+    let target_len = len(target_line)
 
     if item.expected_motion ==# 'dd'
-      " dd: cursor anywhere on the line, target is empty line, full
-      " line is highlighted, cursor lands at col 1.
-      call AssertEq(item.target_lines[0], '',
-        \ '2.1/dd: target line is empty')
+      " dd: cursor on the target line K (any column); after dd, line
+      " K is gone, the other line survives as the only content row,
+      " cursor at line 1 col 1.
+      call AssertEq(len(item.target_lines), 1,
+        \ '2.1/dd: target buffer has the surviving line only')
+      let surviving = item.lines[K == 1 ? 1 : 0]
+      call AssertEq(item.target_lines[0], surviving,
+        \ '2.1/dd: surviving line is the one not under the cursor')
       call AssertEq(item.target, [1, 1],
         \ '2.1/dd: cursor lands at line 1 col 1')
-      call AssertEq(dr, [1, 1, line_len],
-        \ '2.1/dd: deletion_range covers the full line')
+      call AssertEq(dr, [K, 1, target_len],
+        \ '2.1/dd: deletion_range covers the cursor''s line')
     else
-      " x: cursor on the highlighted char, deletes one char, target
-      " is the line minus that char. Cursor stays at the same column
-      " unless the deleted char was last (then it falls back by 1).
+      " x: cursor on the highlighted char on line K, deletes one
+      " char, the other line is untouched. Cursor stays at the same
+      " column unless the deleted char was last (falls back by 1).
       let target_col = item.start[1]
-      call AssertEq(item.start[1], target_col,
-        \ '2.1/x: cursor on the deletion target')
-      call AssertEq(len(item.target_lines[0]), line_len - 1,
+      call AssertEq(len(item.target_lines), 2,
+        \ '2.1/x: target preserves both lines')
+      call AssertEq(len(item.target_lines[K - 1]), target_len - 1,
         \ '2.1/x: target line is one char shorter')
-      call AssertEq(dr, [1, target_col, 1],
+      let other_idx = K == 1 ? 1 : 0
+      call AssertEq(item.target_lines[other_idx], item.lines[other_idx],
+        \ '2.1/x: other line is unchanged')
+      call AssertEq(dr, [K, target_col, 1],
         \ '2.1/x: deletion_range is one char at cursor')
-      if target_col == line_len
+      if target_col == target_len
         call AssertEq(item.target[1], target_col - 1,
           \ '2.1/x: cursor falls back when deleted char was last')
       else
         call AssertEq(item.target[1], target_col,
           \ '2.1/x: cursor stays at column for interior chars')
       endif
+      call AssertEq(item.target[0], K,
+        \ '2.1/x: cursor stays on the same line')
     endif
     let seen[item.expected_motion] = 1
   endfor
