@@ -135,51 +135,61 @@ function! s:test_1B_2() abort
   call Assert(get(seen, 'ge', 0) == 1, '1B.2: ge appeared in samples')
 endfunction
 
-" 2.1: editing kind; expected_motion always 'dd'; target buffer has
-" exactly one fewer line than start, and the removed line equals the
-" line under the cursor.
+" 2.1: editing-kind discrimination probe. expected_motion ∈ {x, dd}.
+" 1-line buffer; cursor placed on the deletion target so each item is
+" a single-event press. Both motions appear over many samples.
 function! s:test_2_1() abort
   let GenFn = function('vimfluency#pinpoints#p2_1#generate')
+  let valid = ['x', 'dd']
+  let seen = {}
   for i in range(s:N)
     let item = GenFn()
     call s:assert_common('2.1', item)
-    call AssertEq(item.expected_motion, 'dd', '2.1: expected_motion == dd')
+    call AssertIn(item.expected_motion, valid,
+      \ '2.1: expected_motion in {x, dd}')
     call AssertEq(item.optimal_motions, 1, '2.1: optimal_motions == 1')
 
+    call AssertEq(len(item.lines), 1, '2.1: single-line buffer')
     call Assert(has_key(item, 'target_lines'), '2.1: has target_lines')
-    call AssertEq(len(item.target_lines), len(item.lines) - 1,
-      \ '2.1: target has exactly one fewer line')
-
-    " The removed line is the one under the cursor (1-indexed).
-    let K = item.start[0]
-    let expected_target = copy(item.lines)
-    call remove(expected_target, K - 1)
-    call AssertEq(item.target_lines, expected_target,
-      \ '2.1: target_lines == lines with cursor''s line removed')
-
-    " Cursor lands at col 1 after dd.
-    call AssertEq(item.target[1], 1, '2.1: target col == 1 after dd')
-
-    " Cursor row: stays at K if K < n_lines, jumps to K-1 if K was last.
-    let n = len(item.lines)
-    if K < n
-      call AssertEq(item.target[0], K,
-        \ '2.1: cursor stays on (new) line K when K is not last')
-    else
-      call AssertEq(item.target[0], K - 1,
-        \ '2.1: cursor jumps to K-1 when deleted line was last')
-    endif
-
-    " deletion_range covers the full cursor line.
+    call AssertEq(len(item.target_lines), 1,
+      \ '2.1: target also single-line (dd empties, x shortens)')
     call Assert(has_key(item, 'deletion_range'), '2.1: has deletion_range')
-    call AssertEq(len(item.deletion_range), 1,
-      \ '2.1: deletion_range is a single span')
+
     let dr = item.deletion_range[0]
-    call AssertEq(dr[0], K, '2.1: deletion_range row == cursor row')
-    call AssertEq(dr[1], 1, '2.1: deletion_range starts at col 1')
-    call AssertEq(dr[2], len(item.lines[K - 1]),
-      \ '2.1: deletion_range length == line length')
+    let line_len = len(item.lines[0])
+
+    if item.expected_motion ==# 'dd'
+      " dd: cursor anywhere on the line, target is empty line, full
+      " line is highlighted, cursor lands at col 1.
+      call AssertEq(item.target_lines[0], '',
+        \ '2.1/dd: target line is empty')
+      call AssertEq(item.target, [1, 1],
+        \ '2.1/dd: cursor lands at line 1 col 1')
+      call AssertEq(dr, [1, 1, line_len],
+        \ '2.1/dd: deletion_range covers the full line')
+    else
+      " x: cursor on the highlighted char, deletes one char, target
+      " is the line minus that char. Cursor stays at the same column
+      " unless the deleted char was last (then it falls back by 1).
+      let target_col = item.start[1]
+      call AssertEq(item.start[1], target_col,
+        \ '2.1/x: cursor on the deletion target')
+      call AssertEq(len(item.target_lines[0]), line_len - 1,
+        \ '2.1/x: target line is one char shorter')
+      call AssertEq(dr, [1, target_col, 1],
+        \ '2.1/x: deletion_range is one char at cursor')
+      if target_col == line_len
+        call AssertEq(item.target[1], target_col - 1,
+          \ '2.1/x: cursor falls back when deleted char was last')
+      else
+        call AssertEq(item.target[1], target_col,
+          \ '2.1/x: cursor stays at column for interior chars')
+      endif
+    endif
+    let seen[item.expected_motion] = 1
   endfor
+  call Assert(get(seen, 'x', 0) == 1, '2.1: x appeared in samples')
+  call Assert(get(seen, 'dd', 0) == 1, '2.1: dd appeared in samples')
 endfunction
 
 " 4.1: editing kind; expected_motion ∈ {dw, db}; deletion_range matches

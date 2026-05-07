@@ -85,7 +85,7 @@ Composite emergence test: "open a file, change one word, save, quit" cold, ≤ 5
 
 | ID | Pinpoint | Probe | Aim | Prereqs |
 |---|---|---|---|---|
-| 2.1 | Delete line (`dd`) | S→K | 50 | T0 |
+| 2.1 | Discriminate `x` vs `dd` (single-char delete vs linewise) | Disc | 40 | T0 |
 | 2.2 | Change line (`cc`/`S`) | S→K | 45 | T0 |
 | 2.3 | Yank line (`yy`/`Y`) | S→K | 45 | T0 |
 | 2.4 | Indent/dedent line (`>>`, `<<`) | S→K | 40 | T0 |
