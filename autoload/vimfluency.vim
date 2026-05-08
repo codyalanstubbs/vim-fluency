@@ -488,6 +488,11 @@ function! s:next_item() abort
   let s:session.current_item = item
   let s:session.item_started_at = reltime()
   let s:session.current_item_motions = 0
+  " Initial state for the dedupe guard in s:on_change. The deferred
+  " CursorMoved that fires after our cursor() call below sees this
+  " same state and is skipped as a duplicate. Subsequent presses
+  " produce distinct states and increment the count.
+  let s:session.last_event_state = [item.start, copy(item.lines)]
 
   " Editing-kind probes get a 2-line header (prompt + divider) above the
   " live editing area. Match checks subtract the header offset.
@@ -566,16 +571,22 @@ function! s:on_change() abort
   let start_lines = item.lines
   let target_lines = get(item, 'target_lines', item.lines)
 
-  " Skip vim's deferred autocmd fire after our in-handler cursor() in
-  " s:next_item: cursor is still at start AND buffer is still in start
-  " state. Editing motions like `dw` keep the cursor at the same col
-  " but change the buffer — the buffer-state check distinguishes those
-  " from the spurious deferred fire.
-  if cur_pos == item.start
-    \ && cur_lines ==# start_lines
-    \ && s:session.current_item_motions == 0
+  " Dedupe by (cursor, buffer) state. Two cases collapse:
+  "   1. The deferred CursorMoved that vim fires after our cursor()
+  "      call in s:next_item — sees the same state we initialized
+  "      last_event_state to, gets skipped.
+  "   2. Operations that fire BOTH TextChanged and CursorMoved for
+  "      the same press (e.g. >>, <<, dd — the buffer changes AND
+  "      the cursor's column changes). Both events report the same
+  "      final state, so only the first one increments the count.
+  " Pure motions (j/w/...) and pure-text-no-cursor-move (x/dw at
+  " start of line) fire only one event per press, so dedupe is a
+  " no-op for them.
+  let new_state = [cur_pos, cur_lines]
+  if get(s:session, 'last_event_state', []) ==# new_state
     return
   endif
+  let s:session.last_event_state = new_state
 
   let s:session.current_item_motions += 1
 
@@ -1130,12 +1141,18 @@ function! s:learn_on_change() abort
     let start_lines = item.lines
     let target_lines = get(item, 'target_lines', item.lines)
 
-    " Deferred-autocmd guard: skip the spurious CursorMoved that fires
-    " after our in-handler cursor() in s:learn_test_next.
-    if cur_pos == item.start && cur_lines ==# start_lines
-      \ && s:session.test_motion_count == 0
+    " Dedupe by (cursor, buffer) state. Collapses both the deferred
+    " CursorMoved that fires after our cursor() call (sees the
+    " initial state we saved in s:learn_test_next) and operations
+    " that fire BOTH TextChanged and CursorMoved for one press
+    " (>>, <<, dd — buffer changes plus cursor jumps to first
+    " non-blank). See the matching dedupe in s:on_change for the
+    " probe path; same principle.
+    let new_state = [cur_pos, cur_lines]
+    if get(s:session, 'last_event_state', []) ==# new_state
       return
     endif
+    let s:session.last_event_state = new_state
     let s:session.test_motion_count += 1
 
     if cur_lines ==# target_lines && cur_pos == item.target
@@ -1315,6 +1332,11 @@ function! s:learn_test_next() abort
   let GenFn = function('vimfluency#pinpoints#' . s:session.module . '#generate')
   let item = GenFn()
   let s:session.current_test_item = item
+  " Initial state for the dedupe guard in s:learn_on_change. Same
+  " logic as s:next_item — vim's deferred CursorMoved after the
+  " cursor() call below sees this state and is skipped; subsequent
+  " presses produce distinct states.
+  let s:session.last_event_state = [item.start, copy(item.lines)]
 
   let has_waypoints = has_key(item, 'waypoints') && !empty(item.waypoints)
   let test_prompt = has_waypoints
