@@ -602,6 +602,198 @@ function! s:test_1C_4() abort
   endfor
 endfunction
 
+" --- T0 — recall and mode kinds -----------------------------------
+"
+" Recall and mode kinds don't carry a live editing area (recall) or
+" require a cursor move within an item (mode often doesn't, when the
+" cursor returns to its start col after Esc). So they bypass
+" s:assert_common — they have their own shape invariants.
+
+" Common shape check for recall items.
+function! s:assert_recall_common(id, item) abort
+  let prefix = 'gen[' . a:id . ']: '
+  let item = a:item
+  call Assert(has_key(item, 'expected_answer')
+    \ && type(item.expected_answer) == v:t_string
+    \ && !empty(item.expected_answer),
+    \ prefix . 'expected_answer is a non-empty string')
+  call Assert(has_key(item, 'expected_motion')
+    \ && !empty(item.expected_motion),
+    \ prefix . 'expected_motion non-empty')
+  call Assert(has_key(item, 'optimal_motions')
+    \ && item.optimal_motions > 0,
+    \ prefix . 'optimal_motions positive')
+  call Assert(has_key(item, 'prompt'),
+    \ prefix . 'has prompt')
+endfunction
+
+" T0.3 — save / quit (recall). Each item's expected_answer is one of
+" the five canonical exits; expected_motion mirrors the answer (so
+" the per-motion summary breaks the five out separately);
+" optimal_motions equals the answer's character count.
+function! s:test_T0_3() abort
+  let GenFn = function('vimfluency#pinpoints#pT0_3#generate')
+  let valid = [':w', ':q', ':wq', ':q!', 'ZZ']
+  let seen = {}
+  for i in range(s:N)
+    let item = GenFn()
+    call s:assert_recall_common('T0.3', item)
+    call AssertIn(item.expected_answer, valid,
+      \ 'T0.3: expected_answer in canonical-exit set')
+    call AssertEq(item.expected_motion, item.expected_answer,
+      \ 'T0.3: expected_motion mirrors expected_answer')
+    call AssertEq(item.optimal_motions, len(item.expected_answer),
+      \ 'T0.3: optimal_motions == len(expected_answer)')
+    let seen[item.expected_answer] = 1
+  endfor
+  for a in valid
+    call Assert(get(seen, a, 0) == 1,
+      \ 'T0.3: ' . a . ' appeared in samples')
+  endfor
+endfunction
+
+" T0.5 — mode awareness (recall). Each item's answer is one of the
+" five named modes; the prompt is a list (multi-line mock cue);
+" expected_motion mirrors answer.
+function! s:test_T0_5() abort
+  let GenFn = function('vimfluency#pinpoints#pT0_5#generate')
+  let valid = ['normal', 'insert', 'visual', 'replace', 'command']
+  let seen = {}
+  for i in range(s:N)
+    let item = GenFn()
+    call s:assert_recall_common('T0.5', item)
+    call AssertIn(item.expected_answer, valid,
+      \ 'T0.5: expected_answer in mode-name set')
+    call Assert(type(item.prompt) == v:t_list,
+      \ 'T0.5: prompt is a list (mock-screen cue)')
+    call AssertEq(item.expected_motion, item.expected_answer,
+      \ 'T0.5: expected_motion mirrors expected_answer')
+    let seen[item.expected_answer] = 1
+  endfor
+  for m in valid
+    call Assert(get(seen, m, 0) == 1,
+      \ 'T0.5: ' . m . ' appeared in samples')
+  endfor
+endfunction
+
+" Common shape for mode items: enter_at_{row,col}, target, target_lines,
+" expected_motion non-empty, optimal_motions positive.
+function! s:assert_mode_common(id, item) abort
+  let prefix = 'gen[' . a:id . ']: '
+  let item = a:item
+  call Assert(has_key(item, 'enter_at_row') && has_key(item, 'enter_at_col'),
+    \ prefix . 'has enter_at_row/col')
+  call Assert(has_key(item, 'target_lines') && type(item.target_lines) == v:t_list,
+    \ prefix . 'has target_lines (list)')
+  call Assert(has_key(item, 'target')
+    \ && type(item.target) == v:t_list && len(item.target) == 2,
+    \ prefix . 'target is [row, col]')
+  call Assert(has_key(item, 'expected_motion') && !empty(item.expected_motion),
+    \ prefix . 'expected_motion non-empty')
+  call Assert(has_key(item, 'optimal_motions') && item.optimal_motions > 0,
+    \ prefix . 'optimal_motions positive')
+  " enter_at must point inside target_lines.
+  let er = item.enter_at_row
+  let ec = item.enter_at_col
+  call Assert(er >= 1 && er <= len(item.target_lines),
+    \ prefix . 'enter_at_row in target_lines bounds')
+  let eline = item.target_lines[er - 1]
+  call Assert(ec >= 1 && ec <= max([1, len(eline) + 1]),
+    \ prefix . 'enter_at_col in [1, len+1] of its target_line')
+endfunction
+
+" T0.1 — enter / leave insert mode. Four keys, all optimal 2.
+" target_lines must equal lines (no buffer change for i/a/I/A).
+function! s:test_T0_1() abort
+  let GenFn = function('vimfluency#pinpoints#pT0_1#generate')
+  let valid = ['i', 'a', 'I', 'A']
+  let seen = {}
+  for i in range(s:N)
+    let item = GenFn()
+    call s:assert_mode_common('T0.1', item)
+    call AssertIn(item.expected_motion, valid,
+      \ 'T0.1: expected_motion in {i, a, I, A}')
+    call AssertEq(item.optimal_motions, 2,
+      \ 'T0.1: optimal_motions == 2 (key + Esc)')
+    call AssertEq(item.target_lines, item.lines,
+      \ 'T0.1: target_lines == lines (no buffer change)')
+    " Disambiguation requirements per key:
+    let line = item.lines[0]
+    let sc = item.start[1]
+    if item.expected_motion ==# 'i'
+      call AssertEq(item.enter_at_col, sc,
+        \ 'T0.1[i]: enter_at_col == start_col')
+      call Assert(sc > 1,
+        \ 'T0.1[i]: start_col > 1 (S=1 makes post-Esc target degenerate at 1)')
+      call AssertEq(item.target[1], sc - 1,
+        \ 'T0.1[i]: target_col == start_col - 1')
+    elseif item.expected_motion ==# 'a'
+      call AssertEq(item.enter_at_col, sc + 1,
+        \ 'T0.1[a]: enter_at_col == start_col + 1')
+      call Assert(sc < len(line),
+        \ 'T0.1[a]: start_col < line_end (S=line_end makes a ≡ A at runner level)')
+      call AssertEq(item.target[1], sc,
+        \ 'T0.1[a]: target_col == start_col')
+    elseif item.expected_motion ==# 'I'
+      let fnb = match(line, '\S') + 1
+      call AssertEq(item.enter_at_col, fnb,
+        \ 'T0.1[I]: enter_at_col == first_nonblank')
+      call Assert(fnb > 1,
+        \ 'T0.1[I]: line has leading whitespace (fnb > 1)')
+      call Assert(sc != fnb && sc != fnb - 1,
+        \ 'T0.1[I]: start_col differs from fnb and fnb-1 '
+        \ . '(else i/a from same S match I at runner level)')
+      call AssertEq(item.target[1], fnb - 1,
+        \ 'T0.1[I]: target_col == first_nonblank - 1')
+    elseif item.expected_motion ==# 'A'
+      call AssertEq(item.enter_at_col, len(line) + 1,
+        \ 'T0.1[A]: enter_at_col == line_len + 1')
+      call Assert(sc < len(line),
+        \ 'T0.1[A]: start_col < line_end (else a ≡ A at runner level)')
+      call AssertEq(item.target[1], len(line),
+        \ 'T0.1[A]: target_col == line_end')
+    endif
+    let seen[item.expected_motion] = 1
+  endfor
+  for k in valid
+    call Assert(get(seen, k, 0) == 1,
+      \ 'T0.1: ' . k . ' appeared in samples')
+  endfor
+endfunction
+
+" T0.2 — open new line. Two keys, optimal 2. target_lines is
+" [pair[0], '', pair[1]] in both cases; the disambiguator is start_row.
+function! s:test_T0_2() abort
+  let GenFn = function('vimfluency#pinpoints#pT0_2#generate')
+  let valid = ['o', 'O']
+  let seen = {}
+  for i in range(s:N)
+    let item = GenFn()
+    call s:assert_mode_common('T0.2', item)
+    call AssertIn(item.expected_motion, valid,
+      \ 'T0.2: expected_motion in {o, O}')
+    call AssertEq(item.optimal_motions, 2,
+      \ 'T0.2: optimal_motions == 2')
+    " Buffer must gain exactly one blank line in the middle.
+    call AssertEq(len(item.target_lines), len(item.lines) + 1,
+      \ 'T0.2: target_lines has one more line than lines')
+    call AssertEq(item.target_lines[1], '',
+      \ 'T0.2: middle line is blank')
+    if item.expected_motion ==# 'o'
+      call AssertEq(item.start[0], 1,
+        \ 'T0.2[o]: start_row == 1 (so o opens below into the gap)')
+    else
+      call AssertEq(item.start[0], 2,
+        \ 'T0.2[O]: start_row == 2 (so O opens above into the gap)')
+    endif
+    let seen[item.expected_motion] = 1
+  endfor
+  for k in valid
+    call Assert(get(seen, k, 0) == 1,
+      \ 'T0.2: ' . k . ' appeared in samples')
+  endfor
+endfunction
+
 call s:test_1A_1()
 call s:test_1A_2()
 call s:test_1B_1()
@@ -613,3 +805,7 @@ call s:test_1C_4()
 call s:test_2_1()
 call s:test_2_2()
 call s:test_4_1()
+call s:test_T0_1()
+call s:test_T0_2()
+call s:test_T0_3()
+call s:test_T0_5()

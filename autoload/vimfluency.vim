@@ -494,6 +494,21 @@ function! s:next_item() abort
   " produce distinct states and increment the count.
   let s:session.last_event_state = [item.start, copy(item.lines)]
 
+  " Recall and mode kinds have their own item-rendering paths; they share
+  " bookkeeping with motion/editing but the buffer layout and credit
+  " trigger differ enough that branching here is cleaner than a unified
+  " render.
+  if s:session.kind ==# 'recall'
+    call s:render_recall_item(item)
+    let s:session.advancing = 0
+    return
+  endif
+  if s:session.kind ==# 'mode'
+    call s:render_mode_item(item)
+    let s:session.advancing = 0
+    return
+  endif
+
   " Editing-kind probes get a 2-line header (prompt + divider) above the
   " live editing area. Match checks subtract the header offset.
   let header = []
@@ -552,12 +567,38 @@ function! s:next_item() abort
 endfunction
 
 function! s:install_autocmds() abort
+  if s:session.kind ==# 'recall'
+    " Recall kind drives input through buffer-local key maps, not
+    " autocmds — there's no live "editing area" to watch. Tab still
+    " skips, so the existing skip path stays consistent.
+    call s:install_recall_maps()
+    return
+  endif
   augroup VfProbe
     autocmd!
-    autocmd CursorMoved,CursorMovedI,TextChanged,TextChangedI <buffer>
-      \ call s:on_change()
+    if s:session.kind ==# 'mode'
+      " Mode kind tracks the round trip through insert mode plus any
+      " buffer change (o/O insert a line). InsertEnter records WHERE
+      " insert was entered so we can disambiguate i/a/I/A/o/O by column.
+      " TextChangedI counts characters typed in insert mode toward the
+      " motion total, so the SCC errors line reflects unwanted typing.
+      autocmd InsertEnter <buffer> call s:on_insert_enter()
+      autocmd InsertLeave <buffer> call s:on_insert_leave()
+      autocmd TextChangedI <buffer> call s:on_text_change_in_mode()
+    else
+      autocmd CursorMoved,CursorMovedI,TextChanged,TextChangedI <buffer>
+        \ call s:on_change()
+    endif
   augroup END
   nnoremap <buffer> <silent> <Tab> :call <SID>skip()<CR>
+  " Ctrl-C in vim is the interrupt key — it exits insert mode but
+  " explicitly does NOT fire InsertLeave, by design. Real-world
+  " users still reach for it as a faster Esc, so within probe
+  " buffers we route it through Esc so the matcher sees the round
+  " trip. Applies to any kind that might enter insert mode (mode
+  " kind, plus motion/editing kinds where the learner hit i/a/o by
+  " mistake and needs out).
+  inoremap <buffer> <silent> <C-c> <Esc>
 endfunction
 
 function! s:on_change() abort
@@ -591,38 +632,264 @@ function! s:on_change() abort
   let s:session.current_item_motions += 1
 
   if cur_lines ==# target_lines && cur_pos == item.target
-    let s:session.items_correct += 1
-    let elapsed = reltimefloat(reltime(s:session.item_started_at))
-    let actual = s:session.current_item_motions
-    let optimal = get(item, 'optimal_motions', 0)
-    let motion = get(item, 'expected_motion', '')
-    if !empty(motion)
-      if !has_key(s:session.per_motion, motion)
-        let s:session.per_motion[motion] = {
-          \ 'correct': 0, 'time_total': 0.0,
-          \ 'motions_total': 0, 'optimal_total': 0}
-      endif
-      let s:session.per_motion[motion].correct += 1
-      let s:session.per_motion[motion].time_total += elapsed
-      let s:session.per_motion[motion].motions_total += actual
-      let s:session.per_motion[motion].optimal_total += optimal
+    call s:credit_item()
+  endif
+endfunction
+
+" Shared credit path. Recall and mode kinds call this directly when their
+" own match logic decides the item is done; motion/editing call it from
+" s:on_change. All counter bookkeeping lives here so the kinds stay
+" symmetric in their stats.
+function! s:credit_item() abort
+  let item = s:session.current_item
+  let s:session.items_correct += 1
+  let elapsed = reltimefloat(reltime(s:session.item_started_at))
+  let actual = s:session.current_item_motions
+  let optimal = get(item, 'optimal_motions', 0)
+  let motion = get(item, 'expected_motion', '')
+  if !empty(motion)
+    if !has_key(s:session.per_motion, motion)
+      let s:session.per_motion[motion] = {
+        \ 'correct': 0, 'time_total': 0.0,
+        \ 'motions_total': 0, 'optimal_total': 0}
     endif
-    if optimal > 0
-      let s:session.total_motions += actual
-      let s:session.total_optimal_motions += optimal
-    endif
-    call add(s:session.items_log, {
-      \ 'lines': item.lines,
-      \ 'target_lines': get(item, 'target_lines', item.lines),
-      \ 'start': item.start,
-      \ 'target': item.target,
-      \ 'expected_motion': motion,
-      \ 'optimal_motions': optimal,
-      \ 'actual_motions': actual,
-      \ 'time_seconds': s:round3(elapsed),
-      \ 'outcome': 'correct',
-      \ })
-    call s:next_item()
+    let s:session.per_motion[motion].correct += 1
+    let s:session.per_motion[motion].time_total += elapsed
+    let s:session.per_motion[motion].motions_total += actual
+    let s:session.per_motion[motion].optimal_total += optimal
+  endif
+  if optimal > 0
+    let s:session.total_motions += actual
+    let s:session.total_optimal_motions += optimal
+  endif
+  call add(s:session.items_log, {
+    \ 'lines': item.lines,
+    \ 'target_lines': get(item, 'target_lines', item.lines),
+    \ 'start': item.start,
+    \ 'target': item.target,
+    \ 'expected_motion': motion,
+    \ 'optimal_motions': optimal,
+    \ 'actual_motions': actual,
+    \ 'time_seconds': s:round3(elapsed),
+    \ 'outcome': 'correct',
+    \ })
+  call s:next_item()
+endfunction
+
+" -----------------------------------------------------------------
+" Recall kind — type the keystroke string that does X
+" -----------------------------------------------------------------
+
+" Render a recall item. The buffer is pure UI: prompt at top, an input
+" line marked '> ' that the keymap layer paints into. There's no live
+" editing area — TextChanged/CursorMoved aren't wired for this kind.
+function! s:render_recall_item(item) abort
+  let s:session.recall_input = ''
+  " The pinpoint owns the prompt framing. Accept either a string
+  " (single line) or a list of lines (e.g. T0.5 wants a multi-line
+  " mock screen above the directive). The renderer adds the input
+  " line and the skip hint underneath; nothing else.
+  let raw = get(a:item, 'prompt', '(no prompt)')
+  let prompt_lines = type(raw) == type([]) ? raw : [raw]
+  let lines = copy(prompt_lines)
+  call extend(lines, ['', '  > ', '', '  [BS=fix  Tab=skip]'])
+  let s:session.input_row = len(prompt_lines) + 2
+  let s:session.input_prefix = '  > '
+  setlocal modifiable
+  silent! %delete _
+  call setline(1, lines)
+  call cursor(s:session.input_row, len(s:session.input_prefix) + 1)
+  redrawstatus
+endfunction
+
+" Build the buffer-local key maps used during recall input. Every
+" printable ASCII char (33-126) plus space is mapped to recall_append;
+" BS corrects, Tab skips. Non-printable special keys (CR, Esc, etc.)
+" are mapped to <Nop> so vim's normal-mode default doesn't fire (e.g.
+" CR jumping to next line, : opening the command line).
+function! s:install_recall_maps() abort
+  " LHS escapes for keys vim's mapping parser treats specially in the
+  " left-hand side. '<' must be <lt> (otherwise vim reads <Whatever>
+  " as a key notation); '|' must be <bar> (otherwise it ends the
+  " :nnoremap command).
+  " RHS gotcha: a literal '<' inside the mapping body makes vim try to
+  " parse a key notation (<CR>, <Esc>, ...). We dodge that entirely by
+  " passing the char to recall_append() as nr2char(N) rather than the
+  " literal character, so the RHS never contains '<' for char-mappings.
+  let lhs_escape = {'<': '<lt>', '|': '<bar>'}
+  for n in range(33, 126)
+    let c = nr2char(n)
+    let lhs = get(lhs_escape, c, c)
+    let rhs = ':call <SID>recall_append(nr2char(' . n . '))<CR>'
+    execute 'nnoremap <buffer> <silent> ' . lhs . ' ' . rhs
+  endfor
+  nnoremap <buffer> <silent> <Space> :call <SID>recall_append(' ')<CR>
+  nnoremap <buffer> <silent> <BS> :call <SID>recall_backspace()<CR>
+  nnoremap <buffer> <silent> <Tab> :call <SID>skip()<CR>
+  " Block keys whose normal-mode default would fire useless commands
+  " or jump the cursor away from the input line.
+  nnoremap <buffer> <silent> <CR> <Nop>
+  nnoremap <buffer> <silent> <Esc> <Nop>
+endfunction
+
+function! s:recall_append(c) abort
+  if empty(s:session) || s:session.advancing | return | endif
+  let s:session.recall_input .= a:c
+  let s:session.current_item_motions += 1
+  call s:recall_repaint()
+  call s:recall_check_match()
+endfunction
+
+function! s:recall_backspace() abort
+  if empty(s:session) || s:session.advancing | return | endif
+  let s:session.current_item_motions += 1
+  if !empty(s:session.recall_input)
+    let s:session.recall_input = strpart(s:session.recall_input,
+      \ 0, len(s:session.recall_input) - 1)
+  endif
+  call s:recall_repaint()
+endfunction
+
+function! s:recall_repaint() abort
+  setlocal modifiable
+  call setline(s:session.input_row,
+    \ s:session.input_prefix . s:session.recall_input)
+  call cursor(s:session.input_row,
+    \ len(s:session.input_prefix) + len(s:session.recall_input) + 1)
+endfunction
+
+" Auto-credit on exact match. Saves a stand-alone <CR> "submit" — keeps
+" the free-operant rhythm: no extra key between getting it right and
+" the next item appearing. Within an item there's exactly one
+" expected_answer, so prefix collisions across items don't apply.
+function! s:recall_check_match() abort
+  let item = s:session.current_item
+  let expected = get(item, 'expected_answer', '')
+  if empty(expected) | return | endif
+  if s:session.recall_input ==# expected
+    call s:credit_item()
+  endif
+endfunction
+
+" -----------------------------------------------------------------
+" Mode kind — round trip through insert mode
+" -----------------------------------------------------------------
+
+" Render a mode item. Layout mirrors editing kind (prompt + divider
+" header above a small content area), but the content is the buffer
+" the learner enters/leaves insert mode in. Item declares:
+"   - lines, start, target, target_lines (post-Esc state)
+"   - enter_at_row, enter_at_col (where InsertEnter must fire)
+"   - expected_motion (i/a/I/A/o/O/...)
+" Build the '▶◀' indicator row for a mode-kind item. Returns '' when
+" the item shouldn't get the indicator (no enter_at_col, or
+" hide_target opt-out — T0.2 sets this because its gap is between
+" ROWS, not columns, so the column-based affordance is the wrong shape).
+"
+" Cue semantics (column-based insert-entries):
+"   - cursor under ◀ → cursor is RIGHT of the seam → `i` (insert before)
+"   - cursor under ▶ → cursor is LEFT of the seam  → `a` (append after)
+"   - cursor far away, arrows near indent boundary → `I`
+"   - cursor far away, arrows at end-of-line       → `A`
+"
+" No coloring on the content row — leaves the buffer visually clean.
+" No trailing pad after ◀ — listchars=trail:· would otherwise render
+" those spaces as dots and clutter the cue.
+function! s:mode_gap_indicator(item) abort
+  if !has_key(a:item, 'enter_at_col') || get(a:item, 'hide_target', 0)
+    return ''
+  endif
+  let gap_right = a:item.enter_at_col
+  let gap_left = max([gap_right - 1, 1])
+  " gap_right - gap_left is 1 in every well-formed item (since
+  " gap_left = enter_at_col - 1 unless that would underflow at 1).
+  let between = repeat(' ', max([gap_right - gap_left - 1, 0]))
+  return repeat(' ', gap_left - 1) . '▶' . between . '◀'
+endfunction
+
+function! s:render_mode_item(item) abort
+  let s:session.insert_entered = 0
+  let s:session.insert_enter_pos = []
+  let prompt = get(a:item, 'prompt', 'enter insert mode and leave again')
+  let header = [prompt, repeat('─', 60)]
+
+  let indicator = s:mode_gap_indicator(a:item)
+  if !empty(indicator)
+    call add(header, indicator)
+  endif
+
+  let header += s:waypoint_annotation(a:item)
+  let s:session.header_offset = len(header)
+
+  setlocal modifiable
+  silent! %delete _
+  call setline(1, header + a:item.lines)
+  call cursor(s:session.header_offset + a:item.start[0], a:item.start[1])
+
+  if s:session.target_match_id != -1
+    silent! call matchdelete(s:session.target_match_id)
+    let s:session.target_match_id = -1
+  endif
+  if s:session.deletion_match_id != -1
+    silent! call matchdelete(s:session.deletion_match_id)
+    let s:session.deletion_match_id = -1
+  endif
+  call s:clear_waypoint_matches()
+  call s:add_waypoint_matches(a:item)
+  redrawstatus
+endfunction
+
+" InsertEnter records the row+col where insert was actually entered.
+" That's what disambiguates i (start col) from a (start col + 1) from
+" I (first non-blank) from A (line end + 1) from o/O (col 1 of new line).
+function! s:on_insert_enter() abort
+  if empty(s:session) || s:session.advancing | return | endif
+  if win_getid() != s:session.you_win | return | endif
+  let header_offset = s:session.header_offset
+  let s:session.insert_entered = 1
+  let s:session.insert_enter_pos = [line('.') - header_offset, col('.')]
+  let s:session.current_item_motions += 1
+endfunction
+
+" InsertLeave fires the match check. Success = entered insert at the
+" right place AND buffer matches target_lines AND cursor lands at item.target
+" once we're back in normal mode. Wrong attempts don't auto-fail (free
+" operant); the learner can keep trying — the runner just resets the
+" insert_entered flag so a fresh round trip can be evaluated.
+" Each character typed in insert mode counts as a motion. The probe
+" only credits when the buffer matches target_lines, so typing here
+" guarantees the learner has to undo to recover — both the typing and
+" the undoes inflate current_item_motions, surfacing as wasted motions
+" in the SCC errors line.
+function! s:on_text_change_in_mode() abort
+  if empty(s:session) || s:session.advancing | return | endif
+  if win_getid() != s:session.you_win | return | endif
+  let s:session.current_item_motions += 1
+endfunction
+
+function! s:on_insert_leave() abort
+  if empty(s:session) || s:session.advancing | return | endif
+  if win_getid() != s:session.you_win | return | endif
+  if !get(s:session, 'insert_entered', 0) | return | endif
+  let item = s:session.current_item
+  let header_offset = s:session.header_offset
+  let cur_pos = [line('.') - header_offset, col('.')]
+  let cur_lines = getline(header_offset + 1, '$')
+  let target_lines = get(item, 'target_lines', item.lines)
+  let s:session.current_item_motions += 1
+
+  let entered_correct = s:session.insert_enter_pos
+    \ == [item.enter_at_row, item.enter_at_col]
+  let buffer_correct = cur_lines ==# target_lines
+  let cursor_correct = cur_pos == item.target
+
+  if entered_correct && buffer_correct && cursor_correct
+    call s:credit_item()
+  else
+    " Reset for retry. Free-operant: the learner stays in control of
+    " when the next item appears.
+    let s:session.insert_entered = 0
+    let s:session.insert_enter_pos = []
   endif
 endfunction
 
@@ -996,9 +1263,12 @@ function! s:learn_header_line() abort
           \ s:session.last_item_motions, s:session.last_item_optimal)
       endif
     else
-      let hint = printf('streak %d/%d  [reach the green cell, fewest keystrokes]',
-        \ cur, req)
-      if get(s:session, 'kind', 'motion') ==# 'editing'
+      let kind = get(s:session, 'kind', 'motion')
+      let goal = kind ==# 'mode'
+        \ ? 'enter insert at the gap, then Esc'
+        \ : 'reach the green cell, fewest keystrokes'
+      let hint = printf('streak %d/%d  [%s]', cur, req, goal)
+      if kind ==# 'editing'
         let hint .= '  [u=undo if wrong]'
       endif
     endif
@@ -1008,13 +1278,16 @@ function! s:learn_header_line() abort
   let frame = s:session.frames[s:session.frame_idx]
   let total = len(s:session.frames)
   let idx = s:session.frame_idx + 1
+  let kind = get(s:session, 'kind', 'motion')
   if s:session.frame_complete
     let hint = '✓ correct  [Space=next]'
   elseif frame.kind ==# 'show'
     let hint = '[Space=next]'
   else
-    let hint = '[reach the green cell]'
-    if get(s:session, 'kind', 'motion') ==# 'editing'
+    let hint = kind ==# 'mode'
+      \ ? '[enter insert at the gap, then Esc]'
+      \ : '[reach the green cell]'
+    if kind ==# 'editing'
       let hint .= '  [u=undo if wrong]'
     endif
   endif
@@ -1025,18 +1298,33 @@ endfunction
 function! s:learn_show_frame() abort
   let s:session.advancing = 1
   let s:session.frame_complete = 0
+  " Mode-kind insert-tracking state, reset at every new frame. Probe
+  " path resets these in s:render_mode_item; lesson path mirrors here.
+  let s:session.insert_entered = 0
+  let s:session.insert_enter_pos = []
   let frame = s:session.frames[s:session.frame_idx]
+  let is_mode = get(s:session, 'kind', 'motion') ==# 'mode'
 
-  let base_header = [
-    \ s:learn_header_line(),
-    \ '',
-    \ frame.prompt,
-    \ '',
-    \ ]
+  " prompt may be a string or a list of lines — multi-line lets a
+  " pinpoint wrap long instructions at a readable width instead of
+  " forcing a horizontal scroll.
+  let prompt_lines = type(frame.prompt) == v:t_list
+    \ ? copy(frame.prompt) : [frame.prompt]
+  let base_header = [s:learn_header_line(), ''] + prompt_lines + ['']
+  " Mode-kind frames may get a '▶◀' gap indicator row — try frames
+  " always do (it's the cue); show frames optionally, when they
+  " declare enter_at_col to demonstrate the cue itself.
+  let mode_extra = []
+  if is_mode
+    let ind = s:mode_gap_indicator(frame)
+    if !empty(ind)
+      call add(mode_extra, ind)
+    endif
+  endif
   " Annotation row sits at the END of the header (just above the
   " content), so the cur_lines comparison in s:learn_on_change still
   " excludes it via header_offset.
-  let header = base_header + s:waypoint_annotation(frame)
+  let header = base_header + mode_extra + s:waypoint_annotation(frame)
   let s:session.header_offset = len(header)
 
   setlocal modifiable
@@ -1072,10 +1360,10 @@ function! s:learn_show_frame() abort
     let buf_start_row = s:session.header_offset + frame.start[0]
     let buf_target_row = s:session.header_offset + frame.target[0]
     call cursor(buf_start_row, frame.start[1])
-    " See s:next_item: editing-kind lessons hide VfTarget so the
-    " learner reads the deletion range relative to the cursor instead
-    " of pattern-matching on whether a green cell is visible.
-    if get(s:session, 'kind', 'motion') !=# 'editing'
+    " Editing- and mode-kind lessons hide the green single-cell target
+    " — editing because the deletion-range red shows what to do, mode
+    " because the '▶◀' indicator already marks the gap.
+    if !is_mode && get(s:session, 'kind', 'motion') !=# 'editing'
       let s:session.target_match_id = matchaddpos('VfTarget',
         \ [[buf_target_row, frame.target[1], 1]], 20)
     endif
@@ -1096,16 +1384,31 @@ endfunction
 function! s:learn_install_autocmds() abort
   augroup VfLearn
     autocmd!
-    " TextChanged is needed for the test phase on editing-kind pinpoints
-    " where dw/db etc. modify the buffer without necessarily firing
-    " CursorMoved (e.g. dw at col 1 leaves cursor at col 1).
-    autocmd CursorMoved,CursorMovedI,TextChanged,TextChangedI <buffer>
-      \ call s:learn_on_change()
+    if get(s:session, 'kind', 'motion') ==# 'mode'
+      " Mode-kind lessons track the round trip through insert mode,
+      " same as the probe: InsertEnter records the entry col so we
+      " can disambiguate i/a/I/A, InsertLeave is when we evaluate.
+      " TextChangedI counts typed chars toward motion total so the
+      " test-phase streak check penalizes unwanted typing.
+      autocmd InsertEnter <buffer> call s:learn_on_insert_enter()
+      autocmd InsertLeave <buffer> call s:learn_on_insert_leave()
+      autocmd TextChangedI <buffer> call s:learn_on_text_change_in_mode()
+    else
+      " TextChanged is needed for the test phase on editing-kind pinpoints
+      " where dw/db etc. modify the buffer without necessarily firing
+      " CursorMoved (e.g. dw at col 1 leaves cursor at col 1).
+      autocmd CursorMoved,CursorMovedI,TextChanged,TextChangedI <buffer>
+        \ call s:learn_on_change()
+    endif
   augroup END
   nnoremap <buffer> <silent> <Space> :call <SID>learn_advance_show()<CR>
   nnoremap <buffer> <silent> <CR> :call <SID>learn_advance_show()<CR>
   nnoremap <buffer> <silent> q :call vimfluency#learn_stop()<CR>
   nnoremap <buffer> <silent> p :call <SID>learn_start_probe()<CR>
+  " Ctrl-C → Esc, mirroring the probe path. Vim's Ctrl-C exits insert
+  " without firing InsertLeave by design, so unmapped it would leave
+  " the mode-kind matcher hanging.
+  inoremap <buffer> <silent> <C-c> <Esc>
 endfunction
 
 " Space/Enter: advance from a 'show' frame, from a completed 'try' frame,
@@ -1186,6 +1489,81 @@ function! s:learn_on_change() abort
   endif
   let s:session.frame_complete = 1
   call s:learn_render_complete()
+endfunction
+
+" Mode-kind lesson handlers. Mirror s:on_insert_enter / s:on_insert_leave
+" from the probe path, but evaluate against either the current setup-phase
+" frame OR the current test-phase item depending on s:session.phase.
+function! s:learn_on_insert_enter() abort
+  if empty(s:session) || s:session.mode !=# 'learn' || s:session.advancing | return | endif
+  if win_getid() != s:session.you_win | return | endif
+  if s:session.phase ==# 'complete' || s:session.frame_complete | return | endif
+  let header_offset = s:session.header_offset
+  let s:session.insert_entered = 1
+  let s:session.insert_enter_pos = [line('.') - header_offset, col('.')]
+  if s:session.phase ==# 'test'
+    let s:session.test_motion_count += 1
+  endif
+endfunction
+
+function! s:learn_on_text_change_in_mode() abort
+  if empty(s:session) || s:session.mode !=# 'learn' || s:session.advancing | return | endif
+  if win_getid() != s:session.you_win | return | endif
+  if s:session.phase ==# 'test'
+    let s:session.test_motion_count += 1
+  endif
+endfunction
+
+function! s:learn_on_insert_leave() abort
+  if empty(s:session) || s:session.mode !=# 'learn' || s:session.advancing | return | endif
+  if win_getid() != s:session.you_win | return | endif
+  if s:session.phase ==# 'complete' || s:session.frame_complete | return | endif
+  if !get(s:session, 'insert_entered', 0) | return | endif
+
+  " Pull the item-shaped target from setup-phase frame or test-phase item.
+  let item = {}
+  if s:session.phase ==# 'test'
+    let item = s:session.current_test_item
+  else
+    let frame = s:session.frames[s:session.frame_idx]
+    if frame.kind !=# 'try' | return | endif
+    let item = frame
+  endif
+
+  let header_offset = s:session.header_offset
+  let cur_pos = [line('.') - header_offset, col('.')]
+  let cur_lines = getline(header_offset + 1, '$')
+  let target_lines = get(item, 'target_lines', item.lines)
+
+  let entered_correct = s:session.insert_enter_pos
+    \ == [item.enter_at_row, item.enter_at_col]
+  let buffer_correct = cur_lines ==# target_lines
+  let cursor_correct = cur_pos == item.target
+
+  if s:session.phase ==# 'test'
+    let s:session.test_motion_count += 1
+  endif
+
+  if entered_correct && buffer_correct && cursor_correct
+    let s:session.frame_complete = 1
+    if s:session.phase ==# 'test'
+      let s:session.last_item_motions = s:session.test_motion_count
+      let s:session.last_item_optimal = get(item, 'optimal_motions', 1)
+      if s:session.last_item_motions <= s:session.last_item_optimal
+        let s:session.streak += 1
+        let s:session.wrongs = 0
+      else
+        let s:session.streak = 0
+        let s:session.wrongs += 1
+      endif
+    endif
+    call s:learn_render_complete()
+  else
+    " Reset so a fresh round trip can be evaluated. Free-operant —
+    " the learner can keep retrying; no auto-fail on first wrong leave.
+    let s:session.insert_entered = 0
+    let s:session.insert_enter_pos = []
+  endif
 endfunction
 
 " Repaint the header line in place to show the ✓/✗ confirmation. Done
@@ -1328,6 +1706,9 @@ function! s:learn_test_next() abort
   let s:session.frame_complete = 0
   let s:session.test_motion_count = 0
   let s:session.test_items_seen += 1
+  " Reset mode-kind insert-tracking on every test item.
+  let s:session.insert_entered = 0
+  let s:session.insert_enter_pos = []
 
   let GenFn = function('vimfluency#pinpoints#' . s:session.module . '#generate')
   let item = GenFn()
@@ -1338,16 +1719,16 @@ function! s:learn_test_next() abort
   " presses produce distinct states.
   let s:session.last_event_state = [item.start, copy(item.lines)]
 
+  let is_mode = get(s:session, 'kind', 'motion') ==# 'mode'
   let has_waypoints = has_key(item, 'waypoints') && !empty(item.waypoints)
   let test_prompt = has_waypoints
     \ ? 'Reach each numbered target in order. Fewer keystrokes is better.'
-    \ : 'Reach the target — figure out the motion. Fewer keystrokes is better.'
-  let lesson_header = [
-    \ s:learn_header_line(),
-    \ '',
-    \ test_prompt,
-    \ '',
-    \ ]
+    \ : (is_mode
+    \    ? 'Enter insert at the marked gap, then press Esc.'
+    \    : 'Reach the target — figure out the motion. Fewer keystrokes is better.')
+  let prompt_lines = type(test_prompt) == v:t_list
+    \ ? copy(test_prompt) : [test_prompt]
+  let lesson_header = [s:learn_header_line(), ''] + prompt_lines + ['']
 
   " Editing items get the runner's prompt+divider header above the live
   " editing area, mirroring what the probe shows.
@@ -1356,7 +1737,15 @@ function! s:learn_test_next() abort
     let prompt = get(item, 'prompt', 'edit to match the target')
     let editing_header = [prompt, repeat('─', 60)]
   endif
-  let full_header = lesson_header + editing_header + s:waypoint_annotation(item)
+  " Mode items get the gap indicator above the content.
+  let mode_extra = []
+  if is_mode
+    let ind = s:mode_gap_indicator(item)
+    if !empty(ind)
+      call add(mode_extra, ind)
+    endif
+  endif
+  let full_header = lesson_header + editing_header + mode_extra + s:waypoint_annotation(item)
   let s:session.header_offset = len(full_header)
 
   setlocal modifiable
@@ -1368,7 +1757,7 @@ function! s:learn_test_next() abort
     silent! call matchdelete(s:session.target_match_id)
     let s:session.target_match_id = -1
   endif
-  if get(s:session, 'kind', 'motion') !=# 'editing'
+  if !is_mode && get(s:session, 'kind', 'motion') !=# 'editing'
     let s:session.target_match_id = matchaddpos('VfTarget',
       \ [[s:session.header_offset + item.target[0], item.target[1], 1]], 20)
   endif

@@ -4,6 +4,10 @@
 " a missing field is a runtime hazard, not a cosmetic issue.
 
 let s:expected = [
+  \ {'id': 'T0.1', 'prereqs': []},
+  \ {'id': 'T0.2', 'prereqs': ['T0.1']},
+  \ {'id': 'T0.3', 'prereqs': []},
+  \ {'id': 'T0.5', 'prereqs': []},
   \ {'id': '1A.1', 'prereqs': ['T0']},
   \ {'id': '1A.2', 'prereqs': ['T0']},
   \ {'id': '1B.1', 'prereqs': ['1A']},
