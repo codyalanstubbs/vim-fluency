@@ -761,11 +761,15 @@ function! s:test_T0_1() abort
   endfor
 endfunction
 
-" T0.2 — open new line. Two keys, optimal 2. target_lines is
-" [pair[0], '', pair[1]] in both cases; the disambiguator is start_row.
+" T0.2 — open new line. Two keys, optimal 2. The pre-press buffer has
+" two adjacent rows marked with '⏵' (the bracket rows around the gap)
+" and the rest of the rows prefixed with a space for column alignment.
+" The cursor sits on one bracket row; the post-press buffer has a new
+" blank line inserted between the two brackets.
 function! s:test_T0_2() abort
   let GenFn = function('vimfluency#pinpoints#pT0_2#generate')
   let valid = ['o', 'O']
+  let mark = '⏵'
   let seen = {}
   for i in range(s:N)
     let item = GenFn()
@@ -774,17 +778,34 @@ function! s:test_T0_2() abort
       \ 'T0.2: expected_motion in {o, O}')
     call AssertEq(item.optimal_motions, 2,
       \ 'T0.2: optimal_motions == 2')
-    " Buffer must gain exactly one blank line in the middle.
     call AssertEq(len(item.target_lines), len(item.lines) + 1,
-      \ 'T0.2: target_lines has one more line than lines')
-    call AssertEq(item.target_lines[1], '',
-      \ 'T0.2: middle line is blank')
+      \ 'T0.2: target_lines has one more line than lines (the new blank)')
+
+    " Find the two bracket rows (those prefixed with the ⏵ mark).
+    let bracket_rows = []
+    for row in range(1, len(item.lines))
+      if strpart(item.lines[row - 1], 0, len(mark)) ==# mark
+        call add(bracket_rows, row)
+      endif
+    endfor
+    call AssertEq(len(bracket_rows), 2,
+      \ 'T0.2: lines contains exactly two ⏵-prefixed bracket rows')
+    if len(bracket_rows) == 2
+      call AssertEq(bracket_rows[1] - bracket_rows[0], 1,
+        \ 'T0.2: bracket rows are adjacent (single-row gap between them)')
+    endif
+
+    " The new blank in target_lines sits between the two bracket rows.
+    let blank_row = index(item.target_lines, '') + 1
+    call AssertEq(blank_row, bracket_rows[0] + 1,
+      \ 'T0.2: new blank appears between the two bracket rows')
+
     if item.expected_motion ==# 'o'
-      call AssertEq(item.start[0], 1,
-        \ 'T0.2[o]: start_row == 1 (so o opens below into the gap)')
+      call AssertEq(item.start[0], bracket_rows[0],
+        \ 'T0.2[o]: cursor on the UPPER bracket row (other ⏵ below)')
     else
-      call AssertEq(item.start[0], 2,
-        \ 'T0.2[O]: start_row == 2 (so O opens above into the gap)')
+      call AssertEq(item.start[0], bracket_rows[1],
+        \ 'T0.2[O]: cursor on the LOWER bracket row (other ⏵ above)')
     endif
     let seen[item.expected_motion] = 1
   endfor

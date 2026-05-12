@@ -577,14 +577,16 @@ function! s:install_autocmds() abort
   augroup VfProbe
     autocmd!
     if s:session.kind ==# 'mode'
-      " Mode kind tracks the round trip through insert mode plus any
-      " buffer change (o/O insert a line). InsertEnter records WHERE
-      " insert was entered so we can disambiguate i/a/I/A/o/O by column.
-      " TextChangedI counts characters typed in insert mode toward the
-      " motion total, so the SCC errors line reflects unwanted typing.
+      " Mode kind tracks the round trip through insert mode.
+      " InsertEnter records WHERE insert was entered so we can
+      " disambiguate i/a/I/A/o/O by column. We deliberately do NOT
+      " hook TextChangedI: vim fires it as part of o/O's line-insert
+      " sequence, which would inflate the motion count by 1 for those
+      " keys (3 instead of optimal 2). The matcher rejects any wrong
+      " buffer state on InsertLeave, so typing-then-undo paths still
+      " penalize via failed credits.
       autocmd InsertEnter <buffer> call s:on_insert_enter()
       autocmd InsertLeave <buffer> call s:on_insert_leave()
-      autocmd TextChangedI <buffer> call s:on_text_change_in_mode()
     else
       autocmd CursorMoved,CursorMovedI,TextChanged,TextChangedI <buffer>
         \ call s:on_change()
@@ -856,17 +858,6 @@ endfunction
 " once we're back in normal mode. Wrong attempts don't auto-fail (free
 " operant); the learner can keep trying — the runner just resets the
 " insert_entered flag so a fresh round trip can be evaluated.
-" Each character typed in insert mode counts as a motion. The probe
-" only credits when the buffer matches target_lines, so typing here
-" guarantees the learner has to undo to recover — both the typing and
-" the undoes inflate current_item_motions, surfacing as wasted motions
-" in the SCC errors line.
-function! s:on_text_change_in_mode() abort
-  if empty(s:session) || s:session.advancing | return | endif
-  if win_getid() != s:session.you_win | return | endif
-  let s:session.current_item_motions += 1
-endfunction
-
 function! s:on_insert_leave() abort
   if empty(s:session) || s:session.advancing | return | endif
   if win_getid() != s:session.you_win | return | endif
@@ -1388,11 +1379,11 @@ function! s:learn_install_autocmds() abort
       " Mode-kind lessons track the round trip through insert mode,
       " same as the probe: InsertEnter records the entry col so we
       " can disambiguate i/a/I/A, InsertLeave is when we evaluate.
-      " TextChangedI counts typed chars toward motion total so the
-      " test-phase streak check penalizes unwanted typing.
+      " We deliberately do NOT hook TextChangedI — see s:install_autocmds
+      " in the probe path for why (o/O's line-insert fires TextChangedI
+      " AND InsertEnter for the same keystroke, inflating motion count).
       autocmd InsertEnter <buffer> call s:learn_on_insert_enter()
       autocmd InsertLeave <buffer> call s:learn_on_insert_leave()
-      autocmd TextChangedI <buffer> call s:learn_on_text_change_in_mode()
     else
       " TextChanged is needed for the test phase on editing-kind pinpoints
       " where dw/db etc. modify the buffer without necessarily firing
@@ -1501,14 +1492,6 @@ function! s:learn_on_insert_enter() abort
   let header_offset = s:session.header_offset
   let s:session.insert_entered = 1
   let s:session.insert_enter_pos = [line('.') - header_offset, col('.')]
-  if s:session.phase ==# 'test'
-    let s:session.test_motion_count += 1
-  endif
-endfunction
-
-function! s:learn_on_text_change_in_mode() abort
-  if empty(s:session) || s:session.mode !=# 'learn' || s:session.advancing | return | endif
-  if win_getid() != s:session.you_win | return | endif
   if s:session.phase ==# 'test'
     let s:session.test_motion_count += 1
   endif

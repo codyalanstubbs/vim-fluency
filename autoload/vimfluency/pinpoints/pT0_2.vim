@@ -1,42 +1,45 @@
 " T0.2 — Open new line. The two openers: o (below) and O (above),
 " plus the closing Esc.
 "
-" Probe shape: mode kind. Like T0.1 but the buffer changes when the
-" key fires — o/O insert a blank line. The runner credits when:
-"   1. InsertEnter fires at the new line's (row, col 1),
-"   2. target_lines matches the post-open buffer state,
-"   3. post-Esc cursor lands at item.target.
+" Probe shape: mode kind. The conceptual target is a gap between two
+" ROWS. We cue it by marking the two rows that bracket the gap with
+" a '⏵' indicator in column 1, leaving non-bracket rows with a single
+" leading space so word columns stay aligned:
 "
-" Discrimination, by direction-from-cursor:
-"   - o → blank line BELOW the cursor's line
-"   - O → blank line ABOVE the cursor's line
-" Both produce the same final buffer state when paired with the
-" appropriate starting line — the differentiator is which line the
-" cursor began on.
+"      foxy
+"     ⏵soxy      ← upper bracket
+"     ⏵roxy      ← lower bracket
+"      poxy
 "
-" Cheat-defense:
-"   - o items: cursor starts on line 1 of a 2-line buffer. Pressing o
-"     adds line 2 (blank) and pushes 'def' to line 3 → target_lines.
-"     Pressing O from line 1 instead would push 'abc' down → buffer
-"     ['', 'abc', 'def'] (mismatch).
-"   - O items: cursor starts on line 2 of a 2-line buffer. Pressing O
-"     adds line 2 (blank), pushes 'def' to line 3 → target_lines.
-"     Pressing o from line 2 puts the blank at the bottom →
-"     ['abc', 'def', ''] (mismatch).
-"   - Cheat path `jO` for an o-item (move down then O above the new
-"     position) — same end state, 3 motions vs optimal 2; rate
-"     penalty is the disincentive.
+" The cursor sits on ONE of the two bracket rows. The OTHER row's '⏵'
+" position tells you the direction:
+"   - other ⏵ is BELOW cursor → press o (open below)
+"   - other ⏵ is ABOVE cursor → press O (open above)
 "
-" Lines chosen are short, distinct, lowercase: enough that the learner
-" can read the buffer state at a glance.
+" Why this design (vs. an inline ─── separator):
+"   - The indicators are part of the content rows, so they shift
+"     coherently with the row through any edit — no need to think
+"     about how a decoration row drifts post-press.
+"   - The two markers mirror T0.1's '▶◀' seam cue: both indicators
+"     converge on the gap, just rotated 90°. Two rows of '⏵' bracket
+"     a horizontal seam the same way two arrows brackets a vertical
+"     one.
+"
+" Cheat-defense at the runner level (mirrors T0.1):
+"   - InsertEnter row + final target_lines + post-Esc cursor must all
+"     match. Pressing the wrong key from the canonical start row
+"     produces a different post-press buffer.
+"   - Cheat paths like `jO` for an o-item (or `ko` for an O-item)
+"     navigate to the OTHER bracket row first, then press the other
+"     key — the resulting buffer matches, so the cheat credits, but
+"     at 3 motions instead of 2 the SCC errors line surfaces it.
 
-let s:line_pairs = [
-  \ ['abc', 'def'],
-  \ ['foo', 'bar'],
-  \ ['hello', 'world'],
-  \ ['print', 'value'],
-  \ ['open', 'close'],
+let s:words = [
+  \ 'alpha', 'beta', 'gamma', 'delta', 'epsilon',
+  \ 'zeta', 'eta', 'theta', 'iota', 'kappa',
   \ ]
+let s:MARK = '⏵'
+let s:NO_MARK = ' '
 
 function! vimfluency#pinpoints#pT0_2#meta() abort
   " Catalog aim 40/min. Slightly below T0.1's 50 because the buffer
@@ -51,36 +54,109 @@ function! s:rand(n) abort
   return rand() % a:n
 endfunction
 
+" Pick n distinct words from the pool (no repetitions in one item).
+function! s:pick_distinct(n, pool) abort
+  let pool = copy(a:pool)
+  let result = []
+  while len(result) < a:n && !empty(pool)
+    let i = s:rand(len(pool))
+    call add(result, remove(pool, i))
+  endwhile
+  return result
+endfunction
+
+" Build the pre-press buffer rows. Bracket rows (1-indexed `upper` and
+" `upper + 1`) get the '⏵' prefix; the rest get a single space so
+" content columns line up.
+function! s:build_lines(words, upper) abort
+  let lines = []
+  let n = len(a:words)
+  for i in range(n)
+    let row = i + 1
+    let prefix = (row == a:upper || row == a:upper + 1) ? s:MARK : s:NO_MARK
+    call add(lines, prefix . a:words[i])
+  endfor
+  return lines
+endfunction
+
 function! vimfluency#pinpoints#pT0_2#generate() abort
-  let pair = s:line_pairs[s:rand(len(s:line_pairs))]
+  let n_words = 4
+  let words = s:pick_distinct(n_words, s:words)
+  " upper bracket row (1-indexed) in [1, n_words - 1]; lower bracket
+  " is upper + 1. The gap sits between them.
+  let upper = 1 + s:rand(n_words - 1)
+  let lines = s:build_lines(words, upper)
   let key = ['o', 'O'][s:rand(2)]
-  " Both keys produce the same 3-line target state ([pair[0], '', pair[1]])
-  " — only the starting cursor row differs. That's the cheat-defense:
-  " the WRONG key from the same start row produces a different buffer.
-  let target_lines = [pair[0], '', pair[1]]
-  if key ==# 'o'
-    let start_row = 1
-    let prompt = 'Open a new line BELOW the current line, then leave insert (Esc).'
-  else
-    let start_row = 2
-    let prompt = 'Open a new line ABOVE the current line, then leave insert (Esc).'
-  endif
-  " hide_target: opt out of the green-cell target. T0.2's post-action
-  " target sits on a brand-new blank line that doesn't exist
-  " pre-action; if we asked matchaddpos to paint at [2, 1] before the
-  " key is pressed, it'd highlight 'd' of 'def' (for o items) which
-  " is misleading, and it would be invisible after the open (empty
-  " cell). The directional prompt is the cue for T0.2.
+  let start_row = (key ==# 'o') ? upper : upper + 1
+  " Both keys land the new blank between the two bracket rows; the
+  " runner distinguishes them via the cursor's starting row (cheat-
+  " defense for wrong-key-from-canonical-start).
+  let target_row = upper + 1
+  let target_lines = lines[:upper - 1] + [''] + lines[upper:]
   return {
-    \ 'lines': pair,
-    \ 'start': [start_row, 1],
-    \ 'enter_at_row': 2,
+    \ 'lines': lines,
+    \ 'start': [start_row, 2],
+    \ 'enter_at_row': target_row,
     \ 'enter_at_col': 1,
     \ 'target_lines': target_lines,
-    \ 'target': [2, 1],
+    \ 'target': [target_row, 1],
     \ 'hide_target': 1,
     \ 'expected_motion': key,
     \ 'optimal_motions': 2,
-    \ 'prompt': prompt,
+    \ 'prompt': 'Open a new line at the gap between the ⏵ rows.',
     \ }
+endfunction
+
+" DI sequence: T0.1 is a prereq, so the learner already knows insert
+" mode and Esc/Ctrl-C. T0.2's lesson focuses on the new concepts —
+" the bracketed-gap indicator and the o/O direction rule.
+function! vimfluency#pinpoints#pT0_2#lesson() abort
+  let demo = [' alpha', '⏵beta', '⏵gamma', ' delta']
+  let target = [' alpha', '⏵beta', '', '⏵gamma', ' delta']
+  return [
+    \ {'kind': 'show', 'lines': [], 'cursor': [1, 1],
+    \  'prompt': [
+    \    'T0.2 — open new lines.',
+    \    'o opens a NEW LINE below the cursor and enters insert mode.',
+    \    'O opens a NEW LINE above the cursor and enters insert mode.',
+    \    '',
+    \    'Press <Space> to continue.']},
+    \ {'kind': 'show', 'lines': demo, 'cursor': [2, 2],
+    \  'prompt': [
+    \    'Two ⏵ markers on adjacent rows BRACKET the gap between them.',
+    \    'Your cursor will sit on ONE of those rows; the OTHER ⏵',
+    \    'tells you the direction:',
+    \    '  - other ⏵ is BELOW your cursor → press o (open below)',
+    \    '  - other ⏵ is ABOVE your cursor → press O (open above)',
+    \    '',
+    \    'Press <Space> to continue.']},
+    \ {'kind': 'try', 'lines': demo, 'start': [2, 2],
+    \  'enter_at_row': 3, 'enter_at_col': 1,
+    \  'target_lines': target,
+    \  'target': [3, 1], 'expected_motion': 'o', 'optimal_motions': 2,
+    \  'hide_target': 1,
+    \  'prompt': [
+    \    'Cursor sits on the UPPER ⏵ row — the other ⏵ is below you.',
+    \    'Press o then Esc (or Ctrl-C).']},
+    \ {'kind': 'try', 'lines': demo, 'start': [3, 2],
+    \  'enter_at_row': 3, 'enter_at_col': 1,
+    \  'target_lines': target,
+    \  'target': [3, 1], 'expected_motion': 'O', 'optimal_motions': 2,
+    \  'hide_target': 1,
+    \  'prompt': [
+    \    'Cursor sits on the LOWER ⏵ row — the other ⏵ is above you.',
+    \    'Press O then Esc (or Ctrl-C).']},
+    \ {'kind': 'try', 'lines': demo, 'start': [2, 2],
+    \  'enter_at_row': 3, 'enter_at_col': 1,
+    \  'target_lines': target,
+    \  'target': [3, 1], 'expected_motion': 'o', 'optimal_motions': 2,
+    \  'hide_target': 1,
+    \  'prompt': 'o again — cursor on upper ⏵, other ⏵ below.'},
+    \ {'kind': 'try', 'lines': demo, 'start': [3, 2],
+    \  'enter_at_row': 3, 'enter_at_col': 1,
+    \  'target_lines': target,
+    \  'target': [3, 1], 'expected_motion': 'O', 'optimal_motions': 2,
+    \  'hide_target': 1,
+    \  'prompt': 'O again — cursor on lower ⏵, other ⏵ above.'},
+    \ ]
 endfunction
