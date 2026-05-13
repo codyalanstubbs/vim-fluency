@@ -51,6 +51,65 @@ function! s:rand(n) abort
   return rand() % a:n
 endfunction
 
+" DI sequence: two short show frames frame the recognition pattern
+" (most modes use '-- MODE --'; normal has no indicator; command
+" shows ':'), then one try frame per mode. Five mode names, five
+" try frames.
+function! vimfluency#pinpoints#pT0_5#lesson() abort
+  return [
+    \ {'kind': 'show', 'lines': [], 'cursor': [1, 1],
+    \  'prompt': [
+    \    'T0.5 — name the current mode from a screen cue.',
+    \    'Vim shows which mode you''re in at the bottom of the screen.',
+    \    'Recognize the cue, type the mode name (lowercase, one word).',
+    \    '',
+    \    'Press <Space> to continue.']},
+    \ {'kind': 'show', 'lines': [], 'cursor': [1, 1],
+    \  'prompt': [
+    \    'Three patterns to know:',
+    \    '  - "-- MODE --" at the bottom → insert, visual, or replace',
+    \    '  - no indicator at the bottom  → normal mode (the default)',
+    \    '  - ":" prompt at the bottom    → command mode (Ex command)',
+    \    '',
+    \    'Press <Space> to begin.']},
+    \ {'kind': 'try', 'lines': [],
+    \  'expected_answer': 'normal', 'expected_motion': 'normal', 'optimal_motions': 6,
+    \  'prompt': [
+    \    'No "-- TYPE --" indicator at the bottom; cursor is a solid block.',
+    \    'This is NORMAL mode — the default vim starts in.',
+    \    '',
+    \    '    (no indicator)']},
+    \ {'kind': 'try', 'lines': [],
+    \  'expected_answer': 'insert', 'expected_motion': 'insert', 'optimal_motions': 6,
+    \  'prompt': [
+    \    'Bottom of the screen shows "-- INSERT --".',
+    \    'Typing now adds characters to the buffer.',
+    \    '',
+    \    '    -- INSERT --']},
+    \ {'kind': 'try', 'lines': [],
+    \  'expected_answer': 'visual', 'expected_motion': 'visual', 'optimal_motions': 6,
+    \  'prompt': [
+    \    'Bottom of the screen shows "-- VISUAL --".',
+    \    'A range of text is selected; the next operator applies to it.',
+    \    '',
+    \    '    -- VISUAL --']},
+    \ {'kind': 'try', 'lines': [],
+    \  'expected_answer': 'replace', 'expected_motion': 'replace', 'optimal_motions': 7,
+    \  'prompt': [
+    \    'Bottom of the screen shows "-- REPLACE --".',
+    \    'Typing overwrites existing characters instead of inserting.',
+    \    '',
+    \    '    -- REPLACE --']},
+    \ {'kind': 'try', 'lines': [],
+    \  'expected_answer': 'command', 'expected_motion': 'command', 'optimal_motions': 7,
+    \  'prompt': [
+    \    'Cursor is on a ":" line at the bottom — this is COMMAND mode.',
+    \    'You type Ex commands here (e.g. :w, :q, :s/foo/bar/).',
+    \    '',
+    \    '    :_']},
+    \ ]
+endfunction
+
 function! vimfluency#pinpoints#pT0_5#generate() abort
   let pick = s:items[s:rand(len(s:items))]
   let prompt_lines = [
