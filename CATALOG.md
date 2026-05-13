@@ -19,7 +19,10 @@ Conventions:
 |---|---|---|---|---|
 | T0.1 | Enter/leave insert mode (`i`, `a`, `Esc`) | S→K | 50 | — |
 | T0.2 | Open new line (`o`, `O`) | S→K | 40 | T0.1 |
-| T0.3 | Save / quit / force-quit (`:w`, `:q`, `:wq`, `:q!`, `ZZ`) | Recall | 30 | — |
+| T0.3a | Discriminate `:w` vs `:q` | Disc | 40 | — |
+| T0.3b | Discriminate `:wq` vs `:q!` | Disc | 35 | T0.3a |
+| T0.3c | Discriminate `:wq` vs `ZZ` (Ex vs normal-mode) | Disc | 35 | T0.3b |
+| T0.3d | Discriminate `:q!` vs `ZQ` (Ex vs normal-mode) | Disc | 35 | T0.3b |
 | T0.4 | Undo / redo (`u`, `Ctrl-r`) | S→K | 50 | — |
 | T0.5 | Mode awareness (given a screen, name the current mode) | Recall | 60 | — |
 

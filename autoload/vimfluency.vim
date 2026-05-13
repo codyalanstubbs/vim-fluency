@@ -694,7 +694,7 @@ function! s:render_recall_item(item) abort
   let raw = get(a:item, 'prompt', '(no prompt)')
   let prompt_lines = type(raw) == type([]) ? raw : [raw]
   let lines = copy(prompt_lines)
-  call extend(lines, ['', '  > ', '', '  [BS=fix  Tab=skip]'])
+  call extend(lines, ['', '  > ', '', '  [BS=fix  Tab=skip  Esc=quit]'])
   let s:session.input_row = len(prompt_lines) + 2
   let s:session.input_prefix = '  > '
   setlocal modifiable
@@ -706,9 +706,12 @@ endfunction
 
 " Build the buffer-local key maps used during recall input. Every
 " printable ASCII char (33-126) plus space is mapped to recall_append;
-" BS corrects, Tab skips. Non-printable special keys (CR, Esc, etc.)
-" are mapped to <Nop> so vim's normal-mode default doesn't fire (e.g.
-" CR jumping to next line, : opening the command line).
+" BS corrects, Tab skips, Esc/Ctrl-C quit.
+"
+" Quit-key rationale: the recall layer captures ':' as typed input
+" (since answers like ':wq' contain it), which means :VfQuit can't
+" be typed inside the recall buffer. So we install Esc and Ctrl-C
+" as buffer-local quit shortcuts.
 function! s:install_recall_maps() abort
   " LHS escapes for keys vim's mapping parser treats specially in the
   " left-hand side. '<' must be <lt> (otherwise vim reads <Whatever>
@@ -728,28 +731,46 @@ function! s:install_recall_maps() abort
   nnoremap <buffer> <silent> <Space> :call <SID>recall_append(' ')<CR>
   nnoremap <buffer> <silent> <BS> :call <SID>recall_backspace()<CR>
   nnoremap <buffer> <silent> <Tab> :call <SID>skip()<CR>
-  " Block keys whose normal-mode default would fire useless commands
-  " or jump the cursor away from the input line.
+  nnoremap <buffer> <silent> <Esc> :call vimfluency#stop('user')<CR>
+  nnoremap <buffer> <silent> <C-c> :call vimfluency#stop('user')<CR>
+  " Block <CR>'s default (would jump the cursor to the next line).
   nnoremap <buffer> <silent> <CR> <Nop>
-  nnoremap <buffer> <silent> <Esc> <Nop>
 endfunction
+
+" Recall input handlers work for both probe and lesson sessions:
+"   - probe → motions accumulate to current_item_motions, credit via s:credit_item
+"   - learn (setup) → frame_complete + s:learn_render_complete
+"   - learn (test)  → motions accumulate to test_motion_count, streak update +
+"                     s:learn_render_complete
+" Show frames in lessons don't set input_row, so the input handlers
+" silently no-op if a key fires before a try frame is active.
 
 function! s:recall_append(c) abort
   if empty(s:session) || s:session.advancing | return | endif
+  if !has_key(s:session, 'input_row') | return | endif
   let s:session.recall_input .= a:c
-  let s:session.current_item_motions += 1
+  call s:recall_increment_motions()
   call s:recall_repaint()
   call s:recall_check_match()
 endfunction
 
 function! s:recall_backspace() abort
   if empty(s:session) || s:session.advancing | return | endif
-  let s:session.current_item_motions += 1
+  if !has_key(s:session, 'input_row') | return | endif
+  call s:recall_increment_motions()
   if !empty(s:session.recall_input)
     let s:session.recall_input = strpart(s:session.recall_input,
       \ 0, len(s:session.recall_input) - 1)
   endif
   call s:recall_repaint()
+endfunction
+
+function! s:recall_increment_motions() abort
+  if get(s:session, 'mode', 'probe') ==# 'probe'
+    let s:session.current_item_motions += 1
+  elseif get(s:session, 'phase', '') ==# 'test'
+    let s:session.test_motion_count += 1
+  endif
 endfunction
 
 function! s:recall_repaint() abort
@@ -758,6 +779,9 @@ function! s:recall_repaint() abort
     \ s:session.input_prefix . s:session.recall_input)
   call cursor(s:session.input_row,
     \ len(s:session.input_prefix) + len(s:session.recall_input) + 1)
+  " <silent> mappings can suppress the implicit redraw between
+  " keystrokes; force one so the typed input shows immediately.
+  redraw
 endfunction
 
 " Auto-credit on exact match. Saves a stand-alone <CR> "submit" — keeps
@@ -765,12 +789,42 @@ endfunction
 " the next item appearing. Within an item there's exactly one
 " expected_answer, so prefix collisions across items don't apply.
 function! s:recall_check_match() abort
-  let item = s:session.current_item
+  if get(s:session, 'frame_complete', 0) | return | endif
+
+  let mode = get(s:session, 'mode', 'probe')
+  if mode ==# 'probe'
+    let item = s:session.current_item
+  elseif s:session.phase ==# 'test'
+    let item = s:session.current_test_item
+  else
+    let frame = s:session.frames[s:session.frame_idx]
+    if frame.kind !=# 'try' | return | endif
+    let item = frame
+  endif
+
   let expected = get(item, 'expected_answer', '')
   if empty(expected) | return | endif
-  if s:session.recall_input ==# expected
+  if s:session.recall_input !=# expected | return | endif
+
+  if mode ==# 'probe'
     call s:credit_item()
+    return
   endif
+
+  " Learn: mark frame complete, update test-phase streak, repaint header.
+  let s:session.frame_complete = 1
+  if s:session.phase ==# 'test'
+    let s:session.last_item_motions = s:session.test_motion_count
+    let s:session.last_item_optimal = get(item, 'optimal_motions', 1)
+    if s:session.last_item_motions <= s:session.last_item_optimal
+      let s:session.streak += 1
+      let s:session.wrongs = 0
+    else
+      let s:session.streak = 0
+      let s:session.wrongs += 1
+    endif
+  endif
+  call s:learn_render_complete()
 endfunction
 
 " -----------------------------------------------------------------
@@ -1240,6 +1294,7 @@ function! s:learn_header_line() abort
   if s:session.phase ==# 'test'
     let cur = s:session.streak
     let req = s:session.required_streak
+    let kind = get(s:session, 'kind', 'motion')
     if s:session.frame_complete
       if s:session.last_item_motions <= s:session.last_item_optimal
         if s:session.streak >= s:session.required_streak
@@ -1254,16 +1309,20 @@ function! s:learn_header_line() abort
           \ s:session.last_item_motions, s:session.last_item_optimal)
       endif
     else
-      let kind = get(s:session, 'kind', 'motion')
-      let goal = kind ==# 'mode'
-        \ ? 'enter insert at the gap, then Esc'
-        \ : 'reach the green cell, fewest keystrokes'
+      if kind ==# 'mode'
+        let goal = 'enter insert at the gap, then Esc'
+      elseif kind ==# 'recall'
+        let goal = 'type the keystrokes for the prompt'
+      else
+        let goal = 'reach the green cell, fewest keystrokes'
+      endif
       let hint = printf('streak %d/%d  [%s]', cur, req, goal)
       if kind ==# 'editing'
         let hint .= '  [u=undo if wrong]'
       endif
     endif
-    return printf('LESSON %s  TEST  %s  [q=quit]', s:session.id, hint)
+    let quit_hint = kind ==# 'recall' ? '[Esc=quit]' : '[q=quit]'
+    return printf('LESSON %s  TEST  %s  %s', s:session.id, hint, quit_hint)
   endif
 
   let frame = s:session.frames[s:session.frame_idx]
@@ -1275,15 +1334,20 @@ function! s:learn_header_line() abort
   elseif frame.kind ==# 'show'
     let hint = '[Space=next]'
   else
-    let hint = kind ==# 'mode'
-      \ ? '[enter insert at the gap, then Esc]'
-      \ : '[reach the green cell]'
+    if kind ==# 'mode'
+      let hint = '[enter insert at the gap, then Esc]'
+    elseif kind ==# 'recall'
+      let hint = '[type the keystrokes for the prompt]'
+    else
+      let hint = '[reach the green cell]'
+    endif
     if kind ==# 'editing'
       let hint .= '  [u=undo if wrong]'
     endif
   endif
-  return printf('LESSON %s  SETUP %d/%d  %s  [q=quit]',
-    \ s:session.id, idx, total, hint)
+  let quit_hint = kind ==# 'recall' ? '[Esc=quit]' : '[q=quit]'
+  return printf('LESSON %s  SETUP %d/%d  %s  %s',
+    \ s:session.id, idx, total, hint, quit_hint)
 endfunction
 
 function! s:learn_show_frame() abort
@@ -1293,8 +1357,13 @@ function! s:learn_show_frame() abort
   " path resets these in s:render_mode_item; lesson path mirrors here.
   let s:session.insert_entered = 0
   let s:session.insert_enter_pos = []
+  " Recall input-row state. unlet first so show frames don't accept
+  " stray keystrokes from a prior try frame; try frames re-set it.
+  silent! unlet s:session.input_row
   let frame = s:session.frames[s:session.frame_idx]
-  let is_mode = get(s:session, 'kind', 'motion') ==# 'mode'
+  let kind = get(s:session, 'kind', 'motion')
+  let is_mode = kind ==# 'mode'
+  let is_recall = kind ==# 'recall'
 
   " prompt may be a string or a list of lines — multi-line lets a
   " pinpoint wrap long instructions at a readable width instead of
@@ -1302,6 +1371,30 @@ function! s:learn_show_frame() abort
   let prompt_lines = type(frame.prompt) == v:t_list
     \ ? copy(frame.prompt) : [frame.prompt]
   let base_header = [s:learn_header_line(), ''] + prompt_lines + ['']
+
+  if is_recall
+    " Recall lessons render the lesson header + prompt, plus an input
+    " area for try frames. Show frames stay static; no input area.
+    let lines = copy(base_header)
+    if frame.kind ==# 'try'
+      let s:session.recall_input = ''
+      let s:session.input_prefix = '  > '
+      call extend(lines, ['  > ', '', '  [BS=fix  Tab=skip  Esc=quit]'])
+      let s:session.input_row = len(base_header) + 1
+    endif
+    setlocal modifiable
+    silent! %delete _
+    call setline(1, lines)
+    if frame.kind ==# 'try'
+      call cursor(s:session.input_row, len(s:session.input_prefix) + 1)
+    else
+      " Park cursor at the bottom blank header line so the block sits
+      " on empty space rather than over a prompt char.
+      call cursor(len(base_header), 1)
+    endif
+    let s:session.advancing = 0
+    return
+  endif
   " Mode-kind frames may get a '▶◀' gap indicator row — try frames
   " always do (it's the cue); show frames optionally, when they
   " declare enter_at_col to demonstrate the cue itself.
@@ -1373,9 +1466,10 @@ function! s:learn_show_frame() abort
 endfunction
 
 function! s:learn_install_autocmds() abort
+  let kind = get(s:session, 'kind', 'motion')
   augroup VfLearn
     autocmd!
-    if get(s:session, 'kind', 'motion') ==# 'mode'
+    if kind ==# 'mode'
       " Mode-kind lessons track the round trip through insert mode,
       " same as the probe: InsertEnter records the entry col so we
       " can disambiguate i/a/I/A, InsertLeave is when we evaluate.
@@ -1384,6 +1478,11 @@ function! s:learn_install_autocmds() abort
       " AND InsertEnter for the same keystroke, inflating motion count).
       autocmd InsertEnter <buffer> call s:learn_on_insert_enter()
       autocmd InsertLeave <buffer> call s:learn_on_insert_leave()
+    elseif kind ==# 'recall'
+      " Recall lessons route every printable keystroke into recall_append
+      " (mirrors the probe). No autocmds needed — handlers fire via the
+      " buffer-local mappings.
+      call s:install_recall_maps()
     else
       " TextChanged is needed for the test phase on editing-kind pinpoints
       " where dw/db etc. modify the buffer without necessarily firing
@@ -1392,10 +1491,18 @@ function! s:learn_install_autocmds() abort
         \ call s:learn_on_change()
     endif
   augroup END
+  " Lesson keymaps. For recall lessons we skip q/p overrides because
+  " those are letters that appear in answer strings (e.g. :q, :wq).
+  " Esc still quits the recall lesson via install_recall_maps. Space
+  " and CR likewise override recall's bindings — none of the current
+  " recall pinpoints' answers contain Space or CR, so this is safe;
+  " a future answer-with-spaces would need a dispatcher.
   nnoremap <buffer> <silent> <Space> :call <SID>learn_advance_show()<CR>
   nnoremap <buffer> <silent> <CR> :call <SID>learn_advance_show()<CR>
-  nnoremap <buffer> <silent> q :call vimfluency#learn_stop()<CR>
-  nnoremap <buffer> <silent> p :call <SID>learn_start_probe()<CR>
+  if kind !=# 'recall'
+    nnoremap <buffer> <silent> q :call vimfluency#learn_stop()<CR>
+    nnoremap <buffer> <silent> p :call <SID>learn_start_probe()<CR>
+  endif
   " Ctrl-C → Esc, mirroring the probe path. Vim's Ctrl-C exits insert
   " without firing InsertLeave by design, so unmapped it would leave
   " the mode-kind matcher hanging.
@@ -1618,6 +1725,12 @@ function! s:learn_show_complete() abort
     let s:session.deletion_match_id = -1
   endif
   call s:clear_waypoint_matches()
+  " Recall lessons skipped the q/p overrides during input phases
+  " (those letters belong to answer strings); install them now so
+  " the completion screen's instructions work.
+  silent! unlet s:session.input_row
+  nnoremap <buffer> <silent> q :call vimfluency#learn_stop()<CR>
+  nnoremap <buffer> <silent> p :call <SID>learn_start_probe()<CR>
 
   setlocal modifiable
   silent! %delete _
@@ -1692,6 +1805,8 @@ function! s:learn_test_next() abort
   " Reset mode-kind insert-tracking on every test item.
   let s:session.insert_entered = 0
   let s:session.insert_enter_pos = []
+  " Reset recall input-row; we set it below if this is a recall item.
+  silent! unlet s:session.input_row
 
   let GenFn = function('vimfluency#pinpoints#' . s:session.module . '#generate')
   let item = GenFn()
@@ -1702,7 +1817,28 @@ function! s:learn_test_next() abort
   " presses produce distinct states.
   let s:session.last_event_state = [item.start, copy(item.lines)]
 
-  let is_mode = get(s:session, 'kind', 'motion') ==# 'mode'
+  let kind = get(s:session, 'kind', 'motion')
+  let is_mode = kind ==# 'mode'
+
+  if kind ==# 'recall'
+    " Recall test items: the item's own prompt (list or string)
+    " serves as the test prompt. Render lesson header + prompt +
+    " input area; no buffer content.
+    let raw = get(item, 'prompt', '(no prompt)')
+    let prompt_lines = type(raw) == v:t_list ? copy(raw) : [raw]
+    let lesson_header = [s:learn_header_line(), ''] + prompt_lines + ['']
+    let s:session.recall_input = ''
+    let s:session.input_prefix = '  > '
+    let s:session.input_row = len(lesson_header) + 1
+    let lines = lesson_header + ['  > ', '', '  [BS=fix  Tab=skip  Esc=quit]']
+    setlocal modifiable
+    silent! %delete _
+    call setline(1, lines)
+    call cursor(s:session.input_row, len(s:session.input_prefix) + 1)
+    let s:session.advancing = 0
+    return
+  endif
+
   let has_waypoints = has_key(item, 'waypoints') && !empty(item.waypoints)
   let test_prompt = has_waypoints
     \ ? 'Reach each numbered target in order. Fewer keystrokes is better.'

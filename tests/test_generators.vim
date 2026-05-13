@@ -627,29 +627,40 @@ function! s:assert_recall_common(id, item) abort
     \ prefix . 'has prompt')
 endfunction
 
-" T0.3 — save / quit (recall). Each item's expected_answer is one of
-" the five canonical exits; expected_motion mirrors the answer (so
-" the per-motion summary breaks the five out separately);
-" optimal_motions equals the answer's character count.
-function! s:test_T0_3() abort
-  let GenFn = function('vimfluency#pinpoints#pT0_3#generate')
-  let valid = [':w', ':q', ':wq', ':q!', 'ZZ']
+" T0.3a–d — save/quit binary discrimination pinpoints. Each one
+" picks between exactly two answers. expected_motion mirrors the
+" answer; optimal_motions equals the answer's character count.
+function! s:test_T0_3_pair(id, module, valid) abort
+  let GenFn = function('vimfluency#pinpoints#' . a:module . '#generate')
   let seen = {}
   for i in range(s:N)
     let item = GenFn()
-    call s:assert_recall_common('T0.3', item)
-    call AssertIn(item.expected_answer, valid,
-      \ 'T0.3: expected_answer in canonical-exit set')
+    call s:assert_recall_common(a:id, item)
+    call AssertIn(item.expected_answer, a:valid,
+      \ a:id . ': expected_answer in declared pair')
     call AssertEq(item.expected_motion, item.expected_answer,
-      \ 'T0.3: expected_motion mirrors expected_answer')
+      \ a:id . ': expected_motion mirrors expected_answer')
     call AssertEq(item.optimal_motions, len(item.expected_answer),
-      \ 'T0.3: optimal_motions == len(expected_answer)')
+      \ a:id . ': optimal_motions == len(expected_answer)')
     let seen[item.expected_answer] = 1
   endfor
-  for a in valid
+  for a in a:valid
     call Assert(get(seen, a, 0) == 1,
-      \ 'T0.3: ' . a . ' appeared in samples')
+      \ a:id . ': ' . a . ' appeared in samples')
   endfor
+endfunction
+
+function! s:test_T0_3a() abort
+  call s:test_T0_3_pair('T0.3a', 'pT0_3a', [':w', ':q'])
+endfunction
+function! s:test_T0_3b() abort
+  call s:test_T0_3_pair('T0.3b', 'pT0_3b', [':wq', ':q!'])
+endfunction
+function! s:test_T0_3c() abort
+  call s:test_T0_3_pair('T0.3c', 'pT0_3c', [':wq', 'ZZ'])
+endfunction
+function! s:test_T0_3d() abort
+  call s:test_T0_3_pair('T0.3d', 'pT0_3d', [':q!', 'ZQ'])
 endfunction
 
 " T0.5 — mode awareness (recall). Each item's answer is one of the
@@ -828,5 +839,8 @@ call s:test_2_2()
 call s:test_4_1()
 call s:test_T0_1()
 call s:test_T0_2()
-call s:test_T0_3()
+call s:test_T0_3a()
+call s:test_T0_3b()
+call s:test_T0_3c()
+call s:test_T0_3d()
 call s:test_T0_5()
