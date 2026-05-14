@@ -668,15 +668,29 @@ endfunction
 " expected_motion mirrors answer.
 function! s:test_T0_5() abort
   let GenFn = function('vimfluency#pinpoints#pT0_5#generate')
-  let valid = ['normal', 'insert', 'visual', 'replace', 'command']
+  " Single-keystroke answers: n=normal, i=insert, v=visual, r=replace,
+  " :=command. The probe isolates the recognition step from typing
+  " noise (no word length, no typos).
+  let valid = ['n', 'i', 'v', 'r', ':']
+  let last_lines = {
+    \ 'n': '  ~',
+    \ 'i': '  -- INSERT --',
+    \ 'v': '  -- VISUAL --',
+    \ 'r': '  -- REPLACE --',
+    \ ':': '  :_',
+    \ }
   let seen = {}
   for i in range(s:N)
     let item = GenFn()
     call s:assert_recall_common('T0.5', item)
     call AssertIn(item.expected_answer, valid,
-      \ 'T0.5: expected_answer in mode-name set')
-    call Assert(type(item.prompt) == v:t_list,
-      \ 'T0.5: prompt is a list (mock-screen cue)')
+      \ 'T0.5: expected_answer in single-key set')
+    call AssertEq(item.optimal_motions, 1,
+      \ 'T0.5: optimal_motions == 1 (single keystroke)')
+    call Assert(has_key(item, 'prompt_after') && type(item.prompt_after) == v:t_list,
+      \ 'T0.5: prompt_after is a list (the mock vim screen)')
+    call AssertEq(item.prompt_after[-1], last_lines[item.expected_answer],
+      \ 'T0.5: mock-screen last line matches expected modeline (or ~ for normal)')
     call AssertEq(item.expected_motion, item.expected_answer,
       \ 'T0.5: expected_motion mirrors expected_answer')
     let seen[item.expected_answer] = 1

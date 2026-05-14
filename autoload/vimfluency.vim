@@ -682,20 +682,54 @@ endfunction
 " Recall kind — type the keystroke string that does X
 " -----------------------------------------------------------------
 
+" Build the line list and input_row for a recall item, given an
+" optional pre-header (used by lessons to add their own status line
+" above the recall area). Returns the [lines, input_row] tuple.
+"
+" Item fields:
+"   prompt        — string or list, shown ABOVE the input
+"   prompt_after  — string or list, shown DIRECTLY BELOW the input
+"                   (used by T0.5 to render a mock vim screen with
+"                   the input as the buffer's first line and the
+"                   mode indicator at the buffer bottom).
+"
+" Layout:
+"   <pre_header>
+"   <prompt + blank>
+"   <input row>
+"   <prompt_after>           ← visually adjacent to input
+"   <blank>
+"   [BS=fix  Tab=skip  Esc=quit]
+function! s:recall_compose(item, pre_header) abort
+  let raw = get(a:item, 'prompt', '')
+  let prompt_lines = type(raw) == type([])
+    \ ? raw
+    \ : (empty(raw) ? [] : [raw])
+  let after_raw = get(a:item, 'prompt_after', '')
+  let after_lines = type(after_raw) == type([])
+    \ ? after_raw
+    \ : (empty(after_raw) ? [] : [after_raw])
+
+  let lines = copy(a:pre_header)
+  if !empty(prompt_lines)
+    call extend(lines, prompt_lines + [''])
+  endif
+  let input_row = len(lines) + 1
+  call add(lines, '  > ')
+  if !empty(after_lines)
+    call extend(lines, after_lines)
+  endif
+  call extend(lines, ['', '  [BS=fix  Tab=skip  Esc=quit]'])
+  return [lines, input_row]
+endfunction
+
 " Render a recall item. The buffer is pure UI: prompt at top, an input
 " line marked '> ' that the keymap layer paints into. There's no live
 " editing area — TextChanged/CursorMoved aren't wired for this kind.
 function! s:render_recall_item(item) abort
   let s:session.recall_input = ''
-  " The pinpoint owns the prompt framing. Accept either a string
-  " (single line) or a list of lines (e.g. T0.5 wants a multi-line
-  " mock screen above the directive). The renderer adds the input
-  " line and the skip hint underneath; nothing else.
-  let raw = get(a:item, 'prompt', '(no prompt)')
-  let prompt_lines = type(raw) == type([]) ? raw : [raw]
-  let lines = copy(prompt_lines)
-  call extend(lines, ['', '  > ', '', '  [BS=fix  Tab=skip  Esc=quit]'])
-  let s:session.input_row = len(prompt_lines) + 2
+  let [lines, input_row] = s:recall_compose(a:item, [])
+  let s:session.input_row = input_row
   let s:session.input_prefix = '  > '
   setlocal modifiable
   silent! %delete _
@@ -1373,21 +1407,24 @@ function! s:learn_show_frame() abort
   let base_header = [s:learn_header_line(), ''] + prompt_lines + ['']
 
   if is_recall
-    " Recall lessons render the lesson header + prompt, plus an input
-    " area for try frames. Show frames stay static; no input area.
-    let lines = copy(base_header)
+    " Recall lessons render the lesson header line + try-frame's
+    " prompt + input area + optional prompt_after (e.g. T0.5's mock
+    " vim screen at the buffer bottom). Show frames stay static;
+    " no input area.
     if frame.kind ==# 'try'
+      let pre = [s:learn_header_line(), '']
+      let [lines, input_row] = s:recall_compose(frame, pre)
       let s:session.recall_input = ''
       let s:session.input_prefix = '  > '
-      call extend(lines, ['  > ', '', '  [BS=fix  Tab=skip  Esc=quit]'])
-      let s:session.input_row = len(base_header) + 1
-    endif
-    setlocal modifiable
-    silent! %delete _
-    call setline(1, lines)
-    if frame.kind ==# 'try'
+      let s:session.input_row = input_row
+      setlocal modifiable
+      silent! %delete _
+      call setline(1, lines)
       call cursor(s:session.input_row, len(s:session.input_prefix) + 1)
     else
+      setlocal modifiable
+      silent! %delete _
+      call setline(1, base_header)
       " Park cursor at the bottom blank header line so the block sits
       " on empty space rather than over a prompt char.
       call cursor(len(base_header), 1)
@@ -1821,16 +1858,13 @@ function! s:learn_test_next() abort
   let is_mode = kind ==# 'mode'
 
   if kind ==# 'recall'
-    " Recall test items: the item's own prompt (list or string)
-    " serves as the test prompt. Render lesson header + prompt +
-    " input area; no buffer content.
-    let raw = get(item, 'prompt', '(no prompt)')
-    let prompt_lines = type(raw) == v:t_list ? copy(raw) : [raw]
-    let lesson_header = [s:learn_header_line(), ''] + prompt_lines + ['']
+    " Recall test items: the item's prompt + optional prompt_after
+    " (e.g. T0.5 puts its mock vim screen below the input area).
+    let pre = [s:learn_header_line(), '']
+    let [lines, input_row] = s:recall_compose(item, pre)
     let s:session.recall_input = ''
     let s:session.input_prefix = '  > '
-    let s:session.input_row = len(lesson_header) + 1
-    let lines = lesson_header + ['  > ', '', '  [BS=fix  Tab=skip  Esc=quit]']
+    let s:session.input_row = input_row
     setlocal modifiable
     silent! %delete _
     call setline(1, lines)
