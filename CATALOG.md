@@ -26,7 +26,7 @@ Conventions:
 | T0.4 | Undo / redo (`u`, `Ctrl-r`) | S→K | 50 | — |
 | T0.5 | Mode awareness (given a screen, press the mode's key — n/i/v/r/:) | Recall | 120 | — |
 
-T0.4 is deferred from the v1 T0 ship. Implementing it requires a runner-level setup hook so the generator can pre-stage edit history before the learner starts (otherwise there's no undo state for `u` to reach for). Revisit when the rest of T0 has real session data.
+
 
 Composite emergence test: "open a file, change one word, save, quit" cold, ≤ 5 s.
 

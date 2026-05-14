@@ -526,7 +526,14 @@ function! s:next_item() abort
 
   setlocal modifiable
   silent! %delete _
-  call setline(1, header + item.lines)
+  if has_key(item, 'history') && !empty(item.history)
+    " T0.4-style: pre-stage undo history so 'u' / Ctrl-r have somewhere
+    " to go. The user's first keypress reverts (or re-applies) the
+    " edit we just staged behind the scenes.
+    call s:stage_undo_history(item, header)
+  else
+    call setline(1, header + item.lines)
+  endif
   call cursor(s:session.header_offset + item.start[0], item.start[1])
 
   if s:session.target_match_id != -1
@@ -676,6 +683,43 @@ function! s:credit_item() abort
     \ 'outcome': 'correct',
     \ })
   call s:next_item()
+endfunction
+
+" Stage a sequence of buffer states in the editing area, leaving
+" the buffer's undo history primed so 'u' / Ctrl-r have somewhere
+" to go. Used by T0.4 (undo / redo).
+"
+" Mechanics:
+"   1. Write the FIRST state with undolevels=-1 so it isn't
+"      recorded — that makes it the undo floor (no further u
+"      below this point).
+"   2. Write subsequent states one at a time, breaking the undo
+"      node between each via `let &undolevels = &undolevels` so
+"      each becomes its own undo entry.
+"   3. Apply (len(history) - 1 - start_index) undos so the buffer
+"      ends up at item.history[start_index] with undo+redo info
+"      available in both directions.
+function! s:stage_undo_history(item, header_lines) abort
+  let history = a:item.history
+  let save_ul = &undolevels
+  setlocal undolevels=-1
+  call setline(1, a:header_lines + history[0])
+  let &undolevels = save_ul
+  for state in history[1:]
+    " Position cursor in the editing area BEFORE the setline so vim
+    " records this position with the undo entry. Otherwise undo
+    " would later restore the cursor to wherever the script happened
+    " to leave it (typically buffer row 1, on the header), which
+    " breaks the matcher's cur_pos == item.target check.
+    call cursor(s:session.header_offset + 1, 1)
+    call setline(s:session.header_offset + 1, state)
+    let &undolevels = &undolevels
+  endfor
+  let undos_needed = (len(history) - 1)
+    \ - get(a:item, 'start_index', len(history) - 1)
+  for _ in range(undos_needed)
+    silent! undo
+  endfor
 endfunction
 
 " -----------------------------------------------------------------
@@ -1450,7 +1494,11 @@ function! s:learn_show_frame() abort
 
   setlocal modifiable
   silent! %delete _
-  call setline(1, header + frame.lines)
+  if has_key(frame, 'history') && !empty(frame.history)
+    call s:stage_undo_history(frame, header)
+  else
+    call setline(1, header + frame.lines)
+  endif
 
   if s:session.target_match_id != -1
     silent! call matchdelete(s:session.target_match_id)
@@ -1903,7 +1951,11 @@ function! s:learn_test_next() abort
 
   setlocal modifiable
   silent! %delete _
-  call setline(1, full_header + item.lines)
+  if has_key(item, 'history') && !empty(item.history)
+    call s:stage_undo_history(item, full_header)
+  else
+    call setline(1, full_header + item.lines)
+  endif
   call cursor(s:session.header_offset + item.start[0], item.start[1])
 
   if s:session.target_match_id != -1

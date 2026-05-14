@@ -10,6 +10,7 @@ let s:expected = [
   \ {'id': 'T0.3b', 'prereqs': ['T0.3a']},
   \ {'id': 'T0.3c', 'prereqs': ['T0.3b']},
   \ {'id': 'T0.3d', 'prereqs': ['T0.3b']},
+  \ {'id': 'T0.4', 'prereqs': []},
   \ {'id': 'T0.5', 'prereqs': []},
   \ {'id': '1A.1', 'prereqs': ['T0']},
   \ {'id': '1A.2', 'prereqs': ['T0']},

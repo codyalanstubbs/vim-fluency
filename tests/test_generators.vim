@@ -650,6 +650,57 @@ function! s:test_T0_3_pair(id, module, valid) abort
   endfor
 endfunction
 
+" T0.4 — undo / redo. Editing kind with pre-staged undo history.
+" Each item declares `history` (list of buffer states) and
+" `start_index`; the runner stages the states into the buffer's
+" undo log so 'u' / Ctrl-r have real targets.
+function! s:test_T0_4() abort
+  let GenFn = function('vimfluency#pinpoints#pT0_4#generate')
+  let valid = ['u', '<C-r>']
+  let seen = {}
+  for i in range(s:N)
+    let item = GenFn()
+    call AssertIn(item.expected_motion, valid,
+      \ 'T0.4: expected_motion in {u, <C-r>}')
+    call AssertEq(item.optimal_motions, 1,
+      \ 'T0.4: optimal_motions == 1 (single keystroke)')
+    call Assert(has_key(item, 'history') && type(item.history) == v:t_list
+      \ && len(item.history) >= 2,
+      \ 'T0.4: history is a list with at least 2 states')
+    call Assert(has_key(item, 'start_index'),
+      \ 'T0.4: has start_index')
+    " For u items: start_index = last; target = state before last.
+    " For Ctrl-r items: start_index = 0; target = state after.
+    let history = item.history
+    let target_lines = get(item, 'target_lines', item.lines)
+    if item.expected_motion ==# 'u'
+      call AssertEq(item.start_index, len(history) - 1,
+        \ 'T0.4[u]: start_index points at last history state')
+      call AssertEq(target_lines, history[item.start_index - 1],
+        \ 'T0.4[u]: target_lines = history one step earlier')
+    else
+      call AssertEq(item.start_index, 0,
+        \ 'T0.4[<C-r>]: start_index points at first history state')
+      call AssertEq(target_lines, history[item.start_index + 1],
+        \ 'T0.4[<C-r>]: target_lines = history one step later')
+    endif
+    " item.lines must equal the state at start_index (what the user sees).
+    call AssertEq(item.lines, history[item.start_index],
+      \ 'T0.4: item.lines == history[start_index]')
+    " All history states have the same line count (staging assumption).
+    let n_lines = len(history[0])
+    for state in history
+      call AssertEq(len(state), n_lines,
+        \ 'T0.4: all history states have equal line count')
+    endfor
+    let seen[item.expected_motion] = 1
+  endfor
+  for k in valid
+    call Assert(get(seen, k, 0) == 1,
+      \ 'T0.4: ' . k . ' appeared in samples')
+  endfor
+endfunction
+
 function! s:test_T0_3a() abort
   call s:test_T0_3_pair('T0.3a', 'pT0_3a', [':w', ':q'])
 endfunction
@@ -857,4 +908,5 @@ call s:test_T0_3a()
 call s:test_T0_3b()
 call s:test_T0_3c()
 call s:test_T0_3d()
+call s:test_T0_4()
 call s:test_T0_5()
