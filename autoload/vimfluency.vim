@@ -2253,6 +2253,7 @@ function! s:render_chart(id, sessions, bounds) abort
   " Compose output lines
   let out = []
   call add(out, printf('vimfluency celeration chart — %s (%s)', a:id, pinpoint_name))
+  call add(out, 'rate per minute (log Y) over calendar date · one column per day')
   call add(out, printf('aim %d/min   ·   %d session(s)   ·   ● corrects   × errors   - aim',
     \ aim, n))
   call add(out, '')
