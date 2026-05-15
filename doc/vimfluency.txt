@@ -48,6 +48,12 @@ COMMANDS                                                        *vf-commands*
     the corrects rate (●) and the errors rate (×) per session, with the
     fluency aim drawn as a dashed line. Press 'q' or <Enter> to close.
 
+:VfChartZoom {id}                                            *:VfChartZoom*
+    Same as :VfChart but with the Y-axis zoomed to a single decade (10
+    to 100). Useful when all sessions sit in the middle of the full
+    1-1000 range and the full chart wastes most of its vertical space.
+    Sessions or aim lines outside 10-100 are clipped.
+
 ==============================================================================
 LOG                                                                  *vf-log*
 

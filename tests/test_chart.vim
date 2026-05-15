@@ -42,3 +42,41 @@ call Assert(s:zero_text !~# 'celeration:',
   \ 'render_chart: no analytics footer (saved for web app)')
 call Assert(s:zero_text !~# 'excluded:',
   \ 'render_chart: no quit-session diagnostics in terminal view')
+
+" Zoom variant: 10-100 single decade. Only the bounding labels should
+" appear on the y-axis; 1000 and 1 belong to the full-range chart.
+let s:zoom = vimfluency#_test_chart_bounds_zoom()
+let s:zoom_text = join(vimfluency#_test_render_chart('TEST', s:sessions, s:zoom), "\n")
+call Assert(s:zoom_text =~# ' 100',
+  \ 'render_chart zoom: shows 100 label')
+call Assert(s:zoom_text =~# '  10',
+  \ 'render_chart zoom: shows 10 label')
+call Assert(s:zoom_text !~# '1000',
+  \ 'render_chart zoom: hides 1000 label (out of zoomed range)')
+
+" Denser y-axis labels: full mode now shows semi-log gridlines, not
+" just decade boundaries.
+call Assert(s:rendered_text =~# '   50',
+  \ 'render_chart: shows intra-decade y label (50)')
+call Assert(s:rendered_text =~# '    5',
+  \ 'render_chart: shows intra-decade y label (5)')
+
+" X-axis labels: the first session date appears in MM-DD form, and
+" there is a tick mark on the bottom axis.
+call Assert(s:rendered_text =~# '01-01',
+  \ 'render_chart: shows x-axis date label for first day')
+call Assert(s:rendered_text =~# '┴',
+  \ 'render_chart: bottom axis has tick marks')
+
+" Longer date span: x-axis stride spaces out labels so multiple dates
+" appear without colliding.
+let s:long = []
+let s:days = [1, 4, 7, 10, 13, 16, 19]
+for s:d in s:days
+  call add(s:long, s:session(printf('2026-01-%02d', s:d), 30.0, 1.0))
+endfor
+let s:long_text = join(vimfluency#_test_render_chart('TEST', s:long), "\n")
+call Assert(s:long_text =~# '01-01',
+  \ 'render_chart: long span labels first date')
+call Assert(s:long_text =~# '01-19',
+  \ 'render_chart: long span anchors last date')

@@ -17,8 +17,13 @@ endfunction
 " Test-only render accessor. Returns the chart lines as a list — same
 " content :VfChart shows in its tab buffer, but addressable from
 " headless mode (where tabnew + getline misbehaves under -Es).
-function! vimfluency#_test_render_chart(id, sessions) abort
-  return s:render_chart(a:id, a:sessions)
+function! vimfluency#_test_render_chart(id, sessions, ...) abort
+  let bounds = a:0 ? a:1 : s:CHART_BOUNDS_FULL
+  return s:render_chart(a:id, a:sessions, bounds)
+endfunction
+
+function! vimfluency#_test_chart_bounds_zoom() abort
+  return s:CHART_BOUNDS_ZOOM
 endfunction
 
 function! vimfluency#_test_render_list(registry, sessions_by_id) abort
@@ -2001,29 +2006,45 @@ endfunction
 " Standard Celeration Chart (text-only)
 " -----------------------------------------------------------------
 
-" Y-axis layout: log10 scale, 3 decades (1 → 1000), 24 rows total.
+" Y-axis layout: log10 scale, 24 rows total. Default bounds span 3
+" decades (1 → 1000); the zoom variant collapses to one decade (10 →
+" 100) so sessions clustered in the middle of the full chart actually
+" have room to separate visually.
 let s:CHART_HEIGHT = 24
-let s:CHART_DECADES = 3
-let s:CHART_LOG_TOP = 3.0    " log10(1000)
-let s:CHART_LOG_BOT = 0.0    " log10(1)
 let s:CHART_LABEL_W = 6
 " One column per calendar day (PT convention). Days with no probe show
 " as a gap, multi-probe days stack at the same column.
 let s:CHART_COLS_PER_DAY = 2
 
-function! s:chart_y(rate) abort
+" Y-axis labels are picked to land on distinct rows under both round() and
+" the height/decade ratio we use — denser than just decade boundaries so
+" you can read the rate without counting rows. The picks here are
+" semi-log "natural" gridlines (1, 2, 3, 5, 7 within each decade for
+" full mode; finer for the single-decade zoom).
+let s:CHART_BOUNDS_FULL = {
+  \ 'log_top': 3.0,
+  \ 'log_bot': 0.0,
+  \ 'labels':  [1000, 500, 200, 100, 50, 20, 10, 5, 2, 1],
+  \ }
+let s:CHART_BOUNDS_ZOOM = {
+  \ 'log_top': 2.0,
+  \ 'log_bot': 1.0,
+  \ 'labels':  [100, 70, 50, 40, 30, 20, 15, 10],
+  \ }
+
+function! s:chart_y(rate, bounds) abort
   if a:rate <= 0
     return s:CHART_HEIGHT
   endif
   let lr = log10(a:rate * 1.0)
-  if lr < s:CHART_LOG_BOT
+  if lr < a:bounds.log_bot
     return s:CHART_HEIGHT
   endif
-  if lr > s:CHART_LOG_TOP
+  if lr > a:bounds.log_top
     return 0
   endif
-  let span = s:CHART_LOG_TOP - s:CHART_LOG_BOT
-  return float2nr(round((s:CHART_LOG_TOP - lr) / span * s:CHART_HEIGHT))
+  let span = a:bounds.log_top - a:bounds.log_bot
+  return float2nr(round((a:bounds.log_top - lr) / span * s:CHART_HEIGHT))
 endfunction
 
 " Julian day number for a YYYY-MM-DD prefix. Used as an integer day index
@@ -2040,12 +2061,39 @@ function! s:julian_from_iso(ts) abort
     \ + y2 / 4 - y2 / 100 + y2 / 400 - 32045
 endfunction
 
+" Inverse of julian_from_iso — returns 'YYYY-MM-DD'. Standard Gregorian
+" conversion (Fliegel-Van Flandern); pure integer arithmetic so it works
+" on any vim build.
+function! s:iso_from_julian(jul) abort
+  let a = a:jul + 32044
+  let b = (4 * a + 3) / 146097
+  let c = a - (146097 * b) / 4
+  let d = (4 * c + 3) / 1461
+  let e = c - (1461 * d) / 4
+  let m = (5 * e + 2) / 153
+  let day = e - (153 * m + 2) / 5 + 1
+  let month = m + 3 - 12 * (m / 10)
+  let year = 100 * b + d - 4800 + m / 10
+  return printf('%04d-%02d-%02d', year, month, day)
+endfunction
+
 function! vimfluency#chart(...) abort
   if a:0 < 1
     echo 'usage: :VfChart <pinpoint_id>'
     return
   endif
-  let id = a:1
+  call s:chart_render(a:1, s:CHART_BOUNDS_FULL, '')
+endfunction
+
+function! vimfluency#chart_zoom(...) abort
+  if a:0 < 1
+    echo 'usage: :VfChartZoom <pinpoint_id>'
+    return
+  endif
+  call s:chart_render(a:1, s:CHART_BOUNDS_ZOOM, 'zoom')
+endfunction
+
+function! s:chart_render(id, bounds, variant) abort
   let log_path = vimfluency#log_dir() . '/sessions.jsonl'
   if !filereadable(log_path)
     echo 'no sessions logged yet (' . log_path . ')'
@@ -2057,7 +2105,7 @@ function! vimfluency#chart(...) abort
     if empty(line) | continue | endif
     try
       let r = json_decode(line)
-      if get(r, 'pinpoint_id', '') ==# id
+      if get(r, 'pinpoint_id', '') ==# a:id
         call add(sessions, r)
       endif
     catch
@@ -2065,18 +2113,18 @@ function! vimfluency#chart(...) abort
   endfor
 
   if empty(sessions)
-    echo 'no sessions for pinpoint ' . id
+    echo 'no sessions for pinpoint ' . a:id
     return
   endif
 
   call sort(sessions, {a, b -> a.timestamp ==# b.timestamp ? 0
     \ : (a.timestamp <# b.timestamp ? -1 : 1)})
 
-  let lines = s:render_chart(id, sessions)
-  call s:show_chart_buffer(id, lines)
+  let lines = s:render_chart(a:id, sessions, a:bounds)
+  call s:show_chart_buffer(a:id, lines, a:variant)
 endfunction
 
-function! s:render_chart(id, sessions) abort
+function! s:render_chart(id, sessions, bounds) abort
   let n = len(a:sessions)
   let pinpoint_name = a:sessions[0].pinpoint_name
   let aim = a:sessions[0].aim
@@ -2092,11 +2140,14 @@ function! s:render_chart(id, sessions) abort
     call add(grid, repeat([' '], total_w))
   endfor
 
-  " Y-axis labels at decade boundaries
-  for [rate, lbl] in [[1000, '1000'], [100, ' 100'], [10, '  10'], [1, '   1']]
-    let row = s:chart_y(rate)
+  " Y-axis labels: semi-log gridlines (not just decade boundaries) so
+  " the rate at any row can be read without counting tick spacing.
+  " The bounds.labels list is picked to avoid same-row collisions
+  " under our round-to-row mapping.
+  for rate in a:bounds.labels
+    let row = s:chart_y(rate, a:bounds)
     if row >= 0 && row <= s:CHART_HEIGHT
-      let label = printf('%5s', lbl)
+      let label = printf('%5d', rate)
       for i in range(len(label))
         let grid[row][i] = label[i]
       endfor
@@ -2115,7 +2166,7 @@ function! s:render_chart(id, sessions) abort
   let grid[s:CHART_HEIGHT][s:CHART_LABEL_W] = '└'
 
   " Aim line (dashed)
-  let aim_row = s:chart_y(aim)
+  let aim_row = s:chart_y(aim, a:bounds)
   if aim_row > 0 && aim_row < s:CHART_HEIGHT
     for c in range(s:CHART_LABEL_W + 1, total_w - 1)
       let grid[aim_row][c] = '-'
@@ -2144,15 +2195,58 @@ function! s:render_chart(id, sessions) abort
     " value is still available via :VfHistory.
     let erate = get(session, 'errors_per_min', 0)
     if erate > 0
-      let erow = s:chart_y(erate)
+      let erow = s:chart_y(erate, a:bounds)
       if erow >= 0 && erow <= s:CHART_HEIGHT
         let grid[erow][col] = '×'
       endif
     endif
 
-    let crow = s:chart_y(crate)
+    let crow = s:chart_y(crate, a:bounds)
     if crow >= 0 && crow <= s:CHART_HEIGHT
       let grid[crow][col] = '●'
+    endif
+  endfor
+
+  " X-axis labels. Pick a calendar-day stride that fits ~10 labels max
+  " with at least one blank col between 5-char 'MM-DD' labels (min
+  " spacing in days = ceil(6 / cols_per_day)). The first day is always
+  " labeled; the last day is added if it has room to the right of the
+  " previous label.
+  let max_labels = 10
+  let min_spacing_days = (6 + s:CHART_COLS_PER_DAY - 1) / s:CHART_COLS_PER_DAY
+  let raw_stride = (n_days + max_labels - 1) / max_labels
+  let stride = max([min_spacing_days, raw_stride])
+
+  let label_days = []
+  let dd = 0
+  while dd < n_days
+    call add(label_days, dd)
+    let dd += stride
+  endwhile
+  if !empty(label_days) && label_days[-1] != n_days - 1
+    \ && (n_days - 1) - label_days[-1] >= min_spacing_days
+    call add(label_days, n_days - 1)
+  endif
+
+  " Tick marks on the bottom axis at labeled day cols.
+  for dd in label_days
+    let col = s:CHART_LABEL_W + 1 + dd * s:CHART_COLS_PER_DAY
+    if col < total_w
+      let grid[s:CHART_HEIGHT][col] = '┴'
+    endif
+  endfor
+
+  " X-axis date row: 'MM-DD' left-aligned at each tick. Left-align
+  " (rather than centering on the tick) keeps the first label clear of
+  " the y-axis label column.
+  let xlabel = repeat([' '], total_w)
+  for dd in label_days
+    let col = s:CHART_LABEL_W + 1 + dd * s:CHART_COLS_PER_DAY
+    let date_str = s:iso_from_julian(base_jul + dd)[5:9]
+    if col + 4 < total_w
+      for i in range(5)
+        let xlabel[col + i] = date_str[i]
+      endfor
     endif
   endfor
 
@@ -2165,6 +2259,7 @@ function! s:render_chart(id, sessions) abort
   for row_chars in grid
     call add(out, join(row_chars, ''))
   endfor
+  call add(out, join(xlabel, ''))
 
   call add(out, printf(' first session: %s', a:sessions[0].timestamp))
   call add(out, printf(' last  session: %s', a:sessions[-1].timestamp))
@@ -2174,15 +2269,17 @@ function! s:render_chart(id, sessions) abort
   return out
 endfunction
 
-function! s:show_chart_buffer(id, lines) abort
+function! s:show_chart_buffer(id, lines, variant) abort
   tabnew
   let tabnr = tabpagenr()
   setlocal buftype=nofile bufhidden=wipe noswapfile nobuflisted
   setlocal nonumber norelativenumber nowrap signcolumn=no
-  silent! execute 'keepalt file vf-chart-' . a:id
+  let bufname_suffix = empty(a:variant) ? '' : '-' . a:variant
+  let title_suffix = empty(a:variant) ? '' : ' (' . a:variant . ')'
+  silent! execute 'keepalt file vf-chart' . bufname_suffix . '-' . a:id
   call setline(1, a:lines)
   setlocal nomodifiable nomodified
-  let &l:statusline = ' celeration chart — ' . a:id . '   [press q or <Enter> to close]'
+  let &l:statusline = ' celeration chart — ' . a:id . title_suffix . '   [press q or <Enter> to close]'
   let b:vf_summary_tabnr = tabnr
   let b:vf_summary_prev_laststatus = &laststatus
   set laststatus=2

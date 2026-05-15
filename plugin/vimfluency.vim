@@ -17,6 +17,7 @@ command! VfQuit call vimfluency#stop('user')
 command! -nargs=? -complete=customlist,vimfluency#complete VfHistory call vimfluency#history(<f-args>)
 command! -nargs=1 -complete=customlist,vimfluency#complete VfLearn call vimfluency#learn(<f-args>)
 command! -nargs=1 -complete=customlist,vimfluency#complete VfChart call vimfluency#chart(<f-args>)
+command! -nargs=1 -complete=customlist,vimfluency#complete VfChartZoom call vimfluency#chart_zoom(<f-args>)
 
 " High-contrast highlights so the target character stays legible against
 " any colorscheme. Saturated bg + dark fg = "highlighter pen" look.
