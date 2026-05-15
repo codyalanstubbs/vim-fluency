@@ -2136,17 +2136,23 @@ function! s:render_chart(id, sessions) abort
     let col = s:CHART_LABEL_W + 1 + day_idx * s:CHART_COLS_PER_DAY
     if col >= total_w | break | endif
 
-    let crow = s:chart_y(crate)
-    if crow >= 0 && crow <= s:CHART_HEIGHT
-      let grid[crow][col] = '●'
-    endif
-
+    " Plot errors first, then corrects, so the corrects dot wins on
+    " collision (when rate and errors_per_min round to the same row
+    " — common when wasted motions track close to credited items).
+    " The rate is the headline metric; if one symbol has to obscure
+    " the other, the dot should be the survivor. The exact errors
+    " value is still available via :VfHistory.
     let erate = get(session, 'errors_per_min', 0)
     if erate > 0
       let erow = s:chart_y(erate)
       if erow >= 0 && erow <= s:CHART_HEIGHT
         let grid[erow][col] = '×'
       endif
+    endif
+
+    let crow = s:chart_y(crate)
+    if crow >= 0 && crow <= s:CHART_HEIGHT
+      let grid[crow][col] = '●'
     endif
   endfor
 
