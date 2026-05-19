@@ -701,6 +701,65 @@ function! s:test_T0_4() abort
   endfor
 endfunction
 
+" 3.2a/b — inner quote text objects. The discriminative cue is the
+" delim char in the visible cue line; the answer is i + that delim.
+" Cheat-defense rules tested here:
+"   - answer is always i + the cue's delim
+"   - the arrow (^) lands strictly between the two delim positions
+"     (never on a delim) so the cursor is unambiguously inside the
+"     inner content
+"   - the cue line contains exactly two instances of the delim char
+function! s:test_3_2_quote(id, module, valid_delims) abort
+  let GenFn = function('vimfluency#pinpoints#' . a:module . '#generate')
+  let seen = {}
+  for i in range(s:N)
+    let item = GenFn()
+    call s:assert_recall_common(a:id, item)
+    let answer = item.expected_answer
+    let delim = answer[1]
+    call AssertEq(answer[0], 'i',
+      \ a:id . ': expected_answer starts with i')
+    call AssertIn(delim, a:valid_delims,
+      \ a:id . ': delim char in declared set')
+    call AssertEq(item.expected_motion, answer,
+      \ a:id . ': expected_motion mirrors expected_answer')
+    call AssertEq(item.optimal_motions, len(answer),
+      \ a:id . ': optimal_motions == len(expected_answer)')
+    call Assert(type(item.prompt) == v:t_list && len(item.prompt) >= 4,
+      \ a:id . ': prompt is a list with at least 4 lines')
+
+    let cue = item.prompt[2]
+    let arrow = item.prompt[3]
+    let n_delim = len(cue) - len(substitute(cue, delim, '', 'g'))
+    call AssertEq(n_delim, 2,
+      \ a:id . ': cue line contains exactly two delim chars')
+
+    let caret = stridx(arrow, '^')
+    call Assert(caret >= 0,
+      \ a:id . ': arrow line has a ^ marker')
+    if caret >= 0
+      call Assert(cue[caret] !=# delim,
+        \ a:id . ': ^ does not land on a delim char (cursor is inside)')
+      let open_idx = stridx(cue, delim)
+      let close_idx = strridx(cue, delim)
+      call Assert(caret > open_idx && caret < close_idx,
+        \ a:id . ': ^ sits strictly between the two delims')
+    endif
+    let seen[delim] = 1
+  endfor
+  for d in a:valid_delims
+    call Assert(get(seen, d, 0) == 1,
+      \ a:id . ': delim ' . d . ' appeared in samples')
+  endfor
+endfunction
+
+function! s:test_3_2a() abort
+  call s:test_3_2_quote('3.2a', 'p3_2a', ['"', "'"])
+endfunction
+function! s:test_3_2b() abort
+  call s:test_3_2_quote('3.2b', 'p3_2b', ['"', "'", '`'])
+endfunction
+
 function! s:test_T0_3a() abort
   call s:test_T0_3_pair('T0.3a', 'pT0_3a', [':w', ':q'])
 endfunction
@@ -910,3 +969,5 @@ call s:test_T0_3c()
 call s:test_T0_3d()
 call s:test_T0_4()
 call s:test_T0_5()
+call s:test_3_2a()
+call s:test_3_2b()

@@ -106,7 +106,8 @@ Discrimination probe **2.D**: given a goal, pick `d` vs `c` (composite emergence
 | ID | Pinpoint | Probe | Aim | Prereqs |
 |---|---|---|---|---|
 | 3.1 | Word objects (`iw`, `aw`, `iW`, `aW`) — describe what they cover | Recall | 40 | 1B |
-| 3.2 | Quote objects (`i"`, `a"`, `i'`, `a'`, `` i` ``, `` a` ``) | Recall | 40 | T0 |
+| 3.2a | Inner quote — `i"` vs `i'` | Recall | 40 | T0 |
+| 3.2b | Inner quote — introduce `` i` `` (backtick) | Recall | 35 | 3.2a |
 | 3.3 | Bracket objects (`i(`, `a(`, `i[`, `a[`, `i{`, `a{`, `i<`, `a<`) | Recall | 40 | T0 |
 | 3.4 | Sentence/paragraph (`is`/`as`, `ip`/`ap`) | Recall | 35 | 1E |
 | 3.5 | Tag (`it`, `at`) | Recall | 30 | 3.3 |
