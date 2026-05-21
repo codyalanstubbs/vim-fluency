@@ -5,13 +5,15 @@ Context for future Claude sessions on **Vim Fluency** (plugin id `vimfluency`, r
 ## What this is
 
 A vim plugin that runs timed fluency probes (`:Vf`) and DI-style lessons
-(`:VfLearn`) on vim motion pinpoints. Built on the component → composite →
-adduction pipeline from precision teaching and behavioral fluency.
+(`:VfLearn`) on vim behaviors. The goal is to give aspiring and current vim
+users an explicit behavioral hierarchy they can drill, measure their real
+per-behavior rates against, and improve those rates over time.
 
-**The thesis being tested:** drilling fluent components (hjkl, line motions,
-word motions) to aim should generate composite editing skills *without direct
-training*. v1 establishes measurement infrastructure; **adduction is not yet
-validated here** — that requires a Tier 4 probe which doesn't exist yet.
+Built on Direct Instruction (Engelmann/Carnine) for lesson design and
+Precision Teaching (Lindsley/Morningside) for measurement. The framework's
+job here is to ship a useful fluency-building tool — not to validate an
+experimental claim. See `.strategy/learnings/2026-05-20-experiment-to-tool.md`
+for the framing pivot.
 
 ## Vim version
 

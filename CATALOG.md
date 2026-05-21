@@ -115,9 +115,9 @@ Discrimination probe **2.D**: given a goal, pick `d` vs `c` (composite emergence
 
 ---
 
-## Tier 4 — Adduction layer: operator × {motion, text object}
+## Tier 4 — Operator × {motion, text object}
 
-This tier is **measured but not directly trained**. If Tiers 2+3 are at aim and combinations don't appear, the components weren't fluent enough — drop back, don't drill the combinations.
+Composite behaviors composing a Tier 2 operator with a motion or text object. Each row drills canonical exemplars; prereqs are the relevant operator and motion/text-object groups at aim.
 
 | ID | Pinpoint | Probe | Aim | Prereqs |
 |---|---|---|---|---|
@@ -127,8 +127,6 @@ This tier is **measured but not directly trained**. If Tiers 2+3 are at aim and 
 | 4.4 | Operator + text object (`diw`, `ci"`, `ya{`, `dit`) | S→K | 30 | 2, 3 |
 | 4.5 | Operator + search (`d/foo`, `c/bar`) | S→K | 20 | 2, 1F |
 | 4.6 | Operator + match (`d%`, `y%`) on balanced delimiters | S→K | 25 | 2, 1E.3 |
-
-**Adduction validation:** introduce `f` (find char) and a new operator `c`. Without specifically practicing `cf,`, learner should produce it cold ≥ 80% of the time within 1 s. If not, components weren't fluent.
 
 ---
 
@@ -241,9 +239,9 @@ This tier is **measured but not directly trained**. If Tiers 2+3 are at aim and 
 
 ---
 
-## Tier 13 — Composite skills (validation set, not training)
+## Tier 13 — Composite editing tasks
 
-These are **untaught** composite tasks. Run them periodically to validate that component fluency is producing real-world editing speed. Probe = task description + starting buffer; measure time-to-completion and keystroke efficiency vs an expert reference.
+Real-world editing tasks that compose many lower-tier behaviors. Useful for spotting curriculum gaps — a composite that should be easy but feels hard points at a component that isn't fluent enough. Probe = task description + starting buffer; measure time-to-completion and keystroke efficiency vs an expert reference.
 
 | ID | Composite | Components exercised |
 |---|---|---|
@@ -264,7 +262,7 @@ Pass criterion: keystroke count within ~120% of expert reference, completed with
 
 ## Aim derivation note
 
-All aim numbers above are **starting guesses**, not empirically derived. The actual experiment is: train one cohort on these pinpoints, measure (a) celeration to aim, (b) composite performance on Tier 13 at varying component-fluency levels. Tighten or relax aims based on what actually predicts composite emergence. This is the missing data the literature doesn't have for vim.
+All aim numbers above are **starting guesses**, not empirically derived. Long-term plan: aggregate per-behavior rate distributions across the user community and let learners compare their rates to the population (see `.strategy/data-contribution.md`). Until that data exists, aims serve as guidance; the published distribution will replace them.
 
 ## Component DAG summary
 
@@ -274,7 +272,7 @@ T0 (survival)
  ├─ Tier 2 (operators, linewise)
  ├─ Tier 3 (text objects, isolated)
  │
- ├─ Tier 4 (op × motion, op × text-object)  ← adduction site
+ ├─ Tier 4 (op × motion, op × text-object)
  ├─ Tier 5 (counts, dot)
  ├─ Tier 6 (insert-mode editing)
  ├─ Tier 7 (visual)
@@ -284,5 +282,5 @@ T0 (survival)
  ├─ Tier 11 (ex/buffers/windows)
  └─ Tier 12 (macros)
        │
-       └─ Tier 13 (composites — validation only)
+       └─ Tier 13 (composite editing tasks)
 ```
