@@ -950,6 +950,214 @@ function! s:test_T0_2() abort
   endfor
 endfunction
 
+" 1A.3: h vs l. Target on same row as start; dcol ∈ {-2,-1,1,2};
+" optimal_motions == abs(dcol); motion 'l' for positive dcol, 'h' otherwise.
+function! s:test_1A_3() abort
+  let GenFn = function('vimfluency#pinpoints#p1A_3#generate')
+  let valid = ['h', 'l']
+  let seen = {}
+  for i in range(s:N)
+    let item = GenFn()
+    call s:assert_common('1A.3', item)
+    call AssertIn(item.expected_motion, valid,
+      \ '1A.3: expected_motion in {h, l}')
+    call AssertEq(item.target[0], item.start[0],
+      \ '1A.3: target row == start row (no vertical component)')
+    let dcol = item.target[1] - item.start[1]
+    call Assert(dcol != 0 && abs(dcol) <= 2,
+      \ '1A.3: dcol in {-2,-1,1,2}, got ' . dcol)
+    call AssertEq(item.optimal_motions, abs(dcol),
+      \ '1A.3: optimal_motions == abs(dcol)')
+    if dcol > 0
+      call AssertEq(item.expected_motion, 'l', '1A.3: dcol>0 → l')
+    else
+      call AssertEq(item.expected_motion, 'h', '1A.3: dcol<0 → h')
+    endif
+    let seen[item.expected_motion] = 1
+  endfor
+  for k in valid
+    call Assert(get(seen, k, 0) == 1,
+      \ '1A.3: ' . k . ' appeared in samples')
+  endfor
+endfunction
+
+" 1A.4: j vs k. Target on same column as start; drow ∈ {-2,-1,1,2};
+" optimal_motions == abs(drow); motion 'j' for positive drow, 'k' otherwise.
+function! s:test_1A_4() abort
+  let GenFn = function('vimfluency#pinpoints#p1A_4#generate')
+  let valid = ['j', 'k']
+  let seen = {}
+  for i in range(s:N)
+    let item = GenFn()
+    call s:assert_common('1A.4', item)
+    call AssertIn(item.expected_motion, valid,
+      \ '1A.4: expected_motion in {j, k}')
+    call AssertEq(item.target[1], item.start[1],
+      \ '1A.4: target col == start col (no horizontal component)')
+    let drow = item.target[0] - item.start[0]
+    call Assert(drow != 0 && abs(drow) <= 2,
+      \ '1A.4: drow in {-2,-1,1,2}, got ' . drow)
+    call AssertEq(item.optimal_motions, abs(drow),
+      \ '1A.4: optimal_motions == abs(drow)')
+    if drow > 0
+      call AssertEq(item.expected_motion, 'j', '1A.4: drow>0 → j')
+    else
+      call AssertEq(item.expected_motion, 'k', '1A.4: drow<0 → k')
+    endif
+    let seen[item.expected_motion] = 1
+  endfor
+  for k in valid
+    call Assert(get(seen, k, 0) == 1,
+      \ '1A.4: ' . k . ' appeared in samples')
+  endfor
+endfunction
+
+" 1A.5: 0 vs $. Single line, no trailing whitespace, cursor in interior.
+" target column ∈ {1, llen}; motion '0' for col 1 else '$'.
+function! s:test_1A_5() abort
+  let GenFn = function('vimfluency#pinpoints#p1A_5#generate')
+  let valid = ['0', '$']
+  let seen = {}
+  for i in range(s:N)
+    let item = GenFn()
+    call s:assert_common('1A.5', item)
+    call AssertIn(item.expected_motion, valid,
+      \ '1A.5: expected_motion in {0, $}')
+    call AssertEq(item.optimal_motions, 1, '1A.5: optimal_motions == 1')
+    let line = item.lines[0]
+    let llen = len(line)
+    call Assert(line ==# substitute(line, '\s\+$', '', ''),
+      \ '1A.5: line has no trailing whitespace')
+    call Assert(line ==# substitute(line, '^\s\+', '', ''),
+      \ '1A.5: line has no leading whitespace')
+    if item.expected_motion ==# '0'
+      call AssertEq(item.target[1], 1, '1A.5/0: target col == 1')
+    else
+      call AssertEq(item.target[1], llen, '1A.5/$: target col == line length')
+    endif
+    let seen[item.expected_motion] = 1
+  endfor
+  for k in valid
+    call Assert(get(seen, k, 0) == 1,
+      \ '1A.5: ' . k . ' appeared in samples')
+  endfor
+endfunction
+
+" 4.3: d0 vs d$. Editing-kind; single-line buffer; cursor in interior.
+" Deletion range covers [1, cursor-1] for d0 or [cursor, llen] for d$.
+" target_lines is the surviving slice; cursor ends at col 1 (d0) or
+" cursor-1 (d$).
+function! s:test_4_3() abort
+  let GenFn = function('vimfluency#pinpoints#p4_3#generate')
+  let valid = ['d0', 'd$']
+  let seen = {}
+  for i in range(s:N)
+    let item = GenFn()
+    call s:assert_common('4.3', item)
+    call AssertIn(item.expected_motion, valid,
+      \ '4.3: expected_motion in {d0, d$}')
+    call AssertEq(item.optimal_motions, 1, '4.3: optimal_motions == 1')
+    call Assert(has_key(item, 'target_lines'),
+      \ '4.3: has target_lines')
+    call Assert(has_key(item, 'deletion_range'),
+      \ '4.3: has deletion_range')
+    let cursor_col = item.start[1]
+    let line = item.lines[0]
+    let llen = len(line)
+    let del = item.deletion_range[0]
+    if item.expected_motion ==# 'd0'
+      call AssertEq(del[1], 1, '4.3/d0: deletion starts at col 1')
+      call AssertEq(del[2], cursor_col - 1, '4.3/d0: deletion length == cursor-1')
+      call AssertEq(item.target[1], 1, '4.3/d0: target col == 1')
+    else
+      call AssertEq(del[1], cursor_col, '4.3/d$: deletion starts at cursor')
+      call AssertEq(del[2], llen - cursor_col + 1, '4.3/d$: deletion length == llen-cursor+1')
+      call AssertEq(item.target[1], cursor_col - 1, '4.3/d$: target col == cursor-1')
+    endif
+    let seen[item.expected_motion] = 1
+  endfor
+  for k in valid
+    call Assert(get(seen, k, 0) == 1,
+      \ '4.3: ' . k . ' appeared in samples')
+  endfor
+endfunction
+
+" 4.4: dl vs dh. Editing-kind; single-line; deletion is exactly 1 char.
+" dl deletes char AT cursor (cursor stays); dh deletes char BEFORE cursor
+" (cursor moves left one column).
+function! s:test_4_4() abort
+  let GenFn = function('vimfluency#pinpoints#p4_4#generate')
+  let valid = ['dl', 'dh']
+  let seen = {}
+  for i in range(s:N)
+    let item = GenFn()
+    call s:assert_common('4.4', item)
+    call AssertIn(item.expected_motion, valid,
+      \ '4.4: expected_motion in {dl, dh}')
+    call AssertEq(item.optimal_motions, 1, '4.4: optimal_motions == 1')
+    let cursor_col = item.start[1]
+    let del = item.deletion_range[0]
+    call AssertEq(del[2], 1, '4.4: deletion length == 1')
+    if item.expected_motion ==# 'dl'
+      call AssertEq(del[1], cursor_col, '4.4/dl: deletion at cursor col')
+      call AssertEq(item.target[1], cursor_col, '4.4/dl: cursor stays')
+    else
+      call AssertEq(del[1], cursor_col - 1, '4.4/dh: deletion before cursor')
+      call AssertEq(item.target[1], cursor_col - 1, '4.4/dh: cursor moves left one')
+    endif
+    let seen[item.expected_motion] = 1
+  endfor
+  for k in valid
+    call Assert(get(seen, k, 0) == 1,
+      \ '4.4: ' . k . ' appeared in samples')
+  endfor
+endfunction
+
+" 4.5: dj vs dk. Linewise editing-kind; 5-line buffer; cursor on row 2-3.
+" dj deletes rows [cursor, cursor+1]; dk deletes rows [cursor-1, cursor].
+" Survivors: 3 rows. Cursor lands at col 1 of the appropriate surviving row.
+function! s:test_4_5() abort
+  let GenFn = function('vimfluency#pinpoints#p4_5#generate')
+  let valid = ['dj', 'dk']
+  let seen = {}
+  for i in range(s:N)
+    let item = GenFn()
+    call s:assert_common('4.5', item)
+    call AssertIn(item.expected_motion, valid,
+      \ '4.5: expected_motion in {dj, dk}')
+    call AssertEq(item.optimal_motions, 1, '4.5: optimal_motions == 1')
+    call AssertEq(len(item.lines), 5, '4.5: 5-line buffer')
+    call AssertEq(len(item.target_lines), 3, '4.5: 3 surviving lines')
+    let cursor_row = item.start[0]
+    call Assert(cursor_row == 2 || cursor_row == 3,
+      \ '4.5: cursor on row 2 or 3')
+    call AssertEq(item.start[1], 1, '4.5: cursor starts at col 1')
+    call AssertEq(item.target[1], 1, '4.5: cursor target at col 1')
+    call AssertEq(len(item.deletion_range), 2,
+      \ '4.5: deletion_range covers 2 rows')
+    if item.expected_motion ==# 'dj'
+      call AssertEq(item.deletion_range[0][0], cursor_row,
+        \ '4.5/dj: first deletion row == cursor row')
+      call AssertEq(item.deletion_range[1][0], cursor_row + 1,
+        \ '4.5/dj: second deletion row == cursor row + 1')
+      call AssertEq(item.target[0], cursor_row,
+        \ '4.5/dj: cursor lands at cursor_row (now the next survivor)')
+    else
+      call AssertEq(item.deletion_range[0][0], cursor_row - 1,
+        \ '4.5/dk: first deletion row == cursor row - 1')
+      call AssertEq(item.deletion_range[1][0], cursor_row,
+        \ '4.5/dk: second deletion row == cursor row')
+      call AssertEq(item.target[0], cursor_row - 1,
+        \ '4.5/dk: cursor lands at cursor_row-1 (now the next survivor)')
+    endif
+    let seen[item.expected_motion] = 1
+  endfor
+  for k in valid
+    call Assert(get(seen, k, 0) == 1,
+      \ '4.5: ' . k . ' appeared in samples')
+  endfor
+endfunction
+
 call s:test_1A_1()
 call s:test_1A_2()
 call s:test_1B_1()
@@ -971,3 +1179,9 @@ call s:test_T0_4()
 call s:test_T0_5()
 call s:test_3_2a()
 call s:test_3_2b()
+call s:test_1A_3()
+call s:test_1A_4()
+call s:test_1A_5()
+call s:test_4_3()
+call s:test_4_4()
+call s:test_4_5()

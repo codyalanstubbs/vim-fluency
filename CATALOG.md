@@ -38,8 +38,11 @@ Composite emergence test: "open a file, change one word, save, quit" cold, ≤ 5
 
 | ID | Pinpoint | Probe | Aim | Prereqs |
 |---|---|---|---|---|
-| 1A.1 | `hjkl` | S→K | 60 | T0 |
+| 1A.1 | `hjkl` (4-cell, all directions) | S→K | 60 | T0 |
 | 1A.2 | Line start/first-non-blank/end (`0`, `^`, `$`, `g_`) | S→K | 50 | T0 |
+| 1A.3 | `h l` (narrower horizontal-direction sibling of 1A.1) | S→K | 60 | T0 |
+| 1A.4 | `j k` (narrower vertical-direction sibling of 1A.1) | S→K | 60 | T0 |
+| 1A.5 | `0 $` (narrower line-edge sibling of 1A.2; drops the whitespace axis) | S→K | 55 | T0 |
 
 ### 1B — Word
 
@@ -119,14 +122,19 @@ Discrimination probe **2.D**: given a goal, pick `d` vs `c` (composite emergence
 
 Composite behaviors composing a Tier 2 operator with a motion or text object. Each row drills canonical exemplars; prereqs are the relevant operator and motion/text-object groups at aim.
 
+Rows below are the narrower 2-cell direction discriminations under the exhaustive-hierarchy framework. The earlier wide-grid spec rows (`4.2-4.6` covering line motions, char-find, text objects, search, match) have been repurposed slice-by-slice; remaining rows are explicit pinpoints with their own files.
+
 | ID | Pinpoint | Probe | Aim | Prereqs |
 |---|---|---|---|---|
-| 4.1 | Operator + word motion (`dw`, `cw`, `yw`, `cb`, `de`) | S→K | 35 | 2, 1B |
-| 4.2 | Operator + line motion (`d$`, `D`, `c0`, `y^`) | S→K | 35 | 2, 1A |
-| 4.3 | Operator + char-find (`dt,`, `df)`, `ct"`, `yT(`) | S→K | 30 | 2, 1C |
-| 4.4 | Operator + text object (`diw`, `ci"`, `ya{`, `dit`) | S→K | 30 | 2, 3 |
-| 4.5 | Operator + search (`d/foo`, `c/bar`) | S→K | 20 | 2, 1F |
-| 4.6 | Operator + match (`d%`, `y%`) on balanced delimiters | S→K | 25 | 2, 1E.3 |
+| 4.1 | `dw db` (delete + word-start motion, direction discrimination) | S→K | 60 | 2.1, 1B.1 |
+| 4.3 | `d0 d$` (delete + line-edge motion, direction discrimination) | S→K | 35 | 1A.5 |
+| 4.4 | `dl dh` (delete + char motion, direction discrimination) | S→K | 40 | 1A.3 |
+| 4.5 | `dj dk` (delete + line-extend, direction discrimination, linewise) | S→K | 30 | 1A.4 |
+
+Deferred / not yet built (placeholders for future slice work):
+- 4.2 — `de dge` (delete + word-end motion). Defers on whitespace edge-cases (`de` from start-of-word leaves a double space; needs design).
+- 4.6 — composite-discrimination drill mixing 4.1–4.5 once those are at aim.
+- Operator + char-find, text object, search, match — slice-02 onward will spec these as narrower pinpoints under the same framework.
 
 ---
 
