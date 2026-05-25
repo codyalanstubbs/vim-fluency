@@ -169,3 +169,49 @@ call Assert(s:rendered =~# 'needs.*at aim',
   \ 'render_list: blocked-by-prereqs annotation present')
 call Assert(s:rendered =~# "Today's set",
   \ 'render_list: today-summary footer present')
+
+" -- list_line_to_id_map (interactive :VfList) --
+"
+" Each pinpoint row in the rendered list should map to its id; tier
+" headers, group headers, blank lines, and the footer should NOT have
+" entries; per-motion sub-rows (14 leading spaces) should inherit the
+" parent pinpoint's id so the cursor doesn't dead-zone on them.
+
+let s:lines_for_map = vimfluency#_test_render_list(s:registry, s:sessions_by_id)
+let s:line_map = vimfluency#_test_list_line_map(s:lines_for_map, s:registry)
+
+" Every registry id appears in the map at least once.
+let s:ids_in_map = {}
+for s:lnum in keys(s:line_map)
+  let s:ids_in_map[s:line_map[s:lnum]] = 1
+endfor
+for s:id in keys(s:registry)
+  call Assert(get(s:ids_in_map, s:id, 0) == 1,
+    \ 'line_map: registry id ' . s:id . ' appears in the map')
+endfor
+
+" Find 1A.1's line and confirm it maps to '1A.1'.
+let s:row_1A1 = -1
+for s:i in range(len(s:lines_for_map))
+  if s:lines_for_map[s:i] =~# '^    1A\.1\>'
+    let s:row_1A1 = s:i + 1
+    break
+  endif
+endfor
+call Assert(s:row_1A1 > 0, 'line_map: 1A.1 pinpoint row found')
+call AssertEq(get(s:line_map, s:row_1A1, ''), '1A.1',
+  \ 'line_map: 1A.1 row maps to "1A.1"')
+
+" 1A.1 has per_motion data → the next line should be the breakdown
+" row and should also map to '1A.1' (sub-row inherits parent id).
+call AssertEq(get(s:line_map, s:row_1A1 + 1, ''), '1A.1',
+  \ 'line_map: per-motion sub-row inherits parent pinpoint id')
+
+" Tier and group header lines should NOT appear in the map.
+for s:i in range(len(s:lines_for_map))
+  let s:lt = s:lines_for_map[s:i]
+  if s:lt =~# '^Tier ' || s:lt =~# '^  \S\+ —' || empty(s:lt)
+    call Assert(!has_key(s:line_map, s:i + 1),
+      \ 'line_map: non-pinpoint row at line ' . (s:i + 1) . ' has no entry')
+  endif
+endfor

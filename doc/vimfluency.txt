@@ -22,7 +22,14 @@ COMMANDS                                                        *vf-commands*
     end-of-session summary breaks down the rate per motion.
 
 :VfList                                                          *:VfList*
-    List installed pinpoints with their starting fluency aims.
+    Open an interactive list of installed pinpoints with their fluency
+    aims, last-session rate, and prereq status. Navigate with j/k as in
+    any buffer; on a pinpoint row press:
+        <Enter>, p   start a probe (:Vf) for this pinpoint
+        L            start a lesson (:VfLearn) for this pinpoint
+        q            close the list
+    Pressing <Enter>/p/L on a non-pinpoint row (tier header, blank,
+    footer) is a no-op with a hint.
 
 :VfHierarchy                                              *:VfHierarchy*
     Open a buffer showing the prereq DAG: pinpoints grouped by their

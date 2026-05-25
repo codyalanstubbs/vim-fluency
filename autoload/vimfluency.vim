@@ -371,9 +371,84 @@ function! vimfluency#list() abort
     echo 'no pinpoints built — see CATALOG.md'
     return
   endif
-  for line in s:render_list(registry, s:load_sessions_grouped())
-    echo line
+  let lines = s:render_list(registry, s:load_sessions_grouped())
+  let line_to_id = s:list_line_to_id_map(lines, registry)
+  call s:show_list_buffer(lines, line_to_id)
+endfunction
+
+" Build a line-number → pinpoint-id map by parsing rendered lines.
+" Pinpoint rows are emitted with exactly 4 leading spaces and the ID
+" as the first whitespace-separated token. Per-motion sub-rows
+" (14 leading spaces, immediately following a pinpoint row) inherit
+" the same id so the cursor doesn't dead-zone on them. 1-indexed to
+" match line('.') / setline().
+function! s:list_line_to_id_map(lines, registry) abort
+  let mapping = {}
+  let last_id = ''
+  for i in range(len(a:lines))
+    let line_text = a:lines[i]
+    let id = matchstr(line_text, '^    \zs\S\+')
+    if !empty(id) && has_key(a:registry, id)
+      let mapping[i + 1] = id
+      let last_id = id
+    elseif line_text =~# '^              \S' && !empty(last_id)
+      " Per-motion sub-row — keep mapping to the parent pinpoint.
+      let mapping[i + 1] = last_id
+    else
+      let last_id = ''
+    endif
   endfor
+  return mapping
+endfunction
+
+function! s:show_list_buffer(lines, line_to_id) abort
+  tabnew
+  let tabnr = tabpagenr()
+  setlocal buftype=nofile bufhidden=wipe noswapfile nobuflisted
+  setlocal nonumber norelativenumber nowrap signcolumn=no
+  silent! execute 'keepalt file vf-list'
+  call setline(1, a:lines)
+  setlocal nomodifiable nomodified
+  let &l:statusline = ' pinpoint list   [<Enter>/p=probe  L=lesson  q=close]'
+  let b:vf_summary_tabnr = tabnr
+  let b:vf_summary_prev_laststatus = &laststatus
+  let b:vf_list_line_to_id = a:line_to_id
+  set laststatus=2
+  nnoremap <buffer> <silent> <CR> :call vimfluency#list_action('probe')<CR>
+  nnoremap <buffer> <silent> p :call vimfluency#list_action('probe')<CR>
+  nnoremap <buffer> <silent> L :call vimfluency#list_action('learn')<CR>
+  nnoremap <buffer> <silent> q :call vimfluency#close_summary()<CR>
+
+  " Land the cursor on the first pinpoint row so the action keys
+  " are immediately useful. min() across the dict's keys requires
+  " explicit numeric conversion (keys() returns strings).
+  let line_nums = map(keys(a:line_to_id), 'str2nr(v:val)')
+  let first_line = empty(line_nums) ? 1 : min(line_nums)
+  call cursor(first_line, 1)
+endfunction
+
+" Invoked by the buffer-local <CR>/p/L mappings. Reads the pinpoint id
+" off the cursor line via the buffer-local map, closes the list tab,
+" then launches the requested action. If the cursor is on a non-
+" pinpoint line (header, blank, footer), echoes a hint and stays put.
+function! vimfluency#list_action(action) abort
+  if !exists('b:vf_list_line_to_id') | return | endif
+  let id = get(b:vf_list_line_to_id, line('.'), '')
+  if empty(id)
+    echo 'cursor must be on a pinpoint row'
+    return
+  endif
+  " Capture id locally before close_summary wipes the buffer-local map.
+  call vimfluency#close_summary()
+  if a:action ==# 'probe'
+    call vimfluency#start(id)
+  elseif a:action ==# 'learn'
+    call vimfluency#learn(id)
+  endif
+endfunction
+
+function! vimfluency#_test_list_line_map(lines, registry) abort
+  return s:list_line_to_id_map(a:lines, a:registry)
 endfunction
 
 " -----------------------------------------------------------------
