@@ -140,7 +140,7 @@ let s:TIER_NAMES = {
   \ 1: 'Motions',
   \ 2: 'Operators',
   \ 3: 'Text Objects',
-  \ 4: 'Adduction (op × motion / op × text-object)',
+  \ 4: 'Operator × {motion, text object}',
   \ 5: 'Counts and repetition',
   \ 6: 'Insert-mode editing',
   \ 7: 'Visual mode',
@@ -149,7 +149,7 @@ let s:TIER_NAMES = {
   \ 10: 'Search & substitute',
   \ 11: 'Ex commands & buffers',
   \ 12: 'Macros',
-  \ 13: 'Composite skills (validation set, untaught)',
+  \ 13: 'Composite editing tasks',
   \ }
 
 let s:GROUP_NAMES = {
@@ -374,6 +374,163 @@ function! vimfluency#list() abort
   for line in s:render_list(registry, s:load_sessions_grouped())
     echo line
   endfor
+endfunction
+
+" -----------------------------------------------------------------
+" :VfHierarchy — structural view of the pinpoint registry
+" -----------------------------------------------------------------
+"
+" Complementary to :VfList. Where :VfList shows status (rate, aim,
+" climbing/at-aim/not-started, blocked prereqs) for active drilling
+" decisions, :VfHierarchy shows STRUCTURE: prereqs as text, narrower
+" siblings nested under their broader parent, and parallel-by-design
+" peers marked inline. The two views use the same registry but answer
+" different questions.
+
+" Test-only render accessor — same lines :VfHierarchy puts in its
+" buffer, addressable from headless tests where tabnew + getline
+" misbehaves under -Es.
+function! vimfluency#_test_render_hierarchy(registry) abort
+  return s:render_hierarchy(a:registry)
+endfunction
+
+function! s:render_hierarchy(registry) abort
+  " Group by tier → group → ids (same shape as render_list).
+  let groups = {}
+  for id in keys(a:registry)
+    let p = s:parse_id(id)
+    if !has_key(groups, p.tier) | let groups[p.tier] = {} | endif
+    if !has_key(groups[p.tier], p.group) | let groups[p.tier][p.group] = [] | endif
+    call add(groups[p.tier][p.group], id)
+  endfor
+
+  " Index: narrower_of children per parent id.
+  let children_of = {}
+  for [id, m] in items(a:registry)
+    let parent = get(m, 'narrower_of', '')
+    if !empty(parent)
+      if !has_key(children_of, parent) | let children_of[parent] = [] | endif
+      call add(children_of[parent], id)
+    endif
+  endfor
+
+  let lines = []
+  call add(lines, printf('vim-fluency hierarchy — %d pinpoint(s) built', len(a:registry)))
+  call add(lines, '')
+  call add(lines, 'Trees indicate narrower_of relationships (narrower siblings nested under')
+  call add(lines, 'their broader parent). ⟷ marks parallel-by-design peers. prereqs are')
+  call add(lines, 'diagnostic (suggested fallbacks), not gating.')
+  call add(lines, '')
+
+  for tier in sort(keys(groups), 'N')
+    let tier_int = str2nr(tier)
+    let tier_label = tier_int == 0 ? 'T0' : tier
+    call add(lines, printf('Tier %s — %s', tier_label, get(s:TIER_NAMES, tier_int, '?')))
+    for group in sort(keys(groups[tier]))
+      if group !=# tier && group !=# tier_label
+        let gname = get(s:GROUP_NAMES, group, '')
+        call add(lines, empty(gname)
+          \ ? printf('  %s', group)
+          \ : printf('  %s — %s', group, gname))
+      endif
+      " Roots within the group: pinpoints without a narrower_of pointing
+      " to another id in the registry. (If narrower_of points outside,
+      " the pinpoint is still rooted here visually.)
+      let roots = []
+      for id in groups[tier][group]
+        let parent = get(a:registry[id], 'narrower_of', '')
+        if empty(parent) || !has_key(a:registry, parent)
+          call add(roots, id)
+        endif
+      endfor
+      for id in sort(roots)
+        call extend(lines, s:render_hierarchy_node(id, a:registry, children_of, 0))
+      endfor
+    endfor
+    call add(lines, '')
+  endfor
+
+  call add(lines, 'Legend:')
+  call add(lines, '  ├─ └─   narrower sibling — strict sub-component of the broader parent above')
+  call add(lines, '  ⟷       parallel-by-design — matched rule shape, structural peer')
+  call add(lines, '  prereqs informational; the navigator suggests fallbacks but does not gate')
+  call add(lines, '')
+  call add(lines, ' Press q or <Enter> to close.')
+
+  return lines
+endfunction
+
+" Render one pinpoint plus its narrower descendants (recursive).
+" Depth 0 = root within its group; depth >= 1 = narrower nested
+" under a broader parent.
+function! s:render_hierarchy_node(id, registry, children_of, depth) abort
+  let m = a:registry[a:id]
+  let lines = []
+
+  " Indent: group items sit at col 4; narrower siblings get a tree
+  " connector that visually points back at the broader parent above.
+  if a:depth == 0
+    let prefix = '    '
+  else
+    let prefix = '     ' . repeat('   ', a:depth - 1) . '├─ '
+  endif
+
+  let id_col = printf('%-6s', a:id)
+  let name_col = printf('%-38s', m.name)
+
+  let parallel = get(m, 'parallel_to', [])
+  let prereqs = get(m, 'prereqs', [])
+  let annotations = []
+  if !empty(prereqs)
+    call add(annotations, 'prereqs: ' . join(prereqs, ', '))
+  endif
+  if !empty(parallel)
+    call add(annotations, '⟷ ' . join(parallel, ', '))
+  endif
+  let annot_str = empty(annotations) ? '' : ('  ' . join(annotations, '  ·  '))
+
+  call add(lines, prefix . id_col . '  ' . name_col . annot_str)
+
+  let children = sort(get(a:children_of, a:id, []))
+  let n = len(children)
+  let i = 0
+  for child in children
+    let i += 1
+    let child_lines = s:render_hierarchy_node(child, a:registry, a:children_of, a:depth + 1)
+    " Patch the very last child's connector from ├─ to └─.
+    if i == n && !empty(child_lines)
+      let child_lines[0] = substitute(child_lines[0], '├─', '└─', '')
+    endif
+    call extend(lines, child_lines)
+  endfor
+  return lines
+endfunction
+
+function! s:show_hierarchy_buffer(lines) abort
+  tabnew
+  let tabnr = tabpagenr()
+  setlocal buftype=nofile bufhidden=wipe noswapfile nobuflisted
+  setlocal nonumber norelativenumber nowrap signcolumn=no
+  silent! execute 'keepalt file vf-hierarchy'
+  call setline(1, a:lines)
+  setlocal nomodifiable nomodified
+  let &l:statusline = ' pinpoint hierarchy   [press q or <Enter> to close]'
+  let b:vf_summary_tabnr = tabnr
+  let b:vf_summary_prev_laststatus = &laststatus
+  set laststatus=2
+  nnoremap <buffer> <silent> q :call vimfluency#close_summary()<CR>
+  nnoremap <buffer> <silent> <CR> :call vimfluency#close_summary()<CR>
+  call cursor(1, 1)
+endfunction
+
+function! vimfluency#hierarchy() abort
+  let registry = vimfluency#discover_pinpoints()
+  if empty(registry)
+    echo 'no pinpoints built — see CATALOG.md'
+    return
+  endif
+  let lines = s:render_hierarchy(registry)
+  call s:show_hierarchy_buffer(lines)
 endfunction
 
 function! vimfluency#start(...) abort

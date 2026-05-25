@@ -24,6 +24,14 @@ COMMANDS                                                        *vf-commands*
 :VfList                                                          *:VfList*
     List installed pinpoints with their starting fluency aims.
 
+:VfHierarchy                                              *:VfHierarchy*
+    Open a buffer showing the structural relationships across pinpoints:
+    narrower siblings nested under their broader parent (tree connectors),
+    parallel-by-design peers marked inline with ⟷, prereqs listed as text.
+    Complements :VfList — :VfList shows status for active drilling, while
+    :VfHierarchy shows what exists and how the pinpoints relate.
+    Press 'q' or <Enter> to close.
+
 :VfQuit                                                          *:VfQuit*
     End the active session, write its log entry, restore the window layout.
 
