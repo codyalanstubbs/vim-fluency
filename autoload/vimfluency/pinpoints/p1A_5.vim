@@ -19,7 +19,8 @@ function! vimfluency#pinpoints#p1A_5#meta() abort
   " Aim slightly above 1A.2's 50/min — narrower discrimination,
   " no whitespace axis to read. Starting guess.
   return {'id': '1A.5', 'name': '0 $', 'aim': 55,
-    \ 'allowed_keys': '0$', 'prereqs': ['T0']}
+    \ 'allowed_keys': '0$', 'prereqs': ['T0'],
+    \ 'narrower_of': '1A.2'}
 endfunction
 
 function! vimfluency#pinpoints#p1A_5#lesson() abort

@@ -16,7 +16,8 @@ let s:chars = ['a','b','c','d','e','f','g','h','i','j','k','m','n','p',
 
 function! vimfluency#pinpoints#p1A_4#meta() abort
   return {'id': '1A.4', 'name': 'j k', 'aim': 60,
-    \ 'allowed_keys': 'jk', 'prereqs': ['T0']}
+    \ 'allowed_keys': 'jk', 'prereqs': ['T0'],
+    \ 'narrower_of': '1A.1', 'parallel_to': ['1A.3']}
 endfunction
 
 function! vimfluency#pinpoints#p1A_4#lesson() abort

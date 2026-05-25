@@ -45,9 +45,28 @@ The leading `p` is required — vim autoload segments can't start with a digit.
 aim before drilling this one. Mirror `CATALOG.md` exactly — `['T0']` means
 "tier 0 must be at aim", `['1A']` means "all of group 1A must be at aim",
 `['1C.1', '1C.2']` names specific siblings. Tier and group are derived
-from the ID at runtime, not stored in `meta()`. The `:VfList` navigator
-will use these to grey out blocked pinpoints and surface what's eligible
-to drill today.
+from the ID at runtime, not stored in `meta()`. Under the exhaustive-
+hierarchy framework, prereqs are *diagnostic, not gating* — `:VfList`
+surfaces them as suggestions ("your `dw` rate plateaued; drop back to
+`w/b`") rather than locking the learner out.
+
+Two optional structural-annotation fields formalize relationships across
+pinpoints (used by `:VfList` for grouping and lessons for cross-reference;
+no impact on probe behavior):
+
+- `narrower_of: '<id>'` — this pinpoint is a narrower sub-component of
+  the named broader pinpoint. Example: `1A.3` (`h l`) has
+  `narrower_of: '1A.1'` (`hjkl`). The broader form is the typical default
+  drill; the narrower form is the fallback for learners who plateau on
+  one axis specifically.
+- `parallel_to: ['<id>', ...]` — this pinpoint shares rule-statement
+  shape and matched lesson structure with the listed peers. Example:
+  `1B.1` (`w b`) is parallel-by-design with `1B.2` (`e ge`). Used to
+  group related pinpoints visually and to let lessons reference their
+  kin ("this is the same shape as 1B.2's rule").
+
+Both fields default to absent / `[]`. Adding them to a pinpoint is
+schema-additive — no runner work required to land them.
 
 ## Cheat-analysis discipline
 

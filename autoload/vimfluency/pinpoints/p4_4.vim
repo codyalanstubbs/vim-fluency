@@ -20,7 +20,8 @@ let s:words = ['def', 'class', 'return', 'import', 'from', 'while',
 function! vimfluency#pinpoints#p4_4#meta() abort
   return {'id': '4.4', 'name': 'dl dh', 'aim': 40,
     \ 'allowed_keys': 'dlh', 'kind': 'editing',
-    \ 'prereqs': ['1A.3']}
+    \ 'prereqs': ['1A.3'],
+    \ 'parallel_to': ['4.1', '4.3']}
 endfunction
 
 function! s:rand(n) abort

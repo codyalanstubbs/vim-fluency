@@ -26,7 +26,8 @@ function! vimfluency#pinpoints#p1B_2#meta() abort
   " theoretical max rate on the backward half of the discrimination.
   " Starting guess; revise once the data accumulates.
   return {'id': '1B.2', 'name': 'e ge', 'aim': 40,
-    \ 'allowed_keys': 'eg', 'prereqs': ['1A']}
+    \ 'allowed_keys': 'eg', 'prereqs': ['1A'],
+    \ 'parallel_to': ['1B.1']}
 endfunction
 
 function! vimfluency#pinpoints#p1B_2#lesson() abort

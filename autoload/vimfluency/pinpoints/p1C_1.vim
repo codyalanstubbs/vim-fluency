@@ -37,7 +37,8 @@ let s:WORDS = ['return', 'import', 'while', 'range', 'class', 'value',
 
 function! vimfluency#pinpoints#p1C_1#meta() abort
   return {'id': '1C.1', 'name': 'find char (f F)',
-    \ 'aim': 50, 'allowed_keys': 'fF', 'prereqs': ['1A']}
+    \ 'aim': 50, 'allowed_keys': 'fF', 'prereqs': ['1A'],
+    \ 'parallel_to': ['1C.2']}
 endfunction
 
 function! vimfluency#pinpoints#p1C_1#lesson() abort

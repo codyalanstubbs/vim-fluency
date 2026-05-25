@@ -40,7 +40,8 @@ let s:WORDS = ['return', 'import', 'result', 'parser', 'broken', 'hammer',
 
 function! vimfluency#pinpoints#p1C_2#meta() abort
   return {'id': '1C.2', 'name': 'find char (t T)',
-    \ 'aim': 45, 'allowed_keys': 'tT', 'prereqs': ['1C.1']}
+    \ 'aim': 45, 'allowed_keys': 'tT', 'prereqs': ['1C.1'],
+    \ 'parallel_to': ['1C.1']}
 endfunction
 
 function! vimfluency#pinpoints#p1C_2#lesson() abort

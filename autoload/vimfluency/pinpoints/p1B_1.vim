@@ -21,7 +21,8 @@ let s:chars = ['a', 'e', 'i', 'o', 'r', 's']
 
 function! vimfluency#pinpoints#p1B_1#meta() abort
   return {'id': '1B.1', 'name': 'w b', 'aim': 45,
-    \ 'allowed_keys': 'wb', 'prereqs': ['1A']}
+    \ 'allowed_keys': 'wb', 'prereqs': ['1A'],
+    \ 'parallel_to': ['1B.2']}
 endfunction
 
 function! vimfluency#pinpoints#p1B_1#lesson() abort

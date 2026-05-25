@@ -23,7 +23,8 @@ function! vimfluency#pinpoints#p1A_3#meta() abort
   " plateaued — keep the aim honest rather than inflated. Starting
   " guess, revise on data.
   return {'id': '1A.3', 'name': 'h l', 'aim': 60,
-    \ 'allowed_keys': 'hl', 'prereqs': ['T0']}
+    \ 'allowed_keys': 'hl', 'prereqs': ['T0'],
+    \ 'narrower_of': '1A.1', 'parallel_to': ['1A.4']}
 endfunction
 
 function! vimfluency#pinpoints#p1A_3#lesson() abort
