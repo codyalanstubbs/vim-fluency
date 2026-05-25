@@ -25,11 +25,13 @@ COMMANDS                                                        *vf-commands*
     List installed pinpoints with their starting fluency aims.
 
 :VfHierarchy                                              *:VfHierarchy*
-    Open a buffer showing the structural relationships across pinpoints:
-    narrower siblings nested under their broader parent (tree connectors),
-    parallel-by-design peers marked inline with ⟷, prereqs listed as text.
-    Complements :VfList — :VfList shows status for active drilling, while
-    :VfHierarchy shows what exists and how the pinpoints relate.
+    Open a buffer showing the prereq DAG: pinpoints grouped by their
+    prereq signature, with each section listed in topological order
+    (roots first; later sections' prereqs are satisfied by earlier
+    sections). Parallel-by-design peers are marked inline with ⟷, and
+    narrower_of relationships appear inline as 'narrower of <id>'.
+    Complements :VfList — :VfList shows status for active drilling,
+    while :VfHierarchy shows what exists and what unlocks what.
     Press 'q' or <Enter> to close.
 
 :VfQuit                                                          *:VfQuit*
