@@ -1,6 +1,6 @@
 " 1C.4 — discriminate f vs t (and F vs T).
 "
-" The Disc probe from CATALOG: same buffers and target geometry as
+" The Disc training from CATALOG: same buffers and target geometry as
 " 1C.1 / 1C.2, but the user can't predict which motion is needed.
 " Each generated item is a 1C.1 item (target ON a char → fc/Fc) or a
 " 1C.2 item (target ONE OFF a char → tc/Tc), picked 50/50. The

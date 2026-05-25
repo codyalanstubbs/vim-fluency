@@ -4,7 +4,7 @@ Context for future Claude sessions on **Vim Fluency** (plugin id `vimfluency`, r
 
 ## What this is
 
-A vim plugin that runs timed fluency probes (`:Vf`) and DI-style lessons
+A vim plugin that runs timed fluency training sessions (`:Vf`) and DI-style lessons
 (`:VfLearn`) on vim behaviors. The goal is to give aspiring and current vim
 users an explicit behavioral hierarchy they can drill, measure their real
 per-behavior rates against, and improve those rates over time.
@@ -24,7 +24,7 @@ Neovim-specific or Lua features — must run on every server you ssh into.
 
 ```
 plugin/vimfluency.vim                          commands + load guard
-autoload/vimfluency.vim                        runner (probe + lesson + history + summary)
+autoload/vimfluency.vim                        runner (training + lesson + history + summary)
 autoload/vimfluency/pinpoints/p<ID>.vim        one file per pinpoint
 doc/vimfluency.txt                             :help docs
 tests/                                  vim-headless test runner
@@ -52,7 +52,7 @@ surfaces them as suggestions ("your `dw` rate plateaued; drop back to
 
 Two optional structural-annotation fields formalize relationships across
 pinpoints (used by `:VfList` for grouping and lessons for cross-reference;
-no impact on probe behavior):
+no impact on training behavior):
 
 - `narrower_of: '<id>'` — this pinpoint is a narrower sub-component of
   the named broader pinpoint. Example: `1A.3` (`h l`) has
@@ -83,8 +83,8 @@ vowel-heavy alphabet looks like soup — that's intentional.
 ## Buffer-shape gotcha for line-removing operators
 
 `dd` and other line-removing operators (`dG`, multi-line visual delete, etc.)
-behave differently in the standalone probe buffer (no header rows) vs. the
-lesson buffer (header rows above the content). In the probe buffer, vim's
+behave differently in the standalone training buffer (no header rows) vs. the
+lesson buffer (header rows above the content). In the training buffer, vim's
 "buffer can't be empty" rule preserves a deleted-only-line as `''` — so
 `target_lines: ['']` works. In the lesson buffer, the same operation
 removes the line entirely because the header rows above it satisfy vim's
@@ -145,19 +145,19 @@ accumulates per-motion rate, average actual motions, and total wasted motions
   first-try-correct (motion count ≤ optimal); resets on inefficient
   reach. On 3 in a row the runner enters a `complete` phase and
   shows a celebration screen with explicit options: **p** starts
-  `:Vf <id>` (60 s probe), **q** exits. Space/Enter and CursorMoved
+  `:Vf <id>` (60 s training), **q** exits. Space/Enter and CursorMoved
   are no-ops on this screen — the handoff is deliberate. On either
   failure condition — 3 wrong in a row (symmetric with the success
   criterion) or the 20-item safety cap — the runner **restarts the
   lesson from frame 0 in place**, echoing the reason; the tab and
   autocmds stay put so the learner just keeps going. Because test
-  items come from the same `generate()` the probe uses, their
+  items come from the same `generate()` the training uses, their
   cheat-defense is identical — the intended motion is the canonical
   answer.
 - **Confirmation step**: when the learner reaches a try frame's target,
   the runner pauses and shows `✓ Press <Space>` in the header instead of
   auto-advancing. This lets them see their motion took effect before the
-  next frame loads. (Probes still auto-advance — the free-operant speed
+  next frame loads. (Trainings still auto-advance — the free-operant speed
   loop wants no friction.)
 - **Editing kinds get an undo hint**: when meta declares
   `kind: 'editing'`, try-frame headers include `[u=undo if wrong]` so the
@@ -172,7 +172,7 @@ pattern; `p1A_2.vim` for the whitespace-listchars pattern.
 
 ## Buffer naming
 
-- Probe: `vf-<id>`
+- Training: `vf-<id>`
 - Lesson: `vf-lesson-<id>`
 - Summary: `vf-summary-<id>`
 
@@ -231,7 +231,7 @@ to `YYYY-MM-DD-slug.md`, fill it in, and add a one-line entry to
 `INDEX.md`.
 
 Strong signals worth capturing:
-- A probe or lesson redesign that exposed a Direct Instruction principle
+- A training or lesson redesign that exposed a Direct Instruction principle
   (faultless communication, juxtaposition, the discriminant the learner
   actually used vs. the one you intended).
 - A user complaint that revealed a wrong mental model in the design.

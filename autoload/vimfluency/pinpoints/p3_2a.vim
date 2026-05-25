@@ -4,7 +4,7 @@
 " (inner content) and varies the delimiter. The visible quote char in
 " the buffer cue is the entire discriminative cue.
 "
-" Probe shape: recall kind, binary discrimination on quote-delim type.
+" Training shape: recall kind, binary discrimination on quote-delim type.
 " The learner sees a buffer line with a quoted string and an arrow (^)
 " pointing into the inner content. They type i + delim. Auto-credits
 " on exact match.

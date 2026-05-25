@@ -1,8 +1,8 @@
 " 4.1 — delete with word motion (dw, db). The first real Tier-4
-" composite probe: the user must recognize, from the highlighted
+" composite training: the user must recognize, from the highlighted
 " deletion range and their cursor position, which motion describes
 " the range. The runner intentionally hides the green target cell for
-" editing-kind probes — the deletion range alone is the cue, and the
+" editing-kind training sessions — the deletion range alone is the cue, and the
 " discrimination is "where is red relative to my cursor?" rather than
 " "is a green cell visible?".
 "
@@ -131,7 +131,7 @@ function! vimfluency#pinpoints#p4_1#lesson() abort
     \  'deletion_range': [[1, 7, 5]],
     \  'prompt': 'Press db — deletes beta + trailing space (previous word). Cursor jumps back.'},
     \ {'kind': 'show', 'lines': ['edit me; mistakes happen.'], 'cursor': [1, 1],
-    \  'prompt': 'Pressed the wrong motion? u undoes. The probe is free-operant — keep editing until the buffer matches.'},
+    \  'prompt': 'Pressed the wrong motion? u undoes. The training is free-operant — keep editing until the buffer matches.'},
     \ {'kind': 'try', 'lines': ['one two three four five'], 'start': [1, 9], 'target': [1, 9],
     \  'target_lines': ['one two four five'],
     \  'deletion_range': [[1, 9, 6]],

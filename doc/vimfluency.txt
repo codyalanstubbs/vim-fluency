@@ -1,17 +1,17 @@
-*vimfluency.txt*    fluency probes for vim pinpoints                       *vimfluency*
+*vimfluency.txt*    fluency training sessions for vim pinpoints                       *vimfluency*
 
 ==============================================================================
 INTRODUCTION                                                       *vf-intro*
 
-Vim Fluency runs short timed probes on vim pinpoints to build behavioral fluency.
-Each probe shows a target buffer state; you produce that state with vim
+Vim Fluency runs short timed training sessions on vim pinpoints to build behavioral fluency.
+Each training shows a target buffer state; you produce that state with vim
 commands. Per-session rate is logged for celeration tracking.
 
 ==============================================================================
 COMMANDS                                                        *vf-commands*
 
 :Vf {id} [seconds] [only=motion[,motion...]]                          *:Vf*
-    Start a probe on pinpoint {id} for [seconds] (default 60).
+    Start a training on pinpoint {id} for [seconds] (default 60).
     Use Tab to skip an item, :VfQuit to end early.
 
     `only=` filters the generator to only produce items where the
@@ -27,7 +27,7 @@ COMMANDS                                                        *vf-commands*
     highlighted; j/k snap between pinpoint rows (headers, blanks, and
     per-motion sub-rows are skipped). On a pinpoint row press:
         L     start a Learn session (:VfLearn) for this pinpoint
-        T     start a Train probe (:Vf) for this pinpoint
+        T     start a Train session (:Vf) for this pinpoint
         C     open the celeration Chart (:VfChart) for this pinpoint
         q     close the list
     gg / G jump to the first / last pinpoint.
@@ -100,31 +100,31 @@ The leading 'p' is required because vim autoload segments cannot start
 with a digit. {id} is a free-form string and is what users type.
 Rows and cols are 1-indexed (vim convention).
 
-PROBE KINDS                                                       *vf-kinds*
+TRAINING KINDS                                                    *vf-kinds*
 
 meta() may declare a `kind` field:
 
     motion (default)
-        Cursor-only probe. Item declares `lines`, `start`, `target`.
+        Cursor-only training. Item declares `lines`, `start`, `target`.
         Runner credits when the cursor reaches `target` without
         modifying the buffer.
 
     editing
-        Buffer-changing probe (operators: x, dd, dw, ...). Item
+        Buffer-changing training (operators: x, dd, dw, ...). Item
         adds `target_lines` (post-edit buffer state) and may add
         `deletion_range` for the red highlight bar. Runner credits
         when the buffer matches `target_lines` AND cursor lands at
         `target`.
 
     recall
-        Type-the-answer probe (e.g., name a mode, type a save
+        Type-the-answer training (e.g., name a mode, type a save
         command). Item declares `prompt` (string or list of lines)
         and `expected_answer` (string). The runner auto-credits the
         moment the typed input exactly equals `expected_answer` —
         no <CR> required. <BS> corrects; <Tab> skips.
 
     mode
-        Round-trip-through-insert probe (e.g., i / a / o / O). Item
+        Round-trip-through-insert training (e.g., i / a / o / O). Item
         adds `enter_at_row`, `enter_at_col` (where InsertEnter must
         fire — this is what distinguishes i from a, I from A by the
         cursor position when insert begins), `target_lines`

@@ -1,7 +1,7 @@
 " T0.4 — Undo and redo. Two keys, one cognitive pair: u reverses the
 " last edit; Ctrl-r reverses the last undo.
 "
-" Probe shape: editing kind with pre-staged undo history. Each item
+" Training shape: editing kind with pre-staged undo history. Each item
 " declares a `history` (list of buffer states) and a `start_index`
 " telling the runner which state to display. The runner stages the
 " full history into the buffer's undo log behind the scenes, then
@@ -9,7 +9,7 @@
 " `u` or Ctrl-r traverses the staged history in one keystroke.
 "
 " Why a 'history' field instead of just lines + target_lines:
-"   - A fresh probe buffer has no undo history, so `u` is a no-op
+"   - A fresh training buffer has no undo history, so `u` is a no-op
 "     (vim beeps). Without pre-staging, the canonical answer key
 "     does nothing.
 "   - Pre-staging is the only way to make `u` and Ctrl-r each

@@ -1,4 +1,4 @@
-" Runner integration tests. Drive the probe state machine via cursor()
+" Runner integration tests. Drive the training state machine via cursor()
 " + doautocmd against fixture pinpoints, asserting on counters and state
 " transitions that generator-level tests can't observe.
 "
@@ -129,7 +129,7 @@ function! s:test_tab_skip() abort
     \ ])
   call vimfluency#start('TEST.motion', s:dur)
   call Assert(!empty(maparg('<Tab>', 'n')),
-    \ 'runner: <Tab> mapping installed on probe buffer')
+    \ 'runner: <Tab> mapping installed on training buffer')
   call vimfluency#_test_skip()
   let st = vimfluency#_test_state()
   call AssertEq(st.items_skipped, 1, 'runner: skip path marks item skipped')

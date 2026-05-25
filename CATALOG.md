@@ -3,7 +3,7 @@
 Scope: vim ≥ 7 with no plugins, no LSP, no fuzzy finder. The subset present on every Linux server.
 
 Conventions:
-- **Probe format** — what the learner sees and what they produce.
+- **Training format** — what the learner sees and what they produce.
   - `S→K` = show before/after buffer state, learner types minimal keystrokes
   - `K→S` = show keystrokes, learner predicts buffer state
   - `Disc` = discrimination: pick the more efficient of two equivalent sequences
@@ -15,7 +15,7 @@ Conventions:
 
 ## Tier 0 — Survival (must be automatic before anything else)
 
-| ID | Pinpoint | Probe | Aim | Prereqs |
+| ID | Pinpoint | Training | Aim | Prereqs |
 |---|---|---|---|---|
 | T0.1 | Enter/leave insert mode (`i`, `a`, `Esc`) | S→K | 50 | — |
 | T0.2 | Open new line (`o`, `O`) | S→K | 40 | T0.1 |
@@ -36,7 +36,7 @@ Composite emergence test: "open a file, change one word, save, quit" cold, ≤ 5
 
 ### 1A — Char & line
 
-| ID | Pinpoint | Probe | Aim | Prereqs |
+| ID | Pinpoint | Training | Aim | Prereqs |
 |---|---|---|---|---|
 | 1A.1 | `hjkl` (4-cell, all directions) | S→K | 60 | T0 |
 | 1A.2 | Line start/first-non-blank/end (`0`, `^`, `$`, `g_`) | S→K | 50 | T0 |
@@ -46,7 +46,7 @@ Composite emergence test: "open a file, change one word, save, quit" cold, ≤ 5
 
 ### 1B — Word
 
-| ID | Pinpoint | Probe | Aim | Prereqs |
+| ID | Pinpoint | Training | Aim | Prereqs |
 |---|---|---|---|---|
 | 1B.1 | Forward/back word start (`w`, `b`) | S→K | 45 | 1A |
 | 1B.2 | Forward/back word end (`e`, `ge`) | S→K | 40 | 1A |
@@ -55,7 +55,7 @@ Composite emergence test: "open a file, change one word, save, quit" cold, ≤ 5
 
 ### 1C — Char-find on line
 
-| ID | Pinpoint | Probe | Aim | Prereqs |
+| ID | Pinpoint | Training | Aim | Prereqs |
 |---|---|---|---|---|
 | 1C.1 | `f{c}`, `F{c}` | S→K | 50 | 1A |
 | 1C.2 | `t{c}`, `T{c}` | S→K | 45 | 1C.1 |
@@ -64,7 +64,7 @@ Composite emergence test: "open a file, change one word, save, quit" cold, ≤ 5
 
 ### 1D — Buffer/screen jumps
 
-| ID | Pinpoint | Probe | Aim | Prereqs |
+| ID | Pinpoint | Training | Aim | Prereqs |
 |---|---|---|---|---|
 | 1D.1 | Top/bottom (`gg`, `G`) | S→K | 50 | T0 |
 | 1D.2 | Line number (`{n}G`, `:{n}`) | S→K | 40 | 1D.1 |
@@ -73,7 +73,7 @@ Composite emergence test: "open a file, change one word, save, quit" cold, ≤ 5
 
 ### 1E — Block / paragraph / sentence
 
-| ID | Pinpoint | Probe | Aim | Prereqs |
+| ID | Pinpoint | Training | Aim | Prereqs |
 |---|---|---|---|---|
 | 1E.1 | Sentence (`(`, `)`) | S→K | 40 | 1A |
 | 1E.2 | Paragraph (`{`, `}`) | S→K | 40 | 1A |
@@ -81,7 +81,7 @@ Composite emergence test: "open a file, change one word, save, quit" cold, ≤ 5
 
 ### 1F — Search
 
-| ID | Pinpoint | Probe | Aim | Prereqs |
+| ID | Pinpoint | Training | Aim | Prereqs |
 |---|---|---|---|---|
 | 1F.1 | `/pat`, `?pat`, `n`, `N` | S→K | 35 | 1A |
 | 1F.2 | Word-under-cursor (`*`, `#`) | S→K | 40 | 1A |
@@ -91,7 +91,7 @@ Composite emergence test: "open a file, change one word, save, quit" cold, ≤ 5
 
 ## Tier 2 — Operators (no motion yet, just the operator + linewise form)
 
-| ID | Pinpoint | Probe | Aim | Prereqs |
+| ID | Pinpoint | Training | Aim | Prereqs |
 |---|---|---|---|---|
 | 2.1 | Discriminate `x` vs `dd` (single-char delete vs linewise; navigate then operate) | Disc | 35 | T0 |
 | 2.2 | Discriminate `>>` vs `<<` (indent vs dedent direction) | Disc | 35 | T0 |
@@ -100,13 +100,13 @@ Composite emergence test: "open a file, change one word, save, quit" cold, ≤ 5
 | 2.5 | Filter line (`==`, `!!`) — under review, different concepts not a minimal pair | S→K | 30 | T0 |
 | 2.6 | Recall the operator family (`d`, `c`, `y`, `>`, `<`, `=`, `gu`, `gU`, `~`, `!`) | Recall | 30 | — |
 
-Discrimination probe **2.D**: given a goal, pick `d` vs `c` (composite emergence — does the learner know `c` enters insert mode, `d` doesn't?). Aim 35.
+Discrimination training **2.D**: given a goal, pick `d` vs `c` (composite emergence — does the learner know `c` enters insert mode, `d` doesn't?). Aim 35.
 
 ---
 
 ## Tier 3 — Text Objects (taught isolated, used only with operators in Tier 4)
 
-| ID | Pinpoint | Probe | Aim | Prereqs |
+| ID | Pinpoint | Training | Aim | Prereqs |
 |---|---|---|---|---|
 | 3.1 | Word objects (`iw`, `aw`, `iW`, `aW`) — describe what they cover | Recall | 40 | 1B |
 | 3.2a | Inner quote — `i"` vs `i'` | Recall | 40 | T0 |
@@ -124,7 +124,7 @@ Composite behaviors composing a Tier 2 operator with a motion or text object. Ea
 
 Rows below are the narrower 2-cell direction discriminations under the exhaustive-hierarchy framework. The earlier wide-grid spec rows (`4.2-4.6` covering line motions, char-find, text objects, search, match) have been repurposed slice-by-slice; remaining rows are explicit pinpoints with their own files.
 
-| ID | Pinpoint | Probe | Aim | Prereqs |
+| ID | Pinpoint | Training | Aim | Prereqs |
 |---|---|---|---|---|
 | 4.1 | `dw db` (delete + word-start motion, direction discrimination) | S→K | 60 | 2.1, 1B.1 |
 | 4.3 | `d0 d$` (delete + line-edge motion, direction discrimination) | S→K | 35 | 1A.5 |
@@ -140,7 +140,7 @@ Deferred / not yet built (placeholders for future slice work):
 
 ## Tier 5 — Counts and repetition
 
-| ID | Pinpoint | Probe | Aim | Prereqs |
+| ID | Pinpoint | Training | Aim | Prereqs |
 |---|---|---|---|---|
 | 5.1 | Counted motion (`5w`, `3j`, `2}`) | S→K | 40 | 1 |
 | 5.2 | Counted operator (`3dd`, `2yy`) | S→K | 35 | 2 |
@@ -152,7 +152,7 @@ Deferred / not yet built (placeholders for future slice work):
 
 ## Tier 6 — Insert-mode editing & small fixes
 
-| ID | Pinpoint | Probe | Aim | Prereqs |
+| ID | Pinpoint | Training | Aim | Prereqs |
 |---|---|---|---|---|
 | 6.1 | Enter insert at variants (`i`, `a`, `I`, `A`) | S→K | 50 | T0 |
 | 6.2 | Open above/below (`o`, `O`) — already in T0; combined with indent | S→K | 40 | T0 |
@@ -168,7 +168,7 @@ Deferred / not yet built (placeholders for future slice work):
 
 ## Tier 7 — Visual mode
 
-| ID | Pinpoint | Probe | Aim | Prereqs |
+| ID | Pinpoint | Training | Aim | Prereqs |
 |---|---|---|---|---|
 | 7.1 | Enter visual (`v`, `V`, `Ctrl-v`) | S→K | 45 | T0 |
 | 7.2 | Extend selection by motion | S→K | 35 | 7.1, 1 |
@@ -182,7 +182,7 @@ Deferred / not yet built (placeholders for future slice work):
 
 ## Tier 8 — Yank, paste, registers
 
-| ID | Pinpoint | Probe | Aim | Prereqs |
+| ID | Pinpoint | Training | Aim | Prereqs |
 |---|---|---|---|---|
 | 8.1 | Paste (`p`, `P`) — predict where it lands for charwise vs linewise | K→S | 40 | 2.3 |
 | 8.2 | Named register (`"ay`, `"ap`) | S→K | 30 | 8.1 |
@@ -196,7 +196,7 @@ Deferred / not yet built (placeholders for future slice work):
 
 ## Tier 9 — Marks and jumps
 
-| ID | Pinpoint | Probe | Aim | Prereqs |
+| ID | Pinpoint | Training | Aim | Prereqs |
 |---|---|---|---|---|
 | 9.1 | Set/jump local mark (`ma`, `'a`, `` `a ``) | S→K | 35 | T0 |
 | 9.2 | Discriminate `'a` (line) vs `` `a `` (exact pos) | Disc | 30 | 9.1 |
@@ -208,7 +208,7 @@ Deferred / not yet built (placeholders for future slice work):
 
 ## Tier 10 — Search & substitute
 
-| ID | Pinpoint | Probe | Aim | Prereqs |
+| ID | Pinpoint | Training | Aim | Prereqs |
 |---|---|---|---|---|
 | 10.1 | Basic substitute (`:s/a/b/`, `:s/a/b/g`) | S→K | 25 | 1F |
 | 10.2 | Whole file (`:%s/a/b/g`) | S→K | 30 | 10.1 |
@@ -224,7 +224,7 @@ Deferred / not yet built (placeholders for future slice work):
 
 ## Tier 11 — Ex commands & buffers
 
-| ID | Pinpoint | Probe | Aim | Prereqs |
+| ID | Pinpoint | Training | Aim | Prereqs |
 |---|---|---|---|---|
 | 11.1 | Range delete/yank (`:.,+5d`, `:1,$y`) | S→K | 25 | T0 |
 | 11.2 | Shell out (`:!cmd`) | S→K | 30 | T0 |
@@ -238,7 +238,7 @@ Deferred / not yet built (placeholders for future slice work):
 
 ## Tier 12 — Macros
 
-| ID | Pinpoint | Probe | Aim | Prereqs |
+| ID | Pinpoint | Training | Aim | Prereqs |
 |---|---|---|---|---|
 | 12.1 | Record/replay (`qa`...`q`, `@a`, `@@`) | S→K | 20 | 5.4 |
 | 12.2 | Counted replay (`5@a`) | S→K | 18 | 12.1 |
@@ -249,7 +249,7 @@ Deferred / not yet built (placeholders for future slice work):
 
 ## Tier 13 — Composite editing tasks
 
-Real-world editing tasks that compose many lower-tier behaviors. Useful for spotting curriculum gaps — a composite that should be easy but feels hard points at a component that isn't fluent enough. Probe = task description + starting buffer; measure time-to-completion and keystroke efficiency vs an expert reference.
+Real-world editing tasks that compose many lower-tier behaviors. Useful for spotting curriculum gaps — a composite that should be easy but feels hard points at a component that isn't fluent enough. Training = task description + starting buffer; measure time-to-completion and keystroke efficiency vs an expert reference.
 
 | ID | Composite | Components exercised |
 |---|---|---|

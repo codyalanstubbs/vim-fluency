@@ -1,7 +1,7 @@
 " 1C.2 — t{char} / T{char}. Find a target character on the current line,
 " but land one column shy of it (t = before, T = after).
 "
-" Where 1C.1's f/F land ON the char, t/T land NEXT TO it. The probe target
+" Where 1C.1's f/F land ON the char, t/T land NEXT TO it. The training target
 " is the LANDING column (X-1 forward, X+1 backward) — not the char itself.
 "
 " Design constraints to keep t/T the strictly shortest path:

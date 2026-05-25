@@ -2,7 +2,7 @@
 " Both quit; one writes first, one forces (discarding pending changes).
 " Introduces the ! force flag.
 "
-" Probe shape: recall kind, binary discrimination.
+" Training shape: recall kind, binary discrimination.
 "
 " Cheat-defense: :wq and :q! are non-overlapping strings. The :
 " prefix is shared but the body differs.

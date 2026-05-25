@@ -2,7 +2,7 @@
 " different SYNTAX (Ex command vs normal-mode shortcut). The
 " discrimination is whether to open the command line at all.
 "
-" Probe shape: recall kind, binary discrimination.
+" Training shape: recall kind, binary discrimination.
 "
 " Cheat-defense: the two answers share no common substring; the
 " prompt's parenthetical ('Ex command' vs 'normal-mode') is the

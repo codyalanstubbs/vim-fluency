@@ -17,7 +17,7 @@ function! s:assert_common(id, item) abort
 
   call Assert(!empty(item.expected_motion), prefix . 'expected_motion non-empty')
   call Assert(item.optimal_motions > 0, prefix . 'optimal_motions positive')
-  " The probe must require *something* — either cursor or buffer must change.
+  " The training must require *something* — either cursor or buffer must change.
   let target_lines = get(item, 'target_lines', item.lines)
   call Assert(item.start != item.target || target_lines !=# item.lines,
     \ prefix . 'item requires cursor move or buffer change')
@@ -141,7 +141,7 @@ function! s:test_1B_2() abort
   call Assert(get(seen, 'ge', 0) == 1, '1B.2: ge appeared in samples')
 endfunction
 
-" 2.1: editing-kind discrimination probe. expected_motion ∈ {x, dd}.
+" 2.1: editing-kind discrimination training. expected_motion ∈ {x, dd}.
 " 2-line buffer where the cursor starts at col 1 of one line and
 " the highlight lives on the OTHER line — single char (col 1) for
 " x items, full line for dd items. Each item is a 2-event sequence:
@@ -779,7 +779,7 @@ endfunction
 function! s:test_T0_5() abort
   let GenFn = function('vimfluency#pinpoints#pT0_5#generate')
   " Single-keystroke answers: n=normal, i=insert, v=visual, r=replace,
-  " :=command. The probe isolates the recognition step from typing
+  " :=command. The training isolates the recognition step from typing
   " noise (no word length, no typos).
   let valid = ['n', 'i', 'v', 'r', ':']
   let last_lines = {

@@ -97,6 +97,6 @@ function! vimfluency#pinpoints#p4_3#lesson() abort
     \  'deletion_range': [[1, 10, 12]],
     \  'prompt': 'Press d$ — deletes "return value". Cursor lands at the new last column.'},
     \ {'kind': 'show', 'lines': ['edit me; mistakes happen.'], 'cursor': [1, 1],
-    \  'prompt': 'Wrong motion? u undoes. The probe is free-operant — keep editing until the buffer matches.'},
+    \  'prompt': 'Wrong motion? u undoes. The training is free-operant — keep editing until the buffer matches.'},
     \ ]
 endfunction

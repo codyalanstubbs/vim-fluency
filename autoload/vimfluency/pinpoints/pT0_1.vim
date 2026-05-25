@@ -1,7 +1,7 @@
 " T0.1 — Enter/leave insert mode. The four canonical insert-entry keys
 " plus the closing Esc:  i  a  I  A.
 "
-" Probe shape: mode kind. The conceptual target is a GAP between two
+" Training shape: mode kind. The conceptual target is a GAP between two
 " cells (insertion points are between chars, not on them), so the
 " cue is an indicator row above the content with '▶◀' pointing inward
 " at the gap's flanking columns. The content row stays uncolored —

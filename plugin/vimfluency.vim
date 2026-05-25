@@ -1,4 +1,4 @@
-" vimfluency — fluency probe runner for vim pinpoints
+" vimfluency — fluency training runner for vim pinpoints
 " Loaded once at startup. All real work lives in autoload/vimfluency.vim.
 
 if exists('g:loaded_vimfluency') | finish | endif

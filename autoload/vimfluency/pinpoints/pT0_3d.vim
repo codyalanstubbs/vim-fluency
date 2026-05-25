@@ -1,7 +1,7 @@
 " T0.3d — Discriminate :q! vs ZQ. Same as T0.3c (Ex vs normal-mode
 " shortcut) but for force-quit. ZQ is to :q! what ZZ is to :wq.
 "
-" Probe shape: recall kind, binary discrimination.
+" Training shape: recall kind, binary discrimination.
 "
 " Cheat-defense: the two answers share no common substring.
 

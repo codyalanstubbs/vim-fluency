@@ -2,7 +2,7 @@
 " which action. The action verb ('save' or 'quit') is the entire cue;
 " the answer is the matching Ex command.
 "
-" Probe shape: recall kind, binary discrimination. Each item picks
+" Training shape: recall kind, binary discrimination. Each item picks
 " one of the two; the learner reads a single-word prompt and types
 " the answer. Auto-credits on exact match.
 "

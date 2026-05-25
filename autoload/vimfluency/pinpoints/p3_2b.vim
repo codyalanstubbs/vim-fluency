@@ -1,6 +1,6 @@
 " 3.2b — Inner quote text object: introduce i` (backtick).
 "
-" Builds on 3.2a. The rule and probe shape are identical; the only
+" Builds on 3.2a. The rule and training shape are identical; the only
 " change is the delim alphabet — backtick joins the active set so the
 " learner has to discriminate three delimiters instead of two.
 "

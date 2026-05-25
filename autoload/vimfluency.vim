@@ -425,9 +425,9 @@ function! s:show_list_buffer(lines, coords) abort
   let b:vf_list_pinpoint_rows = a:coords.pinpoint_rows
   set laststatus=2
 
-  " Action keys: L=lesson, T=probe (train), C=chart.
+  " Action keys: L=lesson, T=train, C=chart.
   nnoremap <buffer> <silent> L :call vimfluency#list_action('learn')<CR>
-  nnoremap <buffer> <silent> T :call vimfluency#list_action('probe')<CR>
+  nnoremap <buffer> <silent> T :call vimfluency#list_action('train')<CR>
   nnoremap <buffer> <silent> C :call vimfluency#list_action('chart')<CR>
   nnoremap <buffer> <silent> q :call vimfluency#close_summary()<CR>
 
@@ -479,7 +479,7 @@ function! vimfluency#list_action(action) abort
     return
   endif
   call vimfluency#close_summary()
-  if a:action ==# 'probe'
+  if a:action ==# 'train'
     call vimfluency#start(id)
   elseif a:action ==# 'learn'
     call vimfluency#learn(id)
@@ -693,7 +693,7 @@ function! vimfluency#start(...) abort
   let info = registry[id]
 
   let s:session = {
-    \ 'mode': 'probe',
+    \ 'mode': 'train',
     \ 'id': info.id,
     \ 'name': info.name,
     \ 'aim': info.aim,
@@ -732,7 +732,7 @@ function! s:setup_window() abort
   setlocal nonumber norelativenumber nowrap signcolumn=no
   setlocal list listchars=trail:·,nbsp:·
   " Predictable indent semantics for operators like >> and <<.
-  " Override whatever the user has globally so probe behavior is
+  " Override whatever the user has globally so training behavior is
   " consistent across vimrcs.
   setlocal shiftwidth=4 softtabstop=4 expandtab
   silent! execute 'keepalt file vf-' . s:session.id
@@ -796,7 +796,7 @@ function! s:next_item() abort
     return
   endif
 
-  " Editing-kind probes get a 2-line header (prompt + divider) above the
+  " Editing-kind training sessions get a 2-line header (prompt + divider) above the
   " live editing area. Match checks subtract the header offset.
   let header = []
   if s:session.kind ==# 'editing'
@@ -806,7 +806,7 @@ function! s:next_item() abort
   " Waypoint annotation row sits at the END of the header (just above the
   " content) so the deferred-fire guard's cur_lines comparison still
   " excludes it via header_offset. Same scaffolding as in lessons —
-  " probes need it too so the learner can disambiguate ; vs , scenarios
+  " training sessions need it too so the learner can disambiguate ; vs , scenarios
   " for items where cursor sits between two char occurrences.
   let header += s:waypoint_annotation(item)
   let s:session.header_offset = len(header)
@@ -827,17 +827,17 @@ function! s:next_item() abort
     silent! call matchdelete(s:session.target_match_id)
     let s:session.target_match_id = -1
   endif
-  " For editing-kind probes the deletion range alone tells the learner
+  " For editing-kind training sessions the deletion range alone tells the learner
   " what to do; rendering a green target makes the discrimination "is
   " green visible or not?" instead of "where is red relative to the
-  " cursor?". Motion-kind probes still get the green cell since that's
+  " cursor?". Motion-kind training sessions still get the green cell since that's
   " the entire cue.
   if s:session.kind !=# 'editing'
     let s:session.target_match_id = matchaddpos('VfTarget',
       \ [[s:session.header_offset + item.target[0], item.target[1], 1]], 20)
   endif
 
-  " Deletion-range highlight (editing probes that mark which characters
+  " Deletion-range highlight (editing training sessions that mark which characters
   " will be removed). Items declare deletion_range as a list of
   " [row, col, length] tuples (matchaddpos format, item-coords).
   if s:session.deletion_match_id != -1
@@ -868,7 +868,7 @@ function! s:install_autocmds() abort
     call s:install_recall_maps()
     return
   endif
-  augroup VfProbe
+  augroup VfTrain
     autocmd!
     if s:session.kind ==# 'mode'
       " Mode kind tracks the round trip through insert mode.
@@ -889,7 +889,7 @@ function! s:install_autocmds() abort
   nnoremap <buffer> <silent> <Tab> :call <SID>skip()<CR>
   " Ctrl-C in vim is the interrupt key — it exits insert mode but
   " explicitly does NOT fire InsertLeave, by design. Real-world
-  " users still reach for it as a faster Esc, so within probe
+  " users still reach for it as a faster Esc, so within training
   " buffers we route it through Esc so the matcher sees the round
   " trip. Applies to any kind that might enter insert mode (mode
   " kind, plus motion/editing kinds where the learner hit i/a/o by
@@ -1102,8 +1102,8 @@ function! s:install_recall_maps() abort
   nnoremap <buffer> <silent> <CR> <Nop>
 endfunction
 
-" Recall input handlers work for both probe and lesson sessions:
-"   - probe → motions accumulate to current_item_motions, credit via s:credit_item
+" Recall input handlers work for both training and lesson sessions:
+"   - training → motions accumulate to current_item_motions, credit via s:credit_item
 "   - learn (setup) → frame_complete + s:learn_render_complete
 "   - learn (test)  → motions accumulate to test_motion_count, streak update +
 "                     s:learn_render_complete
@@ -1131,7 +1131,7 @@ function! s:recall_backspace() abort
 endfunction
 
 function! s:recall_increment_motions() abort
-  if get(s:session, 'mode', 'probe') ==# 'probe'
+  if get(s:session, 'mode', 'train') ==# 'train'
     let s:session.current_item_motions += 1
   elseif get(s:session, 'phase', '') ==# 'test'
     let s:session.test_motion_count += 1
@@ -1156,8 +1156,8 @@ endfunction
 function! s:recall_check_match() abort
   if get(s:session, 'frame_complete', 0) | return | endif
 
-  let mode = get(s:session, 'mode', 'probe')
-  if mode ==# 'probe'
+  let mode = get(s:session, 'mode', 'train')
+  if mode ==# 'train'
     let item = s:session.current_item
   elseif s:session.phase ==# 'test'
     let item = s:session.current_test_item
@@ -1171,7 +1171,7 @@ function! s:recall_check_match() abort
   if empty(expected) | return | endif
   if s:session.recall_input !=# expected | return | endif
 
-  if mode ==# 'probe'
+  if mode ==# 'train'
     call s:credit_item()
     return
   endif
@@ -1341,14 +1341,14 @@ endfunction
 
 function! vimfluency#stop(reason) abort
   if empty(s:session) | return | endif
-  if get(s:session, 'mode', 'probe') ==# 'learn'
+  if get(s:session, 'mode', 'train') ==# 'learn'
     call vimfluency#learn_stop()
     return
   endif
   if has_key(s:session, 'timer')
     call timer_stop(s:session.timer)
   endif
-  silent! augroup VfProbe | autocmd! | augroup END
+  silent! augroup VfTrain | autocmd! | augroup END
 
   let elapsed = min([reltimefloat(reltime(s:session.started_at)), s:session.duration * 1.0])
   let rate = elapsed > 0 ? s:session.items_correct * 60.0 / elapsed : 0.0
@@ -1446,7 +1446,7 @@ function! vimfluency#stop(reason) abort
   call add(lines, '')
   call add(lines, '  Press q or <Enter> to close.')
 
-  " Render into the (still-open) probe buffer; user dismisses explicitly.
+  " Render into the (still-open) training buffer; user dismisses explicitly.
   let prev_laststatus = s:session.prev_laststatus
   let tabnr = s:session.tabnr
   let target_id = s:session.target_match_id
@@ -1478,7 +1478,7 @@ function! vimfluency#stop(reason) abort
     nnoremap <buffer> <silent> <CR> :call vimfluency#close_summary()<CR>
     call cursor(1, 1)
   else
-    " probe window/tab is gone — fall back to echoing
+    " training window/tab is gone — fall back to echoing
     silent! execute 'tabclose ' . tabnr
     let &laststatus = prev_laststatus
     for line in lines
@@ -1577,7 +1577,7 @@ function! vimfluency#history(...) abort
 endfunction
 
 " -----------------------------------------------------------------
-" Lesson mode (DI-style example/non-example sequencing before a probe)
+" Lesson mode (DI-style example/non-example sequencing before a training)
 " -----------------------------------------------------------------
 
 function! vimfluency#learn(...) abort
@@ -1663,7 +1663,7 @@ function! s:learn_header_line() abort
     if s:session.frame_complete
       if s:session.last_item_motions <= s:session.last_item_optimal
         if s:session.streak >= s:session.required_streak
-          let hint = printf('✓ %d/%d streak!  [Space=start probe]',
+          let hint = printf('✓ %d/%d streak!  [Space=start training]',
             \ cur, req)
         else
           let hint = printf('✓ %d motion(s)  streak %d/%d  [Space=next]',
@@ -1718,7 +1718,7 @@ endfunction
 function! s:learn_show_frame() abort
   let s:session.advancing = 1
   let s:session.frame_complete = 0
-  " Mode-kind insert-tracking state, reset at every new frame. Probe
+  " Mode-kind insert-tracking state, reset at every new frame. Training
   " path resets these in s:render_mode_item; lesson path mirrors here.
   let s:session.insert_entered = 0
   let s:session.insert_enter_pos = []
@@ -1843,16 +1843,16 @@ function! s:learn_install_autocmds() abort
     autocmd!
     if kind ==# 'mode'
       " Mode-kind lessons track the round trip through insert mode,
-      " same as the probe: InsertEnter records the entry col so we
+      " same as the training: InsertEnter records the entry col so we
       " can disambiguate i/a/I/A, InsertLeave is when we evaluate.
       " We deliberately do NOT hook TextChangedI — see s:install_autocmds
-      " in the probe path for why (o/O's line-insert fires TextChangedI
+      " in the training path for why (o/O's line-insert fires TextChangedI
       " AND InsertEnter for the same keystroke, inflating motion count).
       autocmd InsertEnter <buffer> call s:learn_on_insert_enter()
       autocmd InsertLeave <buffer> call s:learn_on_insert_leave()
     elseif kind ==# 'recall'
       " Recall lessons route every printable keystroke into recall_append
-      " (mirrors the probe). No autocmds needed — handlers fire via the
+      " (mirrors the training). No autocmds needed — handlers fire via the
       " buffer-local mappings.
       call s:install_recall_maps()
     else
@@ -1873,9 +1873,9 @@ function! s:learn_install_autocmds() abort
   nnoremap <buffer> <silent> <CR> :call <SID>learn_advance_show()<CR>
   if kind !=# 'recall'
     nnoremap <buffer> <silent> q :call vimfluency#learn_stop()<CR>
-    nnoremap <buffer> <silent> p :call <SID>learn_start_probe()<CR>
+    nnoremap <buffer> <silent> p :call <SID>learn_start_train()<CR>
   endif
-  " Ctrl-C → Esc, mirroring the probe path. Vim's Ctrl-C exits insert
+  " Ctrl-C → Esc, mirroring the training path. Vim's Ctrl-C exits insert
   " without firing InsertLeave by design, so unmapped it would leave
   " the mode-kind matcher hanging.
   inoremap <buffer> <silent> <C-c> <Esc>
@@ -1920,7 +1920,7 @@ function! s:learn_on_change() abort
     " that fire BOTH TextChanged and CursorMoved for one press
     " (>>, <<, dd — buffer changes plus cursor jumps to first
     " non-blank). See the matching dedupe in s:on_change for the
-    " probe path; same principle.
+    " training path; same principle.
     let new_state = [cur_pos, cur_lines]
     if get(s:session, 'last_event_state', []) ==# new_state
       return
@@ -1962,7 +1962,7 @@ function! s:learn_on_change() abort
 endfunction
 
 " Mode-kind lesson handlers. Mirror s:on_insert_enter / s:on_insert_leave
-" from the probe path, but evaluate against either the current setup-phase
+" from the training path, but evaluate against either the current setup-phase
 " frame OR the current test-phase item depending on s:session.phase.
 function! s:learn_on_insert_enter() abort
   if empty(s:session) || s:session.mode !=# 'learn' || s:session.advancing | return | endif
@@ -2102,17 +2102,17 @@ function! s:learn_show_complete() abort
   " the completion screen's instructions work.
   silent! unlet s:session.input_row
   nnoremap <buffer> <silent> q :call vimfluency#learn_stop()<CR>
-  nnoremap <buffer> <silent> p :call <SID>learn_start_probe()<CR>
+  nnoremap <buffer> <silent> p :call <SID>learn_start_train()<CR>
 
   setlocal modifiable
   silent! %delete _
   call setline(1, [
-    \ printf('LESSON %s  COMPLETE  [p=start probe]  [q=quit]', s:session.id),
+    \ printf('LESSON %s  COMPLETE  [p=start training]  [q=quit]', s:session.id),
     \ '',
     \ printf('  ✓ 3 in a row on %s — nice work.', s:session.name),
     \ '',
-    \ '  The probe presents the same kind of items, but on a 60-second',
-    \ '  clock. The lesson just confirmed you know the rule; the probe',
+    \ '  The training presents the same kind of items, but on a 60-second',
+    \ '  clock. The lesson just confirmed you know the rule; the training',
     \ '  is where you build fluency — the speed and automaticity that',
     \ '  make a motion useful during real editing. Knowing how a motion',
     \ '  works and being fluent at it are different things, and only',
@@ -2120,7 +2120,7 @@ function! s:learn_show_complete() abort
     \ '',
     \ '  Smooth is slow. Slow is fast.',
     \ '',
-    \ '  Each probe writes a data point to the session log;',
+    \ '  Each training writes a data point to the session log;',
     \ printf('  :VfChart %s plots your rate over days.', s:session.id),
     \ '',
     \ printf('    p   start :Vf %s', s:session.id),
@@ -2132,7 +2132,7 @@ endfunction
 
 " Triggered by the p mapping on the completion screen. No-op anywhere
 " else, so p stays inert during normal lesson flow.
-function! s:learn_start_probe() abort
+function! s:learn_start_train() abort
   if empty(s:session) || s:session.mode !=# 'learn' | return | endif
   if get(s:session, 'phase', '') !=# 'complete' | return | endif
   let id = s:session.id
@@ -2167,7 +2167,7 @@ endfunction
 
 " Generate a fresh test item from the pinpoint and render it. Reuses the
 " pinpoint's generate() so test items have the same cheat-defense as
-" probe items — meaning the intended motion is the canonical answer and
+" training items — meaning the intended motion is the canonical answer and
 " optimal_motions is the criterion for "first-try correct".
 function! s:learn_test_next() abort
   let s:session.advancing = 1
@@ -2219,7 +2219,7 @@ function! s:learn_test_next() abort
   let lesson_header = [s:learn_header_line(), ''] + prompt_lines + ['']
 
   " Editing items get the runner's prompt+divider header above the live
-  " editing area, mirroring what the probe shows.
+  " editing area, mirroring what the training shows.
   let editing_header = []
   if get(s:session, 'kind', 'motion') ==# 'editing'
     let prompt = get(item, 'prompt', 'edit to match the target')
@@ -2294,8 +2294,8 @@ endfunction
 " have room to separate visually.
 let s:CHART_HEIGHT = 24
 let s:CHART_LABEL_W = 6
-" One column per calendar day (PT convention). Days with no probe show
-" as a gap, multi-probe days stack at the same column.
+" One column per calendar day (PT convention). Days with no training show
+" as a gap, multi-training days stack at the same column.
 let s:CHART_COLS_PER_DAY = 2
 
 " Y-axis labels are picked to land on distinct rows under both round() and

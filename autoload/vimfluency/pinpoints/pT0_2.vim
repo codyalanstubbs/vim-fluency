@@ -1,7 +1,7 @@
 " T0.2 — Open new line. The two openers: o (below) and O (above),
 " plus the closing Esc.
 "
-" Probe shape: mode kind. The conceptual target is a gap between two
+" Training shape: mode kind. The conceptual target is a gap between two
 " ROWS. We cue it by marking the two rows that bracket the gap with
 " a '⏵' indicator in column 1, leaving non-bracket rows with a single
 " leading space so word columns stay aligned:

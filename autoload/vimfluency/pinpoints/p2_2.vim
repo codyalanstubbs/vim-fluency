@@ -5,16 +5,16 @@
 " insert mode. Mirrors 1B.1's forward/backward direction pair at the
 " operator layer.
 "
-" Probe design: 2-line buffer where line 1 is the line to modify and
+" Training design: 2-line buffer where line 1 is the line to modify and
 " line 2 is a reference at the target indent. Same content on both
 " lines so the only visible difference is indent depth. The user
 " compares line 1's indent to line 2's, picks the operator that
 " closes the gap.
 "
-" The runner sets shiftwidth=4 expandtab on probe/lesson buffers
+" The runner sets shiftwidth=4 expandtab on training/lesson buffers
 " (autoload/vimfluency.vim's setup hooks) so each item is exactly
 " one shiftwidth's worth of difference and the user's vimrc doesn't
-" change probe behavior.
+" change training behavior.
 "
 " Cheat-defense:
 "   - Items only ever differ by exactly one shiftwidth, so >> or <<

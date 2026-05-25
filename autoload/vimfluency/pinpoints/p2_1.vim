@@ -6,13 +6,13 @@
 " model.
 "
 " Tier 2 design note: this departs from the catalog's original 2.1
-" (dd alone). Pure-fluency single-response probes don't have a
+" (dd alone). Pure-fluency single-response training sessions don't have a
 " cognitive task — the learner just smashes the same key. Pairing
 " dd with x gives a real read-and-pick that fits the
 " minimal-pair-pinpoint principle while staying inside tier 2's
 " "operator without a motion" frame.
 "
-" Probe design: 2-line buffer where the cursor sits on one line
+" Training design: 2-line buffer where the cursor sits on one line
 " (always col 1) and the highlight is on the OTHER line — either a
 " single char (col 1) or the whole line. The learner reads the
 " highlight, moves one line up or down (j or k), and then presses
@@ -31,7 +31,7 @@
 " Per-motion accounting: expected_motion is the operator (x or dd)
 " alone. The j/k navigation is folded into the operator's
 " per-motion rate as overhead — a small inflation of the timing
-" stat in exchange for a much clearer probe. Acceptable tradeoff.
+" stat in exchange for a much clearer training. Acceptable tradeoff.
 "
 " Cheat-defense:
 "   - For x items the highlight is always at col 1 of the target
@@ -51,10 +51,10 @@ let s:words = ['alpha', 'beta', 'gamma', 'delta', 'epsilon',
   \ 'zeta', 'eta', 'theta', 'iota', 'kappa']
 
 function! vimfluency#pinpoints#p2_1#meta() abort
-  " Discrimination probes carry a cognitive cost beyond fluency
-  " probes (read the highlight, navigate, pick the operator), so
+  " Discrimination training sessions carry a cognitive cost beyond fluency
+  " training sessions (read the highlight, navigate, pick the operator), so
   " the aim is set lower than 1A.1's hjkl drill. Starting guess;
-  " revise on data. Same band as 1C.4 and 2.2 disc probes.
+  " revise on data. Same band as 1C.4 and 2.2 disc training sessions.
   return {'id': '2.1', 'name': 'discriminate x vs dd',
     \ 'aim': 35, 'allowed_keys': 'xdjk', 'kind': 'editing',
     \ 'prereqs': ['T0']}

@@ -3,7 +3,7 @@
 " `;` repeats the last f/F/t/T in the same direction.
 " `,` repeats it in the opposite direction.
 "
-" The probe and test phase generate four scenarios in a roughly even
+" The training and test phase generate four scenarios in a roughly even
 " mix:
 "
 "   forward ;  (fc;): cursor before the two occurrences;

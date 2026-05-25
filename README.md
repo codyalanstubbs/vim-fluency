@@ -1,6 +1,6 @@
 # Vim Fluency
 
-A vim plugin for behavioral-fluency probes on vim motion pinpoints. Runs inside vim itself — no simulator divergence, you're using real vim. Project home: vimfluency.com.
+A vim plugin for behavioral-fluency training sessions on vim motion pinpoints. Runs inside vim itself — no simulator divergence, you're using real vim. Project home: vimfluency.com.
 
 ## Install
 
@@ -21,7 +21,7 @@ For the "every server" use case: `scp -r vim-fluency/ user@host:~/.vim/pack/vimf
 
 ```
 :VfList                  " show installed pinpoints
-:Vf 1A.1                 " 60-second probe on hjkl
+:Vf 1A.1                 " 60-second training on hjkl
 :Vf 1A.1 30              " 30 seconds
 :VfQuit                  " end early; log + summary printed
 ```

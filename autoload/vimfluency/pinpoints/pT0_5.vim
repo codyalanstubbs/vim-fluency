@@ -1,6 +1,6 @@
 " T0.5 — Mode awareness. Given a SCREEN (a mock vim window with the
 " bottom-of-screen indicator rendered as it would appear in real vim),
-" name the mode. Recall probe.
+" name the mode. Recall training.
 "
 " Why this matters: the user's "current mode" is the most common
 " source of vim confusion. Beginners press i, type a few chars, then
@@ -14,7 +14,7 @@
 " in prose pulled the learner out of the environment we're trying
 " to teach them in.
 "
-" Answer encoding: single keystroke per item, so the probe measures
+" Answer encoding: single keystroke per item, so the training measures
 " pure recognition and isolates it from typing noise (no word-length
 " overhead, no spelling typos to recover from). The mapping mirrors
 " the actual vim keys for entering each mode:
@@ -97,7 +97,7 @@ endfunction
 
 " DI sequence: two short show frames frame the recognition pattern
 " and teach the mode→key mapping, then one try frame per mode with
-" the mock screen rendered below the input (same view the probe
+" the mock screen rendered below the input (same view the training
 " presents).
 function! vimfluency#pinpoints#pT0_5#lesson() abort
   return [
