@@ -172,13 +172,17 @@ call Assert(s:rendered =~# "Today's set",
 
 " -- list_line_to_id_map (interactive :VfList) --
 "
-" Each pinpoint row in the rendered list should map to its id; tier
-" headers, group headers, blank lines, and the footer should NOT have
-" entries; per-motion sub-rows (14 leading spaces) should inherit the
-" parent pinpoint's id so the cursor doesn't dead-zone on them.
+" Each pinpoint row should map to its id; tier headers, group headers,
+" blank lines, and the footer should NOT have mapping entries.
+" Per-motion sub-rows (14 leading spaces) inherit the parent's id so
+" the action keys still resolve there if the cursor lands via search
+" or mouse. The separate `pinpoint_rows` list — used by j/k navigation
+" — contains only MAIN pinpoint rows (no sub-rows), sorted ascending.
 
 let s:lines_for_map = vimfluency#_test_render_list(s:registry, s:sessions_by_id)
-let s:line_map = vimfluency#_test_list_line_map(s:lines_for_map, s:registry)
+let s:coords = vimfluency#_test_list_line_map(s:lines_for_map, s:registry)
+let s:line_map = s:coords.mapping
+let s:pp_rows = s:coords.pinpoint_rows
 
 " Every registry id appears in the map at least once.
 let s:ids_in_map = {}
@@ -207,7 +211,7 @@ call AssertEq(get(s:line_map, s:row_1A1, ''), '1A.1',
 call AssertEq(get(s:line_map, s:row_1A1 + 1, ''), '1A.1',
   \ 'line_map: per-motion sub-row inherits parent pinpoint id')
 
-" Tier and group header lines should NOT appear in the map.
+" Tier and group header lines should NOT appear in the mapping.
 for s:i in range(len(s:lines_for_map))
   let s:lt = s:lines_for_map[s:i]
   if s:lt =~# '^Tier ' || s:lt =~# '^  \S\+ —' || empty(s:lt)
@@ -215,3 +219,27 @@ for s:i in range(len(s:lines_for_map))
       \ 'line_map: non-pinpoint row at line ' . (s:i + 1) . ' has no entry')
   endif
 endfor
+
+" pinpoint_rows: one entry per shipped pinpoint, sorted ascending, and
+" excludes per-motion sub-rows. So len == |registry|.
+call AssertEq(len(s:pp_rows), len(s:registry),
+  \ 'pinpoint_rows: one entry per registry pinpoint')
+let s:sorted = sort(copy(s:pp_rows), 'N')
+call AssertEq(s:pp_rows, s:sorted,
+  \ 'pinpoint_rows: sorted ascending')
+" 1A.1's sub-row (line s:row_1A1 + 1) must NOT be in pinpoint_rows
+" even though it's in the line-id mapping.
+call Assert(index(s:pp_rows, s:row_1A1 + 1) == -1,
+  \ 'pinpoint_rows: excludes per-motion sub-rows')
+call Assert(index(s:pp_rows, s:row_1A1) >= 0,
+  \ 'pinpoint_rows: includes 1A.1 main row')
+
+" Banner rows present, and don't carry mapping entries.
+let s:has_banner = 0
+for s:l in s:lines_for_map
+  if s:l =~# '(L)earn.*(T)rain.*(C)hart'
+    let s:has_banner = 1
+    break
+  endif
+endfor
+call Assert(s:has_banner, 'render_list: help banner present')

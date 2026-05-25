@@ -23,13 +23,14 @@ COMMANDS                                                        *vf-commands*
 
 :VfList                                                          *:VfList*
     Open an interactive list of installed pinpoints with their fluency
-    aims, last-session rate, and prereq status. Navigate with j/k as in
-    any buffer; on a pinpoint row press:
-        <Enter>, p   start a probe (:Vf) for this pinpoint
-        L            start a lesson (:VfLearn) for this pinpoint
-        q            close the list
-    Pressing <Enter>/p/L on a non-pinpoint row (tier header, blank,
-    footer) is a no-op with a hint.
+    aims, last-session rate, and prereq status. The cursor row is
+    highlighted; j/k snap between pinpoint rows (headers, blanks, and
+    per-motion sub-rows are skipped). On a pinpoint row press:
+        L     start a Learn session (:VfLearn) for this pinpoint
+        T     start a Train probe (:Vf) for this pinpoint
+        C     open the celeration Chart (:VfChart) for this pinpoint
+        q     close the list
+    gg / G jump to the first / last pinpoint.
 
 :VfHierarchy                                              *:VfHierarchy*
     Open a buffer showing the prereq DAG: pinpoints grouped by their
