@@ -1,4 +1,4 @@
-" T0.3d — Discriminate :q! vs ZQ. Same as T0.3c (Ex vs normal-mode
+" force_quit_ex_vs_normal_zq — Discriminate :q! vs ZQ. Same as T0.3c (Ex vs normal-mode
 " shortcut) but for force-quit. ZQ is to :q! what ZZ is to :wq.
 "
 " Training shape: recall kind, binary discrimination.
@@ -10,17 +10,17 @@ let s:items = [
   \ {'answer': 'ZQ',  'prompt': 'force quit (normal-mode)'},
   \ ]
 
-function! vimfluency#pinpoints#pT0_3d#meta() abort
-  return {'id': 'T0.3d', 'name': 'discriminate :q! vs ZQ',
+function! vimfluency#pinpoints#force_quit_ex_vs_normal_zq#meta() abort
+  return {'id': 'force_quit_ex_vs_normal_zq', 'name': 'discriminate :q! vs ZQ',
     \ 'aim': 35, 'allowed_keys': ':q!ZQ', 'kind': 'recall',
-    \ 'prereqs': ['T0.3b']}
+    \ 'prereqs': ['save_quit_vs_force_quit'], 'family': 'survival'}
 endfunction
 
 function! s:rand(n) abort
   return rand() % a:n
 endfunction
 
-function! vimfluency#pinpoints#pT0_3d#generate() abort
+function! vimfluency#pinpoints#force_quit_ex_vs_normal_zq#generate() abort
   let pick = s:items[s:rand(len(s:items))]
   return {
     \ 'lines': [],
@@ -33,11 +33,11 @@ function! vimfluency#pinpoints#pT0_3d#generate() abort
     \ }
 endfunction
 
-function! vimfluency#pinpoints#pT0_3d#lesson() abort
+function! vimfluency#pinpoints#force_quit_ex_vs_normal_zq#lesson() abort
   return [
     \ {'kind': 'show', 'lines': [], 'cursor': [1, 1],
     \  'prompt': [
-    \    'T0.3d — :q! vs ZQ.',
+    \    ':q! vs ZQ.',
     \    'Both discard pending changes and quit — same effect.',
     \    ':q! is the Ex-command form (! is the force flag).',
     \    'ZQ is the normal-mode shortcut (mirrors ZZ for save+quit).',

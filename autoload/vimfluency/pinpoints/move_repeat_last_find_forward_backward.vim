@@ -1,4 +1,4 @@
-" 1C.3 — ; / , (repeat last find).
+" move_repeat_last_find_forward_backward — ; / , (repeat last find).
 "
 " `;` repeats the last f/F/t/T in the same direction.
 " `,` repeats it in the opposite direction.
@@ -52,12 +52,12 @@ let s:WORDS = ['return', 'import', 'while', 'range', 'class', 'value',
   \ 'north', 'visit', 'spend', 'phone', 'movie', 'happy', 'lucky',
   \ 'jumbo', 'flash', 'crisp', 'blank', 'globe']
 
-function! vimfluency#pinpoints#p1C_3#meta() abort
-  return {'id': '1C.3', 'name': 'repeat last find (; ,)',
-    \ 'aim': 40, 'allowed_keys': ';,fFtT', 'prereqs': ['1C.1', '1C.2']}
+function! vimfluency#pinpoints#move_repeat_last_find_forward_backward#meta() abort
+  return {'id': 'move_repeat_last_find_forward_backward', 'name': 'repeat last find (; ,)',
+    \ 'aim': 40, 'allowed_keys': ';,fFtT', 'prereqs': ['move_to_char_forward_backward', 'move_till_char_forward_backward'], 'family': 'motion'}
 endfunction
 
-function! vimfluency#pinpoints#p1C_3#lesson() abort
+function! vimfluency#pinpoints#move_repeat_last_find_forward_backward#lesson() abort
   " Frame 1 is the rule statement (no specific motion to demo).
   " Frames 2-5 are tries where the learner performs the full sequence
   " (fc; / Fc; / fc, / Fc,) and watches the cursor jump twice from
@@ -189,7 +189,7 @@ function! s:try_generate() abort
     \ 'expected_motion': expected_motion, 'optimal_motions': 2}
 endfunction
 
-function! vimfluency#pinpoints#p1C_3#generate() abort
+function! vimfluency#pinpoints#move_repeat_last_find_forward_backward#generate() abort
   let attempts = 0
   while attempts < 30
     let attempts += 1

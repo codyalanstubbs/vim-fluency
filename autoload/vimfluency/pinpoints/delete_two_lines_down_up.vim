@@ -1,4 +1,4 @@
-" 4.5 — delete extending across lines (dj, dk). Composite-behavior
+" delete_two_lines_down_up — delete extending across lines (dj, dk). Composite-behavior
 " pinpoint pairing the delete operator with single-line vertical
 " motions. Both forms are linewise: dj deletes the cursor's row +
 " the next; dk deletes the cursor's row + the previous.
@@ -19,10 +19,10 @@
 let s:words = ['alpha', 'beta', 'gamma', 'delta', 'epsilon',
   \ 'zeta', 'eta', 'theta', 'iota', 'kappa']
 
-function! vimfluency#pinpoints#p4_5#meta() abort
-  return {'id': '4.5', 'name': 'dj dk', 'aim': 30,
+function! vimfluency#pinpoints#delete_two_lines_down_up#meta() abort
+  return {'id': 'delete_two_lines_down_up', 'name': 'dj dk', 'aim': 30,
     \ 'allowed_keys': 'djk', 'kind': 'editing',
-    \ 'prereqs': ['1A.4']}
+    \ 'prereqs': ['move_single_char_up_down'], 'family': 'delete'}
 endfunction
 
 function! s:rand(n) abort
@@ -38,7 +38,7 @@ function! s:make_line() abort
   return join(parts, ' ')
 endfunction
 
-function! vimfluency#pinpoints#p4_5#generate() abort
+function! vimfluency#pinpoints#delete_two_lines_down_up#generate() abort
   let lines = []
   for _ in range(5)
     call add(lines, s:make_line())
@@ -91,7 +91,7 @@ function! vimfluency#pinpoints#p4_5#generate() abort
     \ }
 endfunction
 
-function! vimfluency#pinpoints#p4_5#lesson() abort
+function! vimfluency#pinpoints#delete_two_lines_down_up#lesson() abort
   let buf = ['alpha beta', 'gamma delta', 'epsilon zeta', 'eta theta', 'iota kappa']
   return [
     \ {'kind': 'show', 'lines': buf, 'cursor': [3, 1],

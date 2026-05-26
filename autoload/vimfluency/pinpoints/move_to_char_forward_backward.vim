@@ -1,4 +1,4 @@
-" 1C.1 — f{char} / F{char}. Find a target character on the current line.
+" move_to_char_forward_backward — f{char} / F{char}. Find a target character on the current line.
 "
 " Design constraints to keep f/F the strictly shortest path:
 "
@@ -35,13 +35,13 @@ let s:WORDS = ['return', 'import', 'while', 'range', 'class', 'value',
   \ 'north', 'visit', 'spend', 'phone', 'movie', 'happy', 'lucky',
   \ 'jumbo', 'flash', 'crisp', 'blank', 'globe']
 
-function! vimfluency#pinpoints#p1C_1#meta() abort
-  return {'id': '1C.1', 'name': 'find char (f F)',
-    \ 'aim': 50, 'allowed_keys': 'fF', 'prereqs': ['1A'],
-    \ 'parallel_to': ['1C.2']}
+function! vimfluency#pinpoints#move_to_char_forward_backward#meta() abort
+  return {'id': 'move_to_char_forward_backward', 'name': 'find char (f F)',
+    \ 'aim': 50, 'allowed_keys': 'fF', 'prereqs': ['move_single_char_up_down_left_right'],
+    \ 'parallel_to': ['move_till_char_forward_backward'], 'family': 'motion'}
 endfunction
 
-function! vimfluency#pinpoints#p1C_1#lesson() abort
+function! vimfluency#pinpoints#move_to_char_forward_backward#lesson() abort
   " Every frame that involves a motion is a 'try' so the learner sees
   " the cursor jump from their own keystroke — including the
   " "multiple-matches" rule, where staring at a static buffer doesn't
@@ -127,7 +127,7 @@ function! s:try_generate() abort
     \ 'expected_motion': motion, 'optimal_motions': 1}
 endfunction
 
-function! vimfluency#pinpoints#p1C_1#generate() abort
+function! vimfluency#pinpoints#move_to_char_forward_backward#generate() abort
   let attempts = 0
   while attempts < 30
     let attempts += 1

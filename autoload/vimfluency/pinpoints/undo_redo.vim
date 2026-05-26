@@ -1,4 +1,4 @@
-" T0.4 — Undo and redo. Two keys, one cognitive pair: u reverses the
+" undo_redo — Undo and redo. Two keys, one cognitive pair: u reverses the
 " last edit; Ctrl-r reverses the last undo.
 "
 " Training shape: editing kind with pre-staged undo history. Each item
@@ -42,20 +42,20 @@ let s:pairs = [
   \ ['print value',     'print VALUE'],
   \ ]
 
-function! vimfluency#pinpoints#pT0_4#meta() abort
+function! vimfluency#pinpoints#undo_redo#meta() abort
   " Catalog aim 50/min. The motor task is a single keypress, so the
   " bottleneck is recognizing whether the situation calls for undo
   " or redo. Starting guess.
-  return {'id': 'T0.4', 'name': 'undo / redo',
+  return {'id': 'undo_redo', 'name': 'undo / redo',
     \ 'aim': 50, 'allowed_keys': 'u<C-r>', 'kind': 'editing',
-    \ 'prereqs': []}
+    \ 'prereqs': [], 'family': 'survival'}
 endfunction
 
 function! s:rand(n) abort
   return rand() % a:n
 endfunction
 
-function! vimfluency#pinpoints#pT0_4#generate() abort
+function! vimfluency#pinpoints#undo_redo#generate() abort
   let pair = s:pairs[s:rand(len(s:pairs))]
   let key = ['u', '<C-r>'][s:rand(2)]
   if key ==# 'u'
@@ -90,13 +90,13 @@ endfunction
 " DI sequence: short intro, then try u, try Ctrl-r, plus a
 " reinforcement pair so the learner sees each key twice in the
 " setup phase.
-function! vimfluency#pinpoints#pT0_4#lesson() abort
+function! vimfluency#pinpoints#undo_redo#lesson() abort
   let pair_a = ['hello world',     'hello WORLD']
   let pair_b = ['foo bar baz',     'foo BAR baz']
   return [
     \ {'kind': 'show', 'lines': [], 'cursor': [1, 1],
     \  'prompt': [
-    \    'T0.4 — undo and redo.',
+    \    'undo and redo.',
     \    '  u      reverses the last edit (the most recent change to the buffer).',
     \    '  Ctrl-r reverses the last undo (puts back what u just removed).',
     \    '',

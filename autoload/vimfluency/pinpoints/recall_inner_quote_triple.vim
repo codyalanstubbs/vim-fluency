@@ -1,4 +1,4 @@
-" 3.2b — Inner quote text object: introduce i` (backtick).
+" recall_inner_quote_triple — Inner quote text object: introduce i` (backtick).
 "
 " Builds on 3.2a. The rule and training shape are identical; the only
 " change is the delim alphabet — backtick joins the active set so the
@@ -21,10 +21,10 @@ let s:INNER_WORDS = ['hello', 'world', 'value', 'name',
 
 let s:DELIMS = ['"', "'", '`']
 
-function! vimfluency#pinpoints#p3_2b#meta() abort
-  return {'id': '3.2b', 'name': 'inner quote — add i`',
+function! vimfluency#pinpoints#recall_inner_quote_triple#meta() abort
+  return {'id': 'recall_inner_quote_triple', 'name': 'inner quote — add i`',
     \ 'aim': 35, 'allowed_keys': 'i"' . "'" . '`', 'kind': 'recall',
-    \ 'prereqs': ['3.2a']}
+    \ 'prereqs': ['recall_inner_quote_pair'], 'family': 'text-object-recall'}
 endfunction
 
 function! s:rand(n) abort
@@ -41,7 +41,7 @@ function! s:make_cue(delim) abort
   return [cue_line, arrow_line]
 endfunction
 
-function! vimfluency#pinpoints#p3_2b#generate() abort
+function! vimfluency#pinpoints#recall_inner_quote_triple#generate() abort
   let delim = s:DELIMS[s:rand(len(s:DELIMS))]
   let answer = 'i' . delim
   let [cue_line, arrow_line] = s:make_cue(delim)
@@ -64,10 +64,10 @@ endfunction
 " the learner doesn't have to remember 3.2a in isolation) and then
 " the try frames cycle through all three delims — backtick first so
 " the new cell gets the introduction, then ' and " for retention.
-function! vimfluency#pinpoints#p3_2b#lesson() abort
+function! vimfluency#pinpoints#recall_inner_quote_triple#lesson() abort
   let frames = [{'kind': 'show', 'lines': [], 'cursor': [1, 1],
     \ 'prompt': [
-    \   '3.2b — inner quote text objects, now with backtick.',
+    \   'inner quote text objects, now with backtick.',
     \   '',
     \   'The rule is the same as 3.2a:',
     \   '  i{delim} selects the inner content between matching',

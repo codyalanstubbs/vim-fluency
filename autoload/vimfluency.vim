@@ -30,10 +30,6 @@ function! vimfluency#_test_render_list(registry, sessions_by_id) abort
   return s:render_list(a:registry, a:sessions_by_id)
 endfunction
 
-function! vimfluency#_test_parse_id(id) abort
-  return s:parse_id(a:id)
-endfunction
-
 function! vimfluency#_test_status_from_sessions(meta, sessions) abort
   return s:status_from_sessions(a:meta, a:sessions)
 endfunction
@@ -115,7 +111,7 @@ endfunction
 
 function! vimfluency#discover_pinpoints() abort
   let registry = {}
-  let files = globpath(&runtimepath, 'autoload/vimfluency/pinpoints/p*.vim', 0, 1)
+  let files = globpath(&runtimepath, 'autoload/vimfluency/pinpoints/*.vim', 0, 1)
   for f in files
     let mod = fnamemodify(f, ':t:r')
     let MetaFn = function('vimfluency#pinpoints#' . mod . '#meta')
@@ -131,50 +127,22 @@ function! vimfluency#complete(arglead, cmdline, cursorpos) abort
   return filter(sort(keys(registry)), 'v:val =~# "^" . a:arglead')
 endfunction
 
-" Tier and sub-group human names — reads as catalog labels, not as a
-" data store. The CATALOG is the source of truth; if a tier ever
-" changes its name, update both. Group names only exist for tier 1
-" (1A–1F have meaningful sub-categories); other tiers don't subgroup.
-let s:TIER_NAMES = {
-  \ 0: 'Survival',
-  \ 1: 'Motions',
-  \ 2: 'Operators',
-  \ 3: 'Text Objects',
-  \ 4: 'Operator × {motion, text object}',
-  \ 5: 'Counts and repetition',
-  \ 6: 'Insert-mode editing',
-  \ 7: 'Visual mode',
-  \ 8: 'Yank, paste, registers',
-  \ 9: 'Marks and jumps',
-  \ 10: 'Search & substitute',
-  \ 11: 'Ex commands & buffers',
-  \ 12: 'Macros',
-  \ 13: 'Composite editing tasks',
-  \ }
-
-let s:GROUP_NAMES = {
-  \ '1A': 'Char & line',
-  \ '1B': 'Word',
-  \ '1C': 'Char-find on line',
-  \ '1D': 'Buffer/screen jumps',
-  \ '1E': 'Block / paragraph / sentence',
-  \ '1F': 'Search',
-  \ }
-
-" Parse '1A.1' → {tier:1, group:'1A', seq:'1'}.
-" T0 and C (composites tier 13) are special-cased.
-function! s:parse_id(id) abort
-  if a:id =~# '^T0\.'
-    return {'tier': 0, 'group': 'T0',
-      \ 'seq': matchstr(a:id, 'T0\.\zs.*')}
-  elseif a:id =~# '^C\.'
-    return {'tier': 13, 'group': 'C',
-      \ 'seq': matchstr(a:id, 'C\.\zs.*')}
-  endif
-  let m = matchlist(a:id, '^\(\d\+\)\([A-Z]\)\?\.\(.\+\)$')
-  if empty(m) | return {'tier': -1, 'group': '?', 'seq': a:id} | endif
-  return {'tier': str2nr(m[1]), 'group': m[1] . m[2], 'seq': m[3]}
-endfunction
+" Human-readable family labels for navigator display. Mirrors the
+" `family` value in each pinpoint's meta(). Unknown families fall
+" back to the family slug itself. Order in this dict defines the
+" display order in :VfList; add new families in the order you want
+" them to appear.
+let s:FAMILY_NAMES = [
+  \ ['survival',          'Survival'],
+  \ ['motion',            'Motions'],
+  \ ['v',                 'Visual mode'],
+  \ ['delete',            'Delete family'],
+  \ ['change',            'Change family'],
+  \ ['yank',              'Yank family'],
+  \ ['paste',             'Paste family'],
+  \ ['indent',            'Indent family'],
+  \ ['text-object-recall', 'Text-object recall (legacy)'],
+  \ ]
 
 " Read sessions.jsonl once, return {pinpoint_id → list of records}.
 function! s:load_sessions_grouped() abort
@@ -250,28 +218,16 @@ function! s:per_motion_from_sessions(sessions) abort
 endfunction
 
 " Resolve prereqs against the registry. A prereq is either a specific
-" pinpoint ID ('1C.1') or a group/tier prefix ('1A', '2', 'T0'). Group
-" prefixes match every built pinpoint whose ID starts with that prefix
-" plus '.'. Empty matches (nothing built in that group yet) count as
-" satisfied — you can't be blocked by what doesn't exist.
+" Under the slug-based ID scheme each prereq is a specific pinpoint
+" slug (no group/tier prefix matching). If the prereq isn't yet built,
+" it counts as satisfied — you can't be blocked by what doesn't exist.
 function! s:unmet_prereqs(meta, registry, status_map) abort
   let unmet = []
   for prereq in get(a:meta, 'prereqs', [])
-    if has_key(a:registry, prereq)
-      if a:status_map[prereq] !=# 'at_aim'
-        call add(unmet, prereq)
-      endif
-      continue
+    if !has_key(a:registry, prereq) | continue | endif
+    if a:status_map[prereq] !=# 'at_aim'
+      call add(unmet, prereq)
     endif
-    let matching = filter(keys(a:registry),
-      \ 'v:val ==# prereq || v:val =~# "^" . prereq . "\\."')
-    if empty(matching) | continue | endif
-    for m in matching
-      if a:status_map[m] !=# 'at_aim'
-        call add(unmet, prereq)
-        break
-      endif
-    endfor
   endfor
   return unmet
 endfunction
@@ -287,60 +243,71 @@ function! s:render_list(registry, sessions_by_id) abort
     let last_rate[id] = s:last_rate_from_sessions(s)
   endfor
 
-  " Group by tier → group → ids.
-  let groups = {}
-  for id in keys(a:registry)
-    let p = s:parse_id(id)
-    if !has_key(groups, p.tier) | let groups[p.tier] = {} | endif
-    if !has_key(groups[p.tier], p.group) | let groups[p.tier][p.group] = [] | endif
-    call add(groups[p.tier][p.group], id)
+  " Group by family. Each pinpoint declares 'family' in meta(); the
+  " navigator uses the FAMILY_NAMES order list to render sections in
+  " a stable, curated order. Unknown families fall through to an
+  " 'Other' bucket at the end.
+  let by_family = {}
+  for [id, m] in items(a:registry)
+    let fam = get(m, 'family', 'other')
+    if !has_key(by_family, fam) | let by_family[fam] = [] | endif
+    call add(by_family[fam], id)
+  endfor
+
+  " Ordered family keys: those listed in FAMILY_NAMES first (in declared
+  " order), then any remaining (alphabetical) for forward compatibility.
+  let ordered_families = []
+  for [fam, _label] in s:FAMILY_NAMES
+    if has_key(by_family, fam)
+      call add(ordered_families, fam)
+    endif
+  endfor
+  for fam in sort(keys(by_family))
+    if index(ordered_families, fam) < 0
+      call add(ordered_families, fam)
+    endif
+  endfor
+
+  let family_label = {}
+  for [fam, label] in s:FAMILY_NAMES
+    let family_label[fam] = label
   endfor
 
   let lines = []
-  call add(lines, printf('vim-fluency: %d pinpoint(s) built — see CATALOG.md for the planned ~80',
+  call add(lines, printf('vim-fluency: %d pinpoint(s) built',
     \ len(a:registry)))
   call add(lines, '')
   call add(lines, 'Move to a pinpoint with j/k, then press one of the following to open it:')
   call add(lines, '')
   call add(lines, '    (L)earn   (T)rain   (C)hart            q closes the list')
   call add(lines, '')
-  for tier in sort(keys(groups), 'N')
-    let tier_int = str2nr(tier)
-    let tier_label = tier_int == 0 ? 'T0' : tier
-    call add(lines, printf('Tier %s — %s', tier_label, get(s:TIER_NAMES, tier_int, '?')))
-    for group in sort(keys(groups[tier]))
-      " Sub-group header only when group differs from the tier label
-      " (i.e. tier 1's 1A/1B/1C/...). Other tiers fall straight to items.
-      if group !=# tier && group !=# tier_label
-        let gname = get(s:GROUP_NAMES, group, '')
-        call add(lines, empty(gname)
-          \ ? printf('  %s', group)
-          \ : printf('  %s — %s', group, gname))
+
+  for fam in ordered_families
+    let label = get(family_label, fam, fam)
+    call add(lines, printf('%s family — %s', label, fam))
+    for id in sort(by_family[fam])
+      let m = a:registry[id]
+      let status = status_map[id]
+      let rate = last_rate[id]
+      let unmet = s:unmet_prereqs(m, a:registry, status_map)
+      let rate_str = rate > 0
+        \ ? printf('%d/min', float2nr(rate + 0.5)) : '—'
+      let need_str = empty(unmet) ? ''
+        \ : '  (needs ' . join(unmet, ', ') . ' at aim)'
+      call add(lines, printf('    %-44s  %-30s  %7s  aim %-3d  %s%s',
+        \ id, m.name, rate_str, m.aim,
+        \ s:status_label(status), need_str))
+      " Per-motion breakdown from the most recent session, when there
+      " are 2+ motions to compare. Reveals heterogeneity hiding inside
+      " a multi-motion pinpoint (e.g. ge dragging the e/ge bundle).
+      let pm = s:per_motion_from_sessions(get(a:sessions_by_id, id, []))
+      if len(pm) >= 2
+        let parts = []
+        for motion in sort(keys(pm))
+          call add(parts, printf('%s %d/min', motion, float2nr(pm[motion] + 0.5)))
+        endfor
+        call add(lines, '              ' . join(parts, '   '))
       endif
-      for id in sort(groups[tier][group])
-        let m = a:registry[id]
-        let status = status_map[id]
-        let rate = last_rate[id]
-        let unmet = s:unmet_prereqs(m, a:registry, status_map)
-        let rate_str = rate > 0
-          \ ? printf('%d/min', float2nr(rate + 0.5)) : '—'
-        let need_str = empty(unmet) ? ''
-          \ : '  (needs ' . join(unmet, ', ') . ' at aim)'
-        call add(lines, printf('    %-6s  %-38s  %7s  aim %-3d  %s%s',
-          \ id, m.name, rate_str, m.aim,
-          \ s:status_label(status), need_str))
-        " Per-motion breakdown from the most recent session, when there
-        " are 2+ motions to compare. Reveals heterogeneity hiding inside
-        " a multi-motion pinpoint (e.g. ge dragging the e/ge bundle).
-        let pm = s:per_motion_from_sessions(get(a:sessions_by_id, id, []))
-        if len(pm) >= 2
-          let parts = []
-          for motion in sort(keys(pm))
-            call add(parts, printf('%s %d/min', motion, float2nr(pm[motion] + 0.5)))
-          endfor
-          call add(lines, '              ' . join(parts, '   '))
-        endif
-      endfor
     endfor
     call add(lines, '')
   endfor
@@ -614,8 +581,8 @@ endfunction
 
 function! s:render_hierarchy_line(id, registry) abort
   let m = a:registry[a:id]
-  let id_col = printf('%-7s', a:id)
-  let name_col = printf('%-40s', m.name)
+  let id_col = printf('%-44s', a:id)
+  let name_col = printf('%-30s', m.name)
 
   let annotations = []
   let narrower = get(m, 'narrower_of', '')
@@ -628,7 +595,7 @@ function! s:render_hierarchy_line(id, registry) abort
   endif
   let annot_str = empty(annotations) ? '' : ('  ' . join(annotations, '  ·  '))
 
-  return '  ' . id_col . name_col . annot_str
+  return '  ' . id_col . '  ' . name_col . annot_str
 endfunction
 
 function! s:show_hierarchy_buffer(lines) abort

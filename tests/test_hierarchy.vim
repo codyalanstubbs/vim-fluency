@@ -4,24 +4,25 @@
 " narrower_of annotations appear inline.
 
 let s:reg = {
-  \ 'T0.1': {'id': 'T0.1', 'name': 'enter / leave insert', 'aim': 50,
-  \          'allowed_keys': 'iaEsc', 'prereqs': []},
-  \ 'T0.2': {'id': 'T0.2', 'name': 'open new line',        'aim': 40,
-  \          'allowed_keys': 'oO',    'prereqs': ['T0.1']},
-  \ '1A.1': {'id': '1A.1', 'name': 'hjkl',                 'aim': 60,
-  \          'allowed_keys': 'hjkl',  'prereqs': ['T0']},
-  \ '1A.3': {'id': '1A.3', 'name': 'h l',                  'aim': 60,
-  \          'allowed_keys': 'hl',    'prereqs': ['T0'],
-  \          'narrower_of': '1A.1', 'parallel_to': ['1A.4']},
-  \ '1A.4': {'id': '1A.4', 'name': 'j k',                  'aim': 60,
-  \          'allowed_keys': 'jk',    'prereqs': ['T0'],
-  \          'narrower_of': '1A.1', 'parallel_to': ['1A.3']},
-  \ '1B.1': {'id': '1B.1', 'name': 'w b',                  'aim': 45,
-  \          'allowed_keys': 'wb',    'prereqs': ['1A'],
-  \          'parallel_to': ['1B.2']},
-  \ '1B.2': {'id': '1B.2', 'name': 'e ge',                 'aim': 40,
-  \          'allowed_keys': 'eg',    'prereqs': ['1A'],
-  \          'parallel_to': ['1B.1']},
+  \ 'insert_basic': {'id': 'insert_basic', 'name': 'enter / leave insert',
+  \                  'aim': 50, 'allowed_keys': 'iaEsc', 'prereqs': []},
+  \ 'open_line_above_below': {'id': 'open_line_above_below', 'name': 'open new line',
+  \                          'aim': 40, 'allowed_keys': 'oO', 'prereqs': ['insert_basic']},
+  \ 'recognize_current_mode': {'id': 'recognize_current_mode', 'name': 'mode awareness',
+  \                            'aim': 120, 'allowed_keys': 'nivr:', 'prereqs': []},
+  \ 'hjkl_broad': {'id': 'hjkl_broad', 'name': 'hjkl', 'aim': 60,
+  \                'allowed_keys': 'hjkl',
+  \                'prereqs': ['recognize_current_mode', 'insert_basic']},
+  \ 'hl': {'id': 'hl', 'name': 'h l', 'aim': 60, 'allowed_keys': 'hl',
+  \        'prereqs': ['recognize_current_mode', 'insert_basic'],
+  \        'narrower_of': 'hjkl_broad', 'parallel_to': ['jk']},
+  \ 'jk': {'id': 'jk', 'name': 'j k', 'aim': 60, 'allowed_keys': 'jk',
+  \        'prereqs': ['recognize_current_mode', 'insert_basic'],
+  \        'narrower_of': 'hjkl_broad', 'parallel_to': ['hl']},
+  \ 'wb': {'id': 'wb', 'name': 'w b', 'aim': 45, 'allowed_keys': 'wb',
+  \        'prereqs': ['hjkl_broad'], 'parallel_to': ['ege']},
+  \ 'ege': {'id': 'ege', 'name': 'e ge', 'aim': 40, 'allowed_keys': 'eg',
+  \        'prereqs': ['hjkl_broad'], 'parallel_to': ['wb']},
   \ }
 
 let s:lines = vimfluency#_test_render_hierarchy(s:reg)
@@ -30,13 +31,11 @@ let s:text = join(s:lines, "\n")
 call Assert(s:text =~# 'vim-fluency hierarchy',
   \ 'render_hierarchy: header present')
 
-" Every pinpoint appears exactly once across the body (the legend may
-" mention IDs in narrower-of/parallel-to annotations).
+" Every pinpoint appears exactly once across the body.
 for s:id in keys(s:reg)
   let s:n_rows = 0
   for s:l in s:lines
-    " Match the id as a left-aligned column entry (after the leading indent).
-    if s:l =~# '^\s\+' . substitute(s:id, '\.', '\\.', 'g') . '\>'
+    if s:l =~# '^\s\+' . s:id . '\>'
       let s:n_rows += 1
     endif
   endfor
@@ -47,15 +46,16 @@ endfor
 " Section headers for the prereq signatures present in the fixture.
 call Assert(s:text =~# 'no prereqs',
   \ 'render_hierarchy: roots section header present')
-call Assert(s:text =~# 'depends on T0\.1',
-  \ 'render_hierarchy: T0.1 section header present')
-call Assert(s:text =~# 'depends on T0\>',
-  \ 'render_hierarchy: T0-group section header present')
-call Assert(s:text =~# 'depends on 1A\>',
-  \ 'render_hierarchy: 1A-group section header present')
+call Assert(s:text =~# 'depends on insert_basic\>',
+  \ 'render_hierarchy: insert_basic-only section header present')
+call Assert(s:text =~# 'depends on insert_basic, recognize_current_mode',
+  \ 'render_hierarchy: T0-equivalent section header present')
+call Assert(s:text =~# 'depends on hjkl_broad',
+  \ 'render_hierarchy: hjkl-prereq section header present')
 
-" Topological order: roots come before things that depend on T0.1,
-" and the T0 group section comes after T0.1 specifically.
+" Topological order: roots before "depends on insert_basic" (which depends
+" on a root), which is before "depends on hjkl_broad" (depends on something
+" at depth 1).
 function! s:index_of(lines, pattern) abort
   for i in range(len(a:lines))
     if a:lines[i] =~# a:pattern | return i | endif
@@ -64,19 +64,19 @@ function! s:index_of(lines, pattern) abort
 endfunction
 
 let s:idx_roots   = s:index_of(s:lines, 'no prereqs')
-let s:idx_t0_1    = s:index_of(s:lines, 'depends on T0\.1')
-let s:idx_t0_grp  = s:index_of(s:lines, 'depends on T0\>')
-let s:idx_1a_grp  = s:index_of(s:lines, 'depends on 1A\>')
+let s:idx_ib_only = s:index_of(s:lines, 'depends on insert_basic\>')
+let s:idx_t0_grp  = s:index_of(s:lines, 'depends on insert_basic, recognize_current_mode')
+let s:idx_hjkl    = s:index_of(s:lines, 'depends on hjkl_broad')
 
-call Assert(s:idx_roots >= 0 && s:idx_roots < s:idx_t0_1,
-  \ 'render_hierarchy: roots section precedes "depends on T0.1"')
-call Assert(s:idx_t0_grp < s:idx_1a_grp,
-  \ 'render_hierarchy: "depends on T0" precedes "depends on 1A"')
+call Assert(s:idx_roots >= 0 && s:idx_roots < s:idx_ib_only,
+  \ 'render_hierarchy: roots section precedes "depends on insert_basic"')
+call Assert(s:idx_t0_grp < s:idx_hjkl,
+  \ 'render_hierarchy: T0-equivalent section precedes hjkl-prereq section')
 
 " parallel_to inline.
-call Assert(s:text =~# '1B\.1\s\+w b.*⟷.*1B\.2',
-  \ 'render_hierarchy: 1B.1 shows ⟷ 1B.2 inline')
+call Assert(s:text =~# 'wb\s\+w b.*⟷.*ege',
+  \ 'render_hierarchy: wb shows ⟷ ege inline')
 
 " narrower_of inline.
-call Assert(s:text =~# '1A\.3\s\+h l.*narrower of 1A\.1',
-  \ 'render_hierarchy: 1A.3 shows narrower of 1A.1 inline')
+call Assert(s:text =~# 'hl\s\+h l.*narrower of hjkl_broad',
+  \ 'render_hierarchy: hl shows narrower of hjkl_broad inline')

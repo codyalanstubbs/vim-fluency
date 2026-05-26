@@ -1,4 +1,4 @@
-" T0.2 — Open new line. The two openers: o (below) and O (above),
+" open_line_above_below — Open new line. The two openers: o (below) and O (above),
 " plus the closing Esc.
 "
 " Training shape: mode kind. The conceptual target is a gap between two
@@ -41,13 +41,13 @@ let s:words = [
 let s:MARK = '⏵'
 let s:NO_MARK = ' '
 
-function! vimfluency#pinpoints#pT0_2#meta() abort
+function! vimfluency#pinpoints#open_line_above_below#meta() abort
   " Catalog aim 40/min. Slightly below T0.1's 50 because the buffer
   " change makes the cue (and any failure) more visible — there's
   " more for the eye to verify before committing.
-  return {'id': 'T0.2', 'name': 'open new line (o / O)',
+  return {'id': 'open_line_above_below', 'name': 'open new line (o / O)',
     \ 'aim': 40, 'allowed_keys': 'oO<Esc>', 'kind': 'mode',
-    \ 'prereqs': ['T0.1']}
+    \ 'prereqs': ['insert_basic'], 'family': 'survival'}
 endfunction
 
 function! s:rand(n) abort
@@ -79,7 +79,7 @@ function! s:build_lines(words, upper) abort
   return lines
 endfunction
 
-function! vimfluency#pinpoints#pT0_2#generate() abort
+function! vimfluency#pinpoints#open_line_above_below#generate() abort
   let n_words = 4
   let words = s:pick_distinct(n_words, s:words)
   " upper bracket row (1-indexed) in [1, n_words - 1]; lower bracket
@@ -110,13 +110,13 @@ endfunction
 " DI sequence: T0.1 is a prereq, so the learner already knows insert
 " mode and Esc/Ctrl-C. T0.2's lesson focuses on the new concepts —
 " the bracketed-gap indicator and the o/O direction rule.
-function! vimfluency#pinpoints#pT0_2#lesson() abort
+function! vimfluency#pinpoints#open_line_above_below#lesson() abort
   let demo = [' alpha', '⏵beta', '⏵gamma', ' delta']
   let target = [' alpha', '⏵beta', '', '⏵gamma', ' delta']
   return [
     \ {'kind': 'show', 'lines': [], 'cursor': [1, 1],
     \  'prompt': [
-    \    'T0.2 — open new lines.',
+    \    'open new lines.',
     \    'o opens a NEW LINE below the cursor and enters insert mode.',
     \    'O opens a NEW LINE above the cursor and enters insert mode.',
     \    '',

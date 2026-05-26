@@ -1,4 +1,4 @@
-" T0.3a — Discriminate :w vs :q. Foundation pair: which letter for
+" save_vs_quit — Discriminate :w vs :q. Foundation pair: which letter for
 " which action. The action verb ('save' or 'quit') is the entire cue;
 " the answer is the matching Ex command.
 "
@@ -15,20 +15,20 @@ let s:items = [
   \ {'answer': ':q', 'prompt': 'quit'},
   \ ]
 
-function! vimfluency#pinpoints#pT0_3a#meta() abort
+function! vimfluency#pinpoints#save_vs_quit#meta() abort
   " Binary discrimination is cognitively lighter than the original
   " 5-way pinpoint; aim sits a tick higher than the catalog's
   " original T0.3 baseline. Starting guess.
-  return {'id': 'T0.3a', 'name': 'discriminate :w vs :q',
+  return {'id': 'save_vs_quit', 'name': 'discriminate :w vs :q',
     \ 'aim': 40, 'allowed_keys': ':wq', 'kind': 'recall',
-    \ 'prereqs': []}
+    \ 'prereqs': [], 'family': 'survival'}
 endfunction
 
 function! s:rand(n) abort
   return rand() % a:n
 endfunction
 
-function! vimfluency#pinpoints#pT0_3a#generate() abort
+function! vimfluency#pinpoints#save_vs_quit#generate() abort
   let pick = s:items[s:rand(len(s:items))]
   return {
     \ 'lines': [],
@@ -41,11 +41,11 @@ function! vimfluency#pinpoints#pT0_3a#generate() abort
     \ }
 endfunction
 
-function! vimfluency#pinpoints#pT0_3a#lesson() abort
+function! vimfluency#pinpoints#save_vs_quit#lesson() abort
   return [
     \ {'kind': 'show', 'lines': [], 'cursor': [1, 1],
     \  'prompt': [
-    \    'T0.3a — :w vs :q.',
+    \    ':w vs :q.',
     \    ':w writes the file (saves it).',
     \    ':q quits the file.',
     \    '',

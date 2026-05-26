@@ -3,9 +3,9 @@
 let s:registry = vimfluency#discover_pinpoints()
 
 call Assert(len(s:registry) >= 3, 'smoke: registry has at least 3 pinpoints')
-call Assert(has_key(s:registry, '1A.1'), 'smoke: 1A.1 registered')
-call Assert(has_key(s:registry, '1A.2'), 'smoke: 1A.2 registered')
-call Assert(has_key(s:registry, '1B.1'), 'smoke: 1B.1 registered')
+call Assert(has_key(s:registry, 'move_single_char_up_down_left_right'), 'smoke: 1A.1 registered')
+call Assert(has_key(s:registry, 'move_to_line_edges_all'), 'smoke: 1A.2 registered')
+call Assert(has_key(s:registry, 'move_to_word_start_forward_backward'), 'smoke: 1B.1 registered')
 
 for [s:id, s:info] in items(s:registry)
   call Assert(has_key(s:info, 'name') && !empty(s:info.name),

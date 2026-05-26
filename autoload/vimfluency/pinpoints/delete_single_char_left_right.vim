@@ -1,4 +1,4 @@
-" 4.4 — delete one char via motion (dl, dh). Composite-behavior
+" delete_single_char_left_right — delete one char via motion (dl, dh). Composite-behavior
 " pinpoint pairing the delete operator with the single-char
 " horizontal motions. Shared quality: delete one char via motion.
 " Juxtaposed quality: direction.
@@ -17,11 +17,11 @@ let s:words = ['def', 'class', 'return', 'import', 'from', 'while',
   \ 'if', 'else', 'for', 'in', 'True', 'False', 'None', 'self',
   \ 'data', 'value']
 
-function! vimfluency#pinpoints#p4_4#meta() abort
-  return {'id': '4.4', 'name': 'dl dh', 'aim': 40,
+function! vimfluency#pinpoints#delete_single_char_left_right#meta() abort
+  return {'id': 'delete_single_char_left_right', 'name': 'dl dh', 'aim': 40,
     \ 'allowed_keys': 'dlh', 'kind': 'editing',
-    \ 'prereqs': ['1A.3'],
-    \ 'parallel_to': ['4.1', '4.3']}
+    \ 'prereqs': ['move_single_char_left_right'],
+    \ 'parallel_to': ['delete_to_word_start_forward_backward', 'delete_to_line_edges_beginning_end'], 'family': 'delete'}
 endfunction
 
 function! s:rand(n) abort
@@ -37,7 +37,7 @@ function! s:make_line() abort
   return join(parts, ' ')
 endfunction
 
-function! vimfluency#pinpoints#p4_4#generate() abort
+function! vimfluency#pinpoints#delete_single_char_left_right#generate() abort
   let line = s:make_line()
   let llen = len(line)
   " cursor in interior — both sides have a deletable char
@@ -75,7 +75,7 @@ function! vimfluency#pinpoints#p4_4#generate() abort
     \ }
 endfunction
 
-function! vimfluency#pinpoints#p4_4#lesson() abort
+function! vimfluency#pinpoints#delete_single_char_left_right#lesson() abort
   let buf = ['if data: return value']
   return [
     \ {'kind': 'show', 'lines': buf, 'cursor': [1, 10],

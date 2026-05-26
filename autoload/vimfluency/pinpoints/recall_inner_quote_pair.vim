@@ -1,4 +1,4 @@
-" 3.2a — Inner quote text object: discriminate i" vs i'.
+" recall_inner_quote_pair — Inner quote text object: discriminate i" vs i'.
 "
 " Foundation pair for quote text objects. Holds the 'i' rule constant
 " (inner content) and varies the delimiter. The visible quote char in
@@ -29,12 +29,12 @@ let s:INNER_WORDS = ['hello', 'world', 'value', 'name',
 
 let s:DELIMS = ['"', "'"]
 
-function! vimfluency#pinpoints#p3_2a#meta() abort
+function! vimfluency#pinpoints#recall_inner_quote_pair#meta() abort
   " Aim mirrors T0.3a (40/min) — binary recall, two-keystroke answer.
   " Same shape, same cognitive load. Starting guess; revise on data.
-  return {'id': '3.2a', 'name': 'inner quote — i" vs i' . "'",
+  return {'id': 'recall_inner_quote_pair', 'name': 'inner quote — i" vs i' . "'",
     \ 'aim': 40, 'allowed_keys': 'i"' . "'", 'kind': 'recall',
-    \ 'prereqs': ['T0']}
+    \ 'prereqs': ['recognize_current_mode', 'insert_basic'], 'family': 'text-object-recall'}
 endfunction
 
 function! s:rand(n) abort
@@ -54,7 +54,7 @@ function! s:make_cue(delim) abort
   return [cue_line, arrow_line]
 endfunction
 
-function! vimfluency#pinpoints#p3_2a#generate() abort
+function! vimfluency#pinpoints#recall_inner_quote_pair#generate() abort
   let delim = s:DELIMS[s:rand(len(s:DELIMS))]
   let answer = 'i' . delim
   let [cue_line, arrow_line] = s:make_cue(delim)
@@ -76,10 +76,10 @@ endfunction
 " DI sequence: a show frame states the rule in parallel form, then one
 " try frame per delim so the learner produces each answer at least once
 " before the runner's test phase starts generating novel items.
-function! vimfluency#pinpoints#p3_2a#lesson() abort
+function! vimfluency#pinpoints#recall_inner_quote_pair#lesson() abort
   let frames = [{'kind': 'show', 'lines': [], 'cursor': [1, 1],
     \ 'prompt': [
-    \   '3.2a — inner quote text objects.',
+    \   'inner quote text objects.',
     \   '',
     \   'i" selects the inner content of a "double-quoted" string.',
     \   "i' selects the inner content of a 'single-quoted' string.",

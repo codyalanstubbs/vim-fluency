@@ -1,4 +1,4 @@
-" T0.3b — Discriminate :wq vs :q!. The save-or-discard decision.
+" save_quit_vs_force_quit — Discriminate :wq vs :q!. The save-or-discard decision.
 " Both quit; one writes first, one forces (discarding pending changes).
 " Introduces the ! force flag.
 "
@@ -12,17 +12,17 @@ let s:items = [
   \ {'answer': ':q!', 'prompt': 'force quit (discard changes)'},
   \ ]
 
-function! vimfluency#pinpoints#pT0_3b#meta() abort
-  return {'id': 'T0.3b', 'name': 'discriminate :wq vs :q!',
+function! vimfluency#pinpoints#save_quit_vs_force_quit#meta() abort
+  return {'id': 'save_quit_vs_force_quit', 'name': 'discriminate :wq vs :q!',
     \ 'aim': 35, 'allowed_keys': ':wq!', 'kind': 'recall',
-    \ 'prereqs': ['T0.3a']}
+    \ 'prereqs': ['save_vs_quit'], 'family': 'survival'}
 endfunction
 
 function! s:rand(n) abort
   return rand() % a:n
 endfunction
 
-function! vimfluency#pinpoints#pT0_3b#generate() abort
+function! vimfluency#pinpoints#save_quit_vs_force_quit#generate() abort
   let pick = s:items[s:rand(len(s:items))]
   return {
     \ 'lines': [],
@@ -35,11 +35,11 @@ function! vimfluency#pinpoints#pT0_3b#generate() abort
     \ }
 endfunction
 
-function! vimfluency#pinpoints#pT0_3b#lesson() abort
+function! vimfluency#pinpoints#save_quit_vs_force_quit#lesson() abort
   return [
     \ {'kind': 'show', 'lines': [], 'cursor': [1, 1],
     \  'prompt': [
-    \    'T0.3b — :wq vs :q!.',
+    \    ':wq vs :q!.',
     \    ':wq writes then quits (the safe "save and exit").',
     \    ':q! quits and discards — the ! is the FORCE flag,',
     \    'which tells vim "yes, I really mean it, drop my changes".',

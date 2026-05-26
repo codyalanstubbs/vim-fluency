@@ -1,28 +1,37 @@
 " Property tests over each pinpoint's meta(). Asserts the contract:
 " id, name, aim, allowed_keys, prereqs are all present and well-typed.
-" The :VfList navigator will rely on prereqs to compute eligibility, so
-" a missing field is a runtime hazard, not a cosmetic issue.
+" The :VfList navigator relies on prereqs to compute eligibility (now
+" diagnostic, not gating) — a missing field is a runtime hazard, not
+" a cosmetic issue.
 
 let s:expected = [
-  \ {'id': 'T0.1', 'prereqs': []},
-  \ {'id': 'T0.2', 'prereqs': ['T0.1']},
-  \ {'id': 'T0.3a', 'prereqs': []},
-  \ {'id': 'T0.3b', 'prereqs': ['T0.3a']},
-  \ {'id': 'T0.3c', 'prereqs': ['T0.3b']},
-  \ {'id': 'T0.3d', 'prereqs': ['T0.3b']},
-  \ {'id': 'T0.4', 'prereqs': []},
-  \ {'id': 'T0.5', 'prereqs': []},
-  \ {'id': '1A.1', 'prereqs': ['T0']},
-  \ {'id': '1A.2', 'prereqs': ['T0']},
-  \ {'id': '1B.1', 'prereqs': ['1A']},
-  \ {'id': '1B.2', 'prereqs': ['1A']},
-  \ {'id': '1C.1', 'prereqs': ['1A']},
-  \ {'id': '1C.2', 'prereqs': ['1C.1']},
-  \ {'id': '1C.3', 'prereqs': ['1C.1', '1C.2']},
-  \ {'id': '1C.4', 'prereqs': ['1C.1', '1C.2']},
-  \ {'id': '2.1',  'prereqs': ['T0']},
-  \ {'id': '2.2',  'prereqs': ['T0']},
-  \ {'id': '4.1',  'prereqs': ['2.1', '1B.1']},
+  \ {'id': 'insert_basic', 'prereqs': []},
+  \ {'id': 'open_line_above_below', 'prereqs': ['insert_basic']},
+  \ {'id': 'save_vs_quit', 'prereqs': []},
+  \ {'id': 'save_quit_vs_force_quit', 'prereqs': ['save_vs_quit']},
+  \ {'id': 'save_quit_ex_vs_normal_zz', 'prereqs': ['save_quit_vs_force_quit']},
+  \ {'id': 'force_quit_ex_vs_normal_zq', 'prereqs': ['save_quit_vs_force_quit']},
+  \ {'id': 'undo_redo', 'prereqs': []},
+  \ {'id': 'recognize_current_mode', 'prereqs': []},
+  \ {'id': 'move_single_char_up_down_left_right', 'prereqs': ['recognize_current_mode', 'insert_basic']},
+  \ {'id': 'move_to_line_edges_all', 'prereqs': ['recognize_current_mode', 'insert_basic']},
+  \ {'id': 'move_single_char_left_right', 'prereqs': ['recognize_current_mode', 'insert_basic']},
+  \ {'id': 'move_single_char_up_down', 'prereqs': ['recognize_current_mode', 'insert_basic']},
+  \ {'id': 'move_to_line_edges_beginning_end', 'prereqs': ['recognize_current_mode', 'insert_basic']},
+  \ {'id': 'move_to_word_start_forward_backward', 'prereqs': ['move_single_char_up_down_left_right']},
+  \ {'id': 'move_to_word_end_forward_backward', 'prereqs': ['move_single_char_up_down_left_right']},
+  \ {'id': 'move_to_char_forward_backward', 'prereqs': ['move_single_char_up_down_left_right']},
+  \ {'id': 'move_till_char_forward_backward', 'prereqs': ['move_to_char_forward_backward']},
+  \ {'id': 'move_repeat_last_find_forward_backward', 'prereqs': ['move_to_char_forward_backward', 'move_till_char_forward_backward']},
+  \ {'id': 'discriminate_find_vs_till', 'prereqs': ['move_to_char_forward_backward', 'move_till_char_forward_backward']},
+  \ {'id': 'discriminate_delete_char_vs_line',  'prereqs': ['recognize_current_mode', 'insert_basic']},
+  \ {'id': 'discriminate_indent_vs_dedent',  'prereqs': ['recognize_current_mode', 'insert_basic']},
+  \ {'id': 'recall_inner_quote_pair', 'prereqs': ['recognize_current_mode', 'insert_basic']},
+  \ {'id': 'recall_inner_quote_triple', 'prereqs': ['recall_inner_quote_pair']},
+  \ {'id': 'delete_to_word_start_forward_backward', 'prereqs': ['discriminate_delete_char_vs_line', 'move_to_word_start_forward_backward']},
+  \ {'id': 'delete_to_line_edges_beginning_end',   'prereqs': ['move_to_line_edges_beginning_end']},
+  \ {'id': 'delete_single_char_left_right',        'prereqs': ['move_single_char_left_right']},
+  \ {'id': 'delete_two_lines_down_up',             'prereqs': ['move_single_char_up_down']},
   \ ]
 
 let s:registry = vimfluency#discover_pinpoints()
@@ -38,10 +47,11 @@ for s:e in s:expected
   call Assert(has_key(s:m, 'aim'),          s:prefix . 'has aim')
   call Assert(has_key(s:m, 'allowed_keys'), s:prefix . 'has allowed_keys')
   call Assert(has_key(s:m, 'prereqs'),      s:prefix . 'has prereqs')
+  call Assert(has_key(s:m, 'family'),       s:prefix . 'has family')
   if has_key(s:m, 'prereqs')
     call Assert(type(s:m.prereqs) == v:t_list,
       \ s:prefix . 'prereqs is a list')
     call AssertEq(s:m.prereqs, s:e.prereqs,
-      \ s:prefix . 'prereqs match catalog')
+      \ s:prefix . 'prereqs match expected')
   endif
 endfor

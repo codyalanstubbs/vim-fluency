@@ -1,4 +1,4 @@
-" 1C.4 — discriminate f vs t (and F vs T).
+" discriminate_find_vs_till — discriminate f vs t (and F vs T).
 "
 " The Disc training from CATALOG: same buffers and target geometry as
 " 1C.1 / 1C.2, but the user can't predict which motion is needed.
@@ -7,18 +7,18 @@
 " cognitive task is: read the target's position relative to the
 " surrounding chars and pick the right motion before executing.
 "
-" Cheat-defense is inherited entirely from p1C_1 and p1C_2 — we just
+" Cheat-defense is inherited entirely from move_to_char_forward_backward and move_till_char_forward_backward — we just
 " delegate to their generators. Optimal_motions is 1 for every item
 " (a single f/F/t/T).
 "
 " Prereqs: 1C.1 and 1C.2 should be at aim before drilling 1C.4.
 
-function! vimfluency#pinpoints#p1C_4#meta() abort
-  return {'id': '1C.4', 'name': 'discriminate f/t (F/T)',
-    \ 'aim': 35, 'allowed_keys': 'fFtT', 'prereqs': ['1C.1', '1C.2']}
+function! vimfluency#pinpoints#discriminate_find_vs_till#meta() abort
+  return {'id': 'discriminate_find_vs_till', 'name': 'discriminate f/t (F/T)',
+    \ 'aim': 35, 'allowed_keys': 'fFtT', 'prereqs': ['move_to_char_forward_backward', 'move_till_char_forward_backward'], 'family': 'motion'}
 endfunction
 
-function! vimfluency#pinpoints#p1C_4#lesson() abort
+function! vimfluency#pinpoints#discriminate_find_vs_till#lesson() abort
   " The first frame names the discrimination rule. The four try frames
   " walk through one example of each motion in the same buffer so the
   " learner sees the off-by-one shift between f and t side by side.
@@ -44,13 +44,13 @@ function! s:rand(n) abort
   return rand() % a:n
 endfunction
 
-function! vimfluency#pinpoints#p1C_4#generate() abort
+function! vimfluency#pinpoints#discriminate_find_vs_till#generate() abort
   " 50/50 mix of 1C.1 (f/F) items and 1C.2 (t/T) items. Each delegated
   " generator already handles its own cheat-defense, target uniqueness,
   " and word-margin constraints, so 1C.4 inherits all of that.
   if s:rand(2) == 0
-    return vimfluency#pinpoints#p1C_1#generate()
+    return vimfluency#pinpoints#move_to_char_forward_backward#generate()
   else
-    return vimfluency#pinpoints#p1C_2#generate()
+    return vimfluency#pinpoints#move_till_char_forward_backward#generate()
   endif
 endfunction

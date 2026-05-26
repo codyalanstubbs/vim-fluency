@@ -1,4 +1,4 @@
-" 1B.2 — e ge. Forward/backward to the end of a nearby word.
+" move_to_word_end_forward_backward — e ge. Forward/backward to the end of a nearby word.
 "
 " Juxtaposition pair with 1B.1 (w/b): same landing concept (word
 " boundary), but landing at the END instead of the start. Within
@@ -21,16 +21,16 @@
 
 let s:chars = ['a', 'e', 'i', 'o', 'r', 's']
 
-function! vimfluency#pinpoints#p1B_2#meta() abort
+function! vimfluency#pinpoints#move_to_word_end_forward_backward#meta() abort
   " Aim slightly below 1B.1 because ge is two keystrokes, halving the
   " theoretical max rate on the backward half of the discrimination.
   " Starting guess; revise once the data accumulates.
-  return {'id': '1B.2', 'name': 'e ge', 'aim': 40,
-    \ 'allowed_keys': 'eg', 'prereqs': ['1A'],
-    \ 'parallel_to': ['1B.1']}
+  return {'id': 'move_to_word_end_forward_backward', 'name': 'e ge', 'aim': 40,
+    \ 'allowed_keys': 'eg', 'prereqs': ['move_single_char_up_down_left_right'],
+    \ 'parallel_to': ['move_to_word_start_forward_backward'], 'family': 'motion'}
 endfunction
 
-function! vimfluency#pinpoints#p1B_2#lesson() abort
+function! vimfluency#pinpoints#move_to_word_end_forward_backward#lesson() abort
   " Same parallel-rule shape as 1B.1: try frames for each motion,
   " then a rule statement. Real words for readability; cheat-defense
   " irrelevant during teaching.
@@ -62,7 +62,7 @@ function! s:make_word() abort
   return s
 endfunction
 
-function! vimfluency#pinpoints#p1B_2#generate() abort
+function! vimfluency#pinpoints#move_to_word_end_forward_backward#generate() abort
   let n_words = 10
   let words = []
   for _ in range(n_words)

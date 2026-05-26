@@ -48,11 +48,11 @@ endfunction
 " 1A.1: optimal_motions == manhattan(start, target);
 " expected_motion ∈ {h, j, k, l, diag}
 function! s:test_1A_1() abort
-  let GenFn = function('vimfluency#pinpoints#p1A_1#generate')
+  let GenFn = function('vimfluency#pinpoints#move_single_char_up_down_left_right#generate')
   let valid = ['h', 'j', 'k', 'l', 'diag']
   for i in range(s:N)
     let item = GenFn()
-    call s:assert_common('1A.1', item)
+    call s:assert_common('move_single_char_up_down_left_right', item)
     let manhattan = abs(item.target[0] - item.start[0])
       \ + abs(item.target[1] - item.start[1])
     call AssertEq(item.optimal_motions, manhattan,
@@ -65,11 +65,11 @@ endfunction
 " 1A.2: optimal_motions == 1; expected_motion ∈ {0, ^, $, g_};
 " target_col == 1 → motion is '0'; trailing whitespace items can be 'g_'.
 function! s:test_1A_2() abort
-  let GenFn = function('vimfluency#pinpoints#p1A_2#generate')
+  let GenFn = function('vimfluency#pinpoints#move_to_line_edges_all#generate')
   let valid = ['0', '^', '$', 'g_']
   for i in range(s:N)
     let item = GenFn()
-    call s:assert_common('1A.2', item)
+    call s:assert_common('move_to_line_edges_all', item)
     call AssertEq(item.optimal_motions, 1, '1A.2: optimal_motions == 1')
     call AssertIn(item.expected_motion, valid,
       \ '1A.2: expected_motion in {0, ^, $, g_}')
@@ -95,12 +95,12 @@ endfunction
 " 1B.1: expected_motion ∈ {w, b}; optimal_motions == dist (which is
 " the same as the manhattan word-distance, in [2, 4]).
 function! s:test_1B_1() abort
-  let GenFn = function('vimfluency#pinpoints#p1B_1#generate')
+  let GenFn = function('vimfluency#pinpoints#move_to_word_start_forward_backward#generate')
   let valid = ['w', 'b']
   let seen = {}
   for i in range(s:N)
     let item = GenFn()
-    call s:assert_common('1B.1', item)
+    call s:assert_common('move_to_word_start_forward_backward', item)
     call AssertIn(item.expected_motion, valid,
       \ '1B.1: expected_motion in {w, b}')
     call Assert(item.optimal_motions >= 2 && item.optimal_motions <= 4,
@@ -114,12 +114,12 @@ endfunction
 " 1B.2: expected_motion ∈ {e, ge}; optimal_motions == dist+1 for
 " forward (e), dist for backward (ge). Range [2, 5].
 function! s:test_1B_2() abort
-  let GenFn = function('vimfluency#pinpoints#p1B_2#generate')
+  let GenFn = function('vimfluency#pinpoints#move_to_word_end_forward_backward#generate')
   let valid = ['e', 'ge']
   let seen = {}
   for i in range(s:N)
     let item = GenFn()
-    call s:assert_common('1B.2', item)
+    call s:assert_common('move_to_word_end_forward_backward', item)
     call AssertIn(item.expected_motion, valid,
       \ '1B.2: expected_motion in {e, ge}')
     call Assert(item.optimal_motions >= 2 && item.optimal_motions <= 5,
@@ -148,13 +148,13 @@ endfunction
 " j or k to navigate, then the operator. Both motions appear over
 " many samples and both navigation directions are exercised.
 function! s:test_2_1() abort
-  let GenFn = function('vimfluency#pinpoints#p2_1#generate')
+  let GenFn = function('vimfluency#pinpoints#discriminate_delete_char_vs_line#generate')
   let valid = ['x', 'dd']
   let seen = {}
   let nav_dirs = {}
   for i in range(s:N)
     let item = GenFn()
-    call s:assert_common('2.1', item)
+    call s:assert_common('discriminate_delete_char_vs_line', item)
     call AssertIn(item.expected_motion, valid,
       \ '2.1: expected_motion in {x, dd}')
     call AssertEq(item.optimal_motions, 2,
@@ -224,14 +224,14 @@ endfunction
 " shiftwidths in the picked direction. Both motions and both step
 " counts appear over many samples.
 function! s:test_2_2() abort
-  let GenFn = function('vimfluency#pinpoints#p2_2#generate')
+  let GenFn = function('vimfluency#pinpoints#discriminate_indent_vs_dedent#generate')
   let SW = 4
   let valid = ['>>', '<<']
   let seen = {}
   let step_counts = {}
   for i in range(s:N)
     let item = GenFn()
-    call s:assert_common('2.2', item)
+    call s:assert_common('discriminate_indent_vs_dedent', item)
     call AssertIn(item.expected_motion, valid,
       \ '2.2: expected_motion in {>>, <<}')
     call AssertIn(item.optimal_motions, [1, 2],
@@ -281,12 +281,12 @@ endfunction
 " 4.1: editing kind; expected_motion ∈ {dw, db}; deletion_range matches
 " the actual delta between start_lines and target_lines.
 function! s:test_4_1() abort
-  let GenFn = function('vimfluency#pinpoints#p4_1#generate')
+  let GenFn = function('vimfluency#pinpoints#delete_to_word_start_forward_backward#generate')
   let valid = ['dw', 'db']
   let seen = {}
   for i in range(s:N)
     let item = GenFn()
-    call s:assert_common('4.1', item)
+    call s:assert_common('delete_to_word_start_forward_backward', item)
     call AssertIn(item.expected_motion, valid,
       \ '4.1: expected_motion in {dw, db}')
     call AssertEq(item.optimal_motions, 1, '4.1: optimal_motions == 1')
@@ -327,7 +327,7 @@ function! s:test_4_1() abort
   call Assert(get(seen, 'dw', 0) == 1, '4.1: dw appeared in samples')
   call Assert(get(seen, 'db', 0) == 1, '4.1: db appeared in samples')
 
-  let meta = vimfluency#pinpoints#p4_1#meta()
+  let meta = vimfluency#pinpoints#delete_to_word_start_forward_backward#meta()
   call AssertEq(get(meta, 'kind', 'motion'), 'editing',
     \ '4.1: meta.kind == editing')
 endfunction
@@ -336,12 +336,12 @@ endfunction
 " line; target interior to its word (margin ≥2); cursor not on whitespace
 " or target_char; distance ≥4 from cursor.
 function! s:test_1C_1() abort
-  let GenFn = function('vimfluency#pinpoints#p1C_1#generate')
+  let GenFn = function('vimfluency#pinpoints#move_to_char_forward_backward#generate')
   let valid = ['f', 'F']
   let seen = {}
   for i in range(s:N)
     let item = GenFn()
-    call s:assert_common('1C.1', item)
+    call s:assert_common('move_to_char_forward_backward', item)
     call AssertIn(item.expected_motion, valid,
       \ '1C.1: expected_motion in {f, F}')
     call AssertEq(item.optimal_motions, 1,
@@ -402,12 +402,12 @@ endfunction
 " target_col - 1 (backward). Char must be unique in line, interior to
 " its word with direction-specific margins, and distance >= 3 from cursor.
 function! s:test_1C_2() abort
-  let GenFn = function('vimfluency#pinpoints#p1C_2#generate')
+  let GenFn = function('vimfluency#pinpoints#move_till_char_forward_backward#generate')
   let valid = ['t', 'T']
   let seen = {}
   for i in range(s:N)
     let item = GenFn()
-    call s:assert_common('1C.2', item)
+    call s:assert_common('move_till_char_forward_backward', item)
     call AssertIn(item.expected_motion, valid,
       \ '1C.2: expected_motion in {t, T}')
     call AssertEq(item.optimal_motions, 1,
@@ -481,12 +481,12 @@ endfunction
 " to its word with margin >= 2; cursor positioned per-scenario; distance
 " >= 3; exactly one waypoint at the canonical-sequence's first-stop.
 function! s:test_1C_3() abort
-  let GenFn = function('vimfluency#pinpoints#p1C_3#generate')
+  let GenFn = function('vimfluency#pinpoints#move_repeat_last_find_forward_backward#generate')
   let valid_motions = [';', ',']
   let seen = {}
   for i in range(s:N)
     let item = GenFn()
-    call s:assert_common('1C.3', item)
+    call s:assert_common('move_repeat_last_find_forward_backward', item)
     call AssertIn(item.expected_motion, valid_motions,
       \ '1C.3: expected_motion in {; ,}')
     call AssertEq(item.optimal_motions, 2,
@@ -580,16 +580,16 @@ function! s:test_1C_3() abort
   call Assert(get(seen, ',', 0) == 1, '1C.3: , appeared in samples')
 endfunction
 
-" 1C.4: delegates to p1C_1 / p1C_2 generators. Just verify all four
+" 1C.4: delegates to move_to_char_forward_backward / move_till_char_forward_backward generators. Just verify all four
 " motions appear over N samples and every item passes a baseline
 " structural check.
 function! s:test_1C_4() abort
-  let GenFn = function('vimfluency#pinpoints#p1C_4#generate')
+  let GenFn = function('vimfluency#pinpoints#discriminate_find_vs_till#generate')
   let valid = ['f', 'F', 't', 'T']
   let seen = {}
   for i in range(s:N)
     let item = GenFn()
-    call s:assert_common('1C.4', item)
+    call s:assert_common('discriminate_find_vs_till', item)
     call AssertIn(item.expected_motion, valid,
       \ '1C.4: expected_motion in {f, F, t, T}')
     call AssertEq(item.optimal_motions, 1,
@@ -655,7 +655,7 @@ endfunction
 " `start_index`; the runner stages the states into the buffer's
 " undo log so 'u' / Ctrl-r have real targets.
 function! s:test_T0_4() abort
-  let GenFn = function('vimfluency#pinpoints#pT0_4#generate')
+  let GenFn = function('vimfluency#pinpoints#undo_redo#generate')
   let valid = ['u', '<C-r>']
   let seen = {}
   for i in range(s:N)
@@ -754,30 +754,30 @@ function! s:test_3_2_quote(id, module, valid_delims) abort
 endfunction
 
 function! s:test_3_2a() abort
-  call s:test_3_2_quote('3.2a', 'p3_2a', ['"', "'"])
+  call s:test_3_2_quote('recall_inner_quote_pair', 'recall_inner_quote_pair', ['"', "'"])
 endfunction
 function! s:test_3_2b() abort
-  call s:test_3_2_quote('3.2b', 'p3_2b', ['"', "'", '`'])
+  call s:test_3_2_quote('recall_inner_quote_triple', 'recall_inner_quote_triple', ['"', "'", '`'])
 endfunction
 
 function! s:test_T0_3a() abort
-  call s:test_T0_3_pair('T0.3a', 'pT0_3a', [':w', ':q'])
+  call s:test_T0_3_pair('save_vs_quit', 'save_vs_quit', [':w', ':q'])
 endfunction
 function! s:test_T0_3b() abort
-  call s:test_T0_3_pair('T0.3b', 'pT0_3b', [':wq', ':q!'])
+  call s:test_T0_3_pair('save_quit_vs_force_quit', 'save_quit_vs_force_quit', [':wq', ':q!'])
 endfunction
 function! s:test_T0_3c() abort
-  call s:test_T0_3_pair('T0.3c', 'pT0_3c', [':wq', 'ZZ'])
+  call s:test_T0_3_pair('save_quit_ex_vs_normal_zz', 'save_quit_ex_vs_normal_zz', [':wq', 'ZZ'])
 endfunction
 function! s:test_T0_3d() abort
-  call s:test_T0_3_pair('T0.3d', 'pT0_3d', [':q!', 'ZQ'])
+  call s:test_T0_3_pair('force_quit_ex_vs_normal_zq', 'force_quit_ex_vs_normal_zq', [':q!', 'ZQ'])
 endfunction
 
 " T0.5 — mode awareness (recall). Each item's answer is one of the
 " five named modes; the prompt is a list (multi-line mock cue);
 " expected_motion mirrors answer.
 function! s:test_T0_5() abort
-  let GenFn = function('vimfluency#pinpoints#pT0_5#generate')
+  let GenFn = function('vimfluency#pinpoints#recognize_current_mode#generate')
   " Single-keystroke answers: n=normal, i=insert, v=visual, r=replace,
   " :=command. The training isolates the recognition step from typing
   " noise (no word length, no typos).
@@ -792,7 +792,7 @@ function! s:test_T0_5() abort
   let seen = {}
   for i in range(s:N)
     let item = GenFn()
-    call s:assert_recall_common('T0.5', item)
+    call s:assert_recall_common('recognize_current_mode', item)
     call AssertIn(item.expected_answer, valid,
       \ 'T0.5: expected_answer in single-key set')
     call AssertEq(item.optimal_motions, 1,
@@ -840,12 +840,12 @@ endfunction
 " T0.1 — enter / leave insert mode. Four keys, all optimal 2.
 " target_lines must equal lines (no buffer change for i/a/I/A).
 function! s:test_T0_1() abort
-  let GenFn = function('vimfluency#pinpoints#pT0_1#generate')
+  let GenFn = function('vimfluency#pinpoints#insert_basic#generate')
   let valid = ['i', 'a', 'I', 'A']
   let seen = {}
   for i in range(s:N)
     let item = GenFn()
-    call s:assert_mode_common('T0.1', item)
+    call s:assert_mode_common('insert_basic', item)
     call AssertIn(item.expected_motion, valid,
       \ 'T0.1: expected_motion in {i, a, I, A}')
     call AssertEq(item.optimal_motions, 2,
@@ -902,13 +902,13 @@ endfunction
 " The cursor sits on one bracket row; the post-press buffer has a new
 " blank line inserted between the two brackets.
 function! s:test_T0_2() abort
-  let GenFn = function('vimfluency#pinpoints#pT0_2#generate')
+  let GenFn = function('vimfluency#pinpoints#open_line_above_below#generate')
   let valid = ['o', 'O']
   let mark = '⏵'
   let seen = {}
   for i in range(s:N)
     let item = GenFn()
-    call s:assert_mode_common('T0.2', item)
+    call s:assert_mode_common('open_line_above_below', item)
     call AssertIn(item.expected_motion, valid,
       \ 'T0.2: expected_motion in {o, O}')
     call AssertEq(item.optimal_motions, 2,
@@ -953,12 +953,12 @@ endfunction
 " 1A.3: h vs l. Target on same row as start; dcol ∈ {-2,-1,1,2};
 " optimal_motions == abs(dcol); motion 'l' for positive dcol, 'h' otherwise.
 function! s:test_1A_3() abort
-  let GenFn = function('vimfluency#pinpoints#p1A_3#generate')
+  let GenFn = function('vimfluency#pinpoints#move_single_char_left_right#generate')
   let valid = ['h', 'l']
   let seen = {}
   for i in range(s:N)
     let item = GenFn()
-    call s:assert_common('1A.3', item)
+    call s:assert_common('move_single_char_left_right', item)
     call AssertIn(item.expected_motion, valid,
       \ '1A.3: expected_motion in {h, l}')
     call AssertEq(item.target[0], item.start[0],
@@ -984,12 +984,12 @@ endfunction
 " 1A.4: j vs k. Target on same column as start; drow ∈ {-2,-1,1,2};
 " optimal_motions == abs(drow); motion 'j' for positive drow, 'k' otherwise.
 function! s:test_1A_4() abort
-  let GenFn = function('vimfluency#pinpoints#p1A_4#generate')
+  let GenFn = function('vimfluency#pinpoints#move_single_char_up_down#generate')
   let valid = ['j', 'k']
   let seen = {}
   for i in range(s:N)
     let item = GenFn()
-    call s:assert_common('1A.4', item)
+    call s:assert_common('move_single_char_up_down', item)
     call AssertIn(item.expected_motion, valid,
       \ '1A.4: expected_motion in {j, k}')
     call AssertEq(item.target[1], item.start[1],
@@ -1015,12 +1015,12 @@ endfunction
 " 1A.5: 0 vs $. Single line, no trailing whitespace, cursor in interior.
 " target column ∈ {1, llen}; motion '0' for col 1 else '$'.
 function! s:test_1A_5() abort
-  let GenFn = function('vimfluency#pinpoints#p1A_5#generate')
+  let GenFn = function('vimfluency#pinpoints#move_to_line_edges_beginning_end#generate')
   let valid = ['0', '$']
   let seen = {}
   for i in range(s:N)
     let item = GenFn()
-    call s:assert_common('1A.5', item)
+    call s:assert_common('move_to_line_edges_beginning_end', item)
     call AssertIn(item.expected_motion, valid,
       \ '1A.5: expected_motion in {0, $}')
     call AssertEq(item.optimal_motions, 1, '1A.5: optimal_motions == 1')
@@ -1048,12 +1048,12 @@ endfunction
 " target_lines is the surviving slice; cursor ends at col 1 (d0) or
 " cursor-1 (d$).
 function! s:test_4_3() abort
-  let GenFn = function('vimfluency#pinpoints#p4_3#generate')
+  let GenFn = function('vimfluency#pinpoints#delete_to_line_edges_beginning_end#generate')
   let valid = ['d0', 'd$']
   let seen = {}
   for i in range(s:N)
     let item = GenFn()
-    call s:assert_common('4.3', item)
+    call s:assert_common('delete_to_line_edges_beginning_end', item)
     call AssertIn(item.expected_motion, valid,
       \ '4.3: expected_motion in {d0, d$}')
     call AssertEq(item.optimal_motions, 1, '4.3: optimal_motions == 1')
@@ -1086,12 +1086,12 @@ endfunction
 " dl deletes char AT cursor (cursor stays); dh deletes char BEFORE cursor
 " (cursor moves left one column).
 function! s:test_4_4() abort
-  let GenFn = function('vimfluency#pinpoints#p4_4#generate')
+  let GenFn = function('vimfluency#pinpoints#delete_single_char_left_right#generate')
   let valid = ['dl', 'dh']
   let seen = {}
   for i in range(s:N)
     let item = GenFn()
-    call s:assert_common('4.4', item)
+    call s:assert_common('delete_single_char_left_right', item)
     call AssertIn(item.expected_motion, valid,
       \ '4.4: expected_motion in {dl, dh}')
     call AssertEq(item.optimal_motions, 1, '4.4: optimal_motions == 1')
@@ -1117,12 +1117,12 @@ endfunction
 " dj deletes rows [cursor, cursor+1]; dk deletes rows [cursor-1, cursor].
 " Survivors: 3 rows. Cursor lands at col 1 of the appropriate surviving row.
 function! s:test_4_5() abort
-  let GenFn = function('vimfluency#pinpoints#p4_5#generate')
+  let GenFn = function('vimfluency#pinpoints#delete_two_lines_down_up#generate')
   let valid = ['dj', 'dk']
   let seen = {}
   for i in range(s:N)
     let item = GenFn()
-    call s:assert_common('4.5', item)
+    call s:assert_common('delete_two_lines_down_up', item)
     call AssertIn(item.expected_motion, valid,
       \ '4.5: expected_motion in {dj, dk}')
     call AssertEq(item.optimal_motions, 1, '4.5: optimal_motions == 1')

@@ -1,26 +1,6 @@
-" Tests for the :VfList navigator. Exercises ID parsing, status
-" classification, prereq resolution (specific ID and group prefix
-" forms), and a render smoke test.
-
-" -- s:parse_id --
-
-let s:p1A = vimfluency#_test_parse_id('1A.1')
-call AssertEq(s:p1A.tier, 1, 'parse_id 1A.1: tier')
-call AssertEq(s:p1A.group, '1A', 'parse_id 1A.1: group')
-call AssertEq(s:p1A.seq, '1', 'parse_id 1A.1: seq')
-
-let s:p4d = vimfluency#_test_parse_id('4.d')
-call AssertEq(s:p4d.tier, 4, 'parse_id 4.d: tier')
-call AssertEq(s:p4d.group, '4', 'parse_id 4.d: group (no sub-letter)')
-call AssertEq(s:p4d.seq, 'd', 'parse_id 4.d: seq')
-
-let s:pT0 = vimfluency#_test_parse_id('T0.1')
-call AssertEq(s:pT0.tier, 0, 'parse_id T0.1: tier=0')
-call AssertEq(s:pT0.group, 'T0', 'parse_id T0.1: group=T0')
-
-let s:pC = vimfluency#_test_parse_id('C.1')
-call AssertEq(s:pC.tier, 13, 'parse_id C.1: tier=13 (composites)')
-call AssertEq(s:pC.group, 'C', 'parse_id C.1: group=C')
+" Tests for the :VfList navigator. Exercises status classification,
+" prereq resolution (specific-slug only — no more group/tier prefix
+" matching), and a render smoke test.
 
 " -- s:status_from_sessions --
 
@@ -73,39 +53,41 @@ call AssertEq(
   \ 'at_aim', 'status: zero-rate quits filtered before the 3-streak check')
 
 " -- s:unmet_prereqs --
+"
+" Under the slug-based ID scheme each prereq references a specific
+" pinpoint by slug. If the prereq isn't in the registry, it counts
+" as satisfied (you can't be blocked by an unbuilt pinpoint).
 
-" Mock registry with two pinpoints: a foundation that's at aim and a
-" follow-up that's still climbing. A third pinpoint depends on the
-" group prefix containing both.
 let s:registry = {
-  \ '1A.1': {'id': '1A.1', 'name': 'hjkl',           'aim': 60, 'prereqs': ['T0']},
-  \ '1A.2': {'id': '1A.2', 'name': 'line start/end', 'aim': 50, 'prereqs': ['T0']},
-  \ '1B.1': {'id': '1B.1', 'name': 'word motions',   'aim': 45, 'prereqs': ['1A']},
-  \ '1C.1': {'id': '1C.1', 'name': 'find char',      'aim': 50, 'prereqs': ['1A']},
-  \ '1C.2': {'id': '1C.2', 'name': 'till char',      'aim': 45, 'prereqs': ['1C.1']},
+  \ 'hjkl':           {'id': 'hjkl',           'name': 'hjkl',         'aim': 60, 'prereqs': []},
+  \ 'line_edges':     {'id': 'line_edges',     'name': 'line edges',   'aim': 50, 'prereqs': []},
+  \ 'word_motions':   {'id': 'word_motions',   'name': 'w b',          'aim': 45, 'prereqs': ['hjkl']},
+  \ 'find_char':      {'id': 'find_char',      'name': 'f F',          'aim': 50, 'prereqs': ['hjkl']},
+  \ 'till_char':      {'id': 'till_char',      'name': 't T',          'aim': 45, 'prereqs': ['find_char']},
   \ }
 
-" Case A: 1A.1 at aim, 1A.2 climbing → '1A' group prereq is unmet.
-let s:status = {'1A.1': 'at_aim', '1A.2': 'climbing',
-  \ '1B.1': 'climbing', '1C.1': 'climbing', '1C.2': 'climbing'}
-let s:u = vimfluency#_test_unmet_prereqs(s:registry['1B.1'], s:registry, s:status)
-call AssertEq(s:u, ['1A'], 'unmet_prereqs: 1B.1 blocked because 1A.2 not at aim')
+" Case A: hjkl not at aim → word_motions is blocked.
+let s:status = {'hjkl': 'climbing', 'line_edges': 'climbing',
+  \ 'word_motions': 'climbing', 'find_char': 'climbing', 'till_char': 'climbing'}
+let s:u = vimfluency#_test_unmet_prereqs(s:registry['word_motions'], s:registry, s:status)
+call AssertEq(s:u, ['hjkl'], 'unmet_prereqs: word_motions blocked when hjkl not at aim')
 
-" Case B: both 1A pinpoints at aim → 1B.1 is now eligible.
-let s:status_b = {'1A.1': 'at_aim', '1A.2': 'at_aim',
-  \ '1B.1': 'climbing', '1C.1': 'climbing', '1C.2': 'climbing'}
-let s:u_b = vimfluency#_test_unmet_prereqs(s:registry['1B.1'], s:registry, s:status_b)
-call AssertEq(s:u_b, [], 'unmet_prereqs: 1B.1 eligible when whole 1A group is at aim')
+" Case B: hjkl at aim → word_motions is eligible.
+let s:status_b = {'hjkl': 'at_aim', 'line_edges': 'at_aim',
+  \ 'word_motions': 'climbing', 'find_char': 'climbing', 'till_char': 'climbing'}
+let s:u_b = vimfluency#_test_unmet_prereqs(s:registry['word_motions'], s:registry, s:status_b)
+call AssertEq(s:u_b, [], 'unmet_prereqs: word_motions eligible when hjkl at aim')
 
-" Case C: specific-ID prereq (1C.2 needs 1C.1).
-let s:u_c = vimfluency#_test_unmet_prereqs(s:registry['1C.2'], s:registry, s:status_b)
-call AssertEq(s:u_c, ['1C.1'],
-  \ 'unmet_prereqs: 1C.2 blocked when 1C.1 not at aim (specific-id prereq)')
+" Case C: till_char needs find_char (specific slug prereq).
+let s:u_c = vimfluency#_test_unmet_prereqs(s:registry['till_char'], s:registry, s:status_b)
+call AssertEq(s:u_c, ['find_char'],
+  \ 'unmet_prereqs: till_char blocked when find_char not at aim')
 
-" Case D: T0 prereq on 1A.1 — nothing built in T0, so it's satisfied.
-let s:u_d = vimfluency#_test_unmet_prereqs(s:registry['1A.1'], s:registry, s:status)
+" Case D: prereq names a pinpoint not yet in the registry — satisfied vacuously.
+let s:vacuous = {'id': 'novel', 'name': 'novel', 'aim': 30, 'prereqs': ['not_yet_built']}
+let s:u_d = vimfluency#_test_unmet_prereqs(s:vacuous, s:registry, s:status)
 call AssertEq(s:u_d, [],
-  \ 'unmet_prereqs: T0 prereq satisfied vacuously when nothing in T0 is built')
+  \ 'unmet_prereqs: prereq satisfied vacuously when pinpoint not in registry')
 
 " -- s:per_motion_from_sessions --
 
@@ -135,34 +117,41 @@ call AssertEq(s:pm_recent, {'w': 50.0},
   \ 'per_motion: most recent non-zero session wins, zero-rate skipped')
 
 " -- render_list smoke test --
+"
+" Family grouping: each pinpoint's `family` field determines the
+" section it appears in; family-less pinpoints fall into the 'other'
+" bucket.
 
-" 1A.1 has per_motion data so the breakdown line should render below
-" its main row. 1A.2 has only frequency_per_min, no per_motion, so it
-" should not get a breakdown line.
 function! s:sess_pm(date, rate, pm) abort
   return {'timestamp': a:date . 'T12:00:00',
     \ 'frequency_per_min': a:rate, 'per_motion': a:pm}
 endfunction
 
+let s:render_reg = {
+  \ 'hjkl':         {'id': 'hjkl',         'name': 'hjkl',       'aim': 60, 'prereqs': [],
+  \                  'family': 'motion'},
+  \ 'line_edges':   {'id': 'line_edges',   'name': 'line edges', 'aim': 50, 'prereqs': [],
+  \                  'family': 'motion'},
+  \ 'word_motions': {'id': 'word_motions', 'name': 'w b',        'aim': 45, 'prereqs': ['line_edges'],
+  \                  'family': 'motion'},
+  \ }
 let s:sessions_by_id = {
-  \ '1A.1': [
+  \ 'hjkl': [
   \   s:sess_pm('2026-01-01', 70.0, {'h': {'rate_per_min': 80.0}, 'l': {'rate_per_min': 60.0}}),
   \   s:sess_pm('2026-01-02', 70.0, {'h': {'rate_per_min': 80.0}, 'l': {'rate_per_min': 60.0}}),
   \   s:sess_pm('2026-01-03', 70.0, {'h': {'rate_per_min': 80.0}, 'l': {'rate_per_min': 60.0}}),
   \   ],
-  \ '1A.2': [s:sess('2026-01-03', 30.0)],
+  \ 'line_edges': [s:sess('2026-01-03', 30.0)],
   \ }
-let s:rendered = join(vimfluency#_test_render_list(s:registry, s:sessions_by_id), "\n")
-call Assert(s:rendered =~# 'Tier 1 — Motions',
-  \ 'render_list: tier header rendered')
+let s:rendered = join(vimfluency#_test_render_list(s:render_reg, s:sessions_by_id), "\n")
+call Assert(s:rendered =~# 'Motions family',
+  \ 'render_list: family header rendered for motion family')
 call Assert(s:rendered =~# 'h 80/min',
   \ 'render_list: per-motion breakdown line shows individual motion rates')
 call Assert(s:rendered =~# 'l 60/min',
   \ 'render_list: per-motion breakdown lists all motions in the dict')
-call Assert(s:rendered =~# '1A — Char & line',
-  \ 'render_list: sub-group header rendered for tier 1')
 call Assert(s:rendered =~# '✓ at aim',
-  \ 'render_list: at-aim status icon present for 1A.1')
+  \ 'render_list: at-aim status icon present for hjkl')
 call Assert(s:rendered =~# '○ not started',
   \ 'render_list: not-started icon present for pinpoints with no sessions')
 call Assert(s:rendered =~# 'needs.*at aim',
@@ -172,15 +161,15 @@ call Assert(s:rendered =~# "Today's set",
 
 " -- list_line_to_id_map (interactive :VfList) --
 "
-" Each pinpoint row should map to its id; tier headers, group headers,
-" blank lines, and the footer should NOT have mapping entries.
-" Per-motion sub-rows (14 leading spaces) inherit the parent's id so
-" the action keys still resolve there if the cursor lands via search
-" or mouse. The separate `pinpoint_rows` list — used by j/k navigation
-" — contains only MAIN pinpoint rows (no sub-rows), sorted ascending.
+" Each pinpoint row should map to its id; family headers, blank
+" lines, and the footer should NOT have mapping entries. Per-motion
+" sub-rows inherit the parent's id so action keys still resolve
+" there if the cursor lands via search or mouse. The separate
+" `pinpoint_rows` list — used by j/k navigation — contains only MAIN
+" pinpoint rows (no sub-rows), sorted ascending.
 
-let s:lines_for_map = vimfluency#_test_render_list(s:registry, s:sessions_by_id)
-let s:coords = vimfluency#_test_list_line_map(s:lines_for_map, s:registry)
+let s:lines_for_map = vimfluency#_test_render_list(s:render_reg, s:sessions_by_id)
+let s:coords = vimfluency#_test_list_line_map(s:lines_for_map, s:render_reg)
 let s:line_map = s:coords.mapping
 let s:pp_rows = s:coords.pinpoint_rows
 
@@ -189,50 +178,41 @@ let s:ids_in_map = {}
 for s:lnum in keys(s:line_map)
   let s:ids_in_map[s:line_map[s:lnum]] = 1
 endfor
-for s:id in keys(s:registry)
+for s:id in keys(s:render_reg)
   call Assert(get(s:ids_in_map, s:id, 0) == 1,
     \ 'line_map: registry id ' . s:id . ' appears in the map')
 endfor
 
-" Find 1A.1's line and confirm it maps to '1A.1'.
-let s:row_1A1 = -1
+" Find hjkl's line and confirm it maps to 'hjkl'.
+let s:row_hjkl = -1
 for s:i in range(len(s:lines_for_map))
-  if s:lines_for_map[s:i] =~# '^    1A\.1\>'
-    let s:row_1A1 = s:i + 1
+  if s:lines_for_map[s:i] =~# '^    hjkl\>'
+    let s:row_hjkl = s:i + 1
     break
   endif
 endfor
-call Assert(s:row_1A1 > 0, 'line_map: 1A.1 pinpoint row found')
-call AssertEq(get(s:line_map, s:row_1A1, ''), '1A.1',
-  \ 'line_map: 1A.1 row maps to "1A.1"')
+call Assert(s:row_hjkl > 0, 'line_map: hjkl pinpoint row found')
+call AssertEq(get(s:line_map, s:row_hjkl, ''), 'hjkl',
+  \ 'line_map: hjkl row maps to "hjkl"')
 
-" 1A.1 has per_motion data → the next line should be the breakdown
-" row and should also map to '1A.1' (sub-row inherits parent id).
-call AssertEq(get(s:line_map, s:row_1A1 + 1, ''), '1A.1',
+" hjkl has per_motion data → the next line should be the breakdown
+" row and should also map to 'hjkl' (sub-row inherits parent id).
+call AssertEq(get(s:line_map, s:row_hjkl + 1, ''), 'hjkl',
   \ 'line_map: per-motion sub-row inherits parent pinpoint id')
 
-" Tier and group header lines should NOT appear in the mapping.
-for s:i in range(len(s:lines_for_map))
-  let s:lt = s:lines_for_map[s:i]
-  if s:lt =~# '^Tier ' || s:lt =~# '^  \S\+ —' || empty(s:lt)
-    call Assert(!has_key(s:line_map, s:i + 1),
-      \ 'line_map: non-pinpoint row at line ' . (s:i + 1) . ' has no entry')
-  endif
-endfor
-
-" pinpoint_rows: one entry per shipped pinpoint, sorted ascending, and
-" excludes per-motion sub-rows. So len == |registry|.
-call AssertEq(len(s:pp_rows), len(s:registry),
+" pinpoint_rows: one entry per registry pinpoint, sorted ascending,
+" excludes per-motion sub-rows.
+call AssertEq(len(s:pp_rows), len(s:render_reg),
   \ 'pinpoint_rows: one entry per registry pinpoint')
 let s:sorted = sort(copy(s:pp_rows), 'N')
 call AssertEq(s:pp_rows, s:sorted,
   \ 'pinpoint_rows: sorted ascending')
-" 1A.1's sub-row (line s:row_1A1 + 1) must NOT be in pinpoint_rows
+" hjkl's sub-row (line s:row_hjkl + 1) must NOT be in pinpoint_rows
 " even though it's in the line-id mapping.
-call Assert(index(s:pp_rows, s:row_1A1 + 1) == -1,
+call Assert(index(s:pp_rows, s:row_hjkl + 1) == -1,
   \ 'pinpoint_rows: excludes per-motion sub-rows')
-call Assert(index(s:pp_rows, s:row_1A1) >= 0,
-  \ 'pinpoint_rows: includes 1A.1 main row')
+call Assert(index(s:pp_rows, s:row_hjkl) >= 0,
+  \ 'pinpoint_rows: includes hjkl main row')
 
 " Banner rows present, and don't carry mapping entries.
 let s:has_banner = 0

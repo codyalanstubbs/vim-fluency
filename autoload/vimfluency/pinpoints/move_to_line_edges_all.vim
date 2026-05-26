@@ -1,11 +1,11 @@
-" 1A.2 — line start/end. Move to col 1 (`0`), first non-blank (`^`), or end (`$`).
+" move_to_line_edges_all — line start/end. Move to col 1 (`0`), first non-blank (`^`), or end (`$`).
 
 let s:words = ['def', 'class', 'return', 'import', 'from', 'while', 'if',
   \ 'else', 'for', 'in', 'True', 'False', 'None', 'self', 'data', 'value']
 
-function! vimfluency#pinpoints#p1A_2#meta() abort
-  return {'id': '1A.2', 'name': 'line start/end (0 ^ $ g_)', 'aim': 50,
-    \ 'allowed_keys': '0^$g_', 'prereqs': ['T0']}
+function! vimfluency#pinpoints#move_to_line_edges_all#meta() abort
+  return {'id': 'move_to_line_edges_all', 'name': 'line start/end (0 ^ $ g_)', 'aim': 50,
+    \ 'allowed_keys': '0^$g_', 'prereqs': ['recognize_current_mode', 'insert_basic'], 'family': 'motion'}
 endfunction
 
 function! s:rand(n) abort
@@ -23,7 +23,7 @@ function! s:make_line() abort
   return indent . join(parts, ' ')
 endfunction
 
-function! vimfluency#pinpoints#p1A_2#lesson() abort
+function! vimfluency#pinpoints#move_to_line_edges_all#lesson() abort
   " Each motion is introduced via a try frame so the learner sees the
   " cursor jump from their own keystroke. Two show frames remain for
   " the genuine juxtaposition rules — when no leading/trailing
@@ -48,7 +48,7 @@ function! vimfluency#pinpoints#p1A_2#lesson() abort
     \ ]
 endfunction
 
-function! vimfluency#pinpoints#p1A_2#generate() abort
+function! vimfluency#pinpoints#move_to_line_edges_all#generate() abort
   let line = s:make_line()
   " 50% of items get trailing whitespace so g_ and $ are distinct.
   " (When trailing ws is absent, last_nonblank == last_char and the

@@ -1,4 +1,4 @@
-" 4.1 — delete with word motion (dw, db). The first real Tier-4
+" delete_to_word_start_forward_backward — delete with word motion (dw, db). The first real Tier-4
 " composite training: the user must recognize, from the highlighted
 " deletion range and their cursor position, which motion describes
 " the range. The runner intentionally hides the green target cell for
@@ -29,18 +29,18 @@
 let s:words = ['alpha', 'beta', 'gamma', 'delta', 'epsilon',
   \ 'zeta', 'eta', 'theta', 'iota', 'kappa']
 
-function! vimfluency#pinpoints#p4_1#meta() abort
-  return {'id': '4.1', 'name': 'delete with word motion (dw, db)',
+function! vimfluency#pinpoints#delete_to_word_start_forward_backward#meta() abort
+  return {'id': 'delete_to_word_start_forward_backward', 'name': 'delete with word motion (dw, db)',
     \ 'aim': 60, 'allowed_keys': 'dwb', 'kind': 'editing',
-    \ 'prereqs': ['2.1', '1B.1'],
-    \ 'parallel_to': ['4.3', '4.4']}
+    \ 'prereqs': ['discriminate_delete_char_vs_line', 'move_to_word_start_forward_backward'],
+    \ 'parallel_to': ['delete_to_line_edges_beginning_end', 'delete_single_char_left_right'], 'family': 'delete'}
 endfunction
 
 function! s:rand(n) abort
   return rand() % a:n
 endfunction
 
-function! vimfluency#pinpoints#p4_1#generate() abort
+function! vimfluency#pinpoints#delete_to_word_start_forward_backward#generate() abort
   let n_words = 5
   let words = []
   let used = {}
@@ -111,7 +111,7 @@ function! vimfluency#pinpoints#p4_1#generate() abort
     \ }
 endfunction
 
-function! vimfluency#pinpoints#p4_1#lesson() abort
+function! vimfluency#pinpoints#delete_to_word_start_forward_backward#lesson() abort
   " Teaches the d-operator + word-motion composition rule, focusing on
   " the dw/db discrimination. The opening show frame names the meta-rule
   " (no specific motion to demo); the dw/db demos are try frames so the

@@ -38,32 +38,40 @@ Each `autoload/vimfluency/pinpoints/p<ID>.vim` must export:
 - `vimfluency#pinpoints#p<ID>#generate()` → `{lines, start, target, expected_motion, optimal_motions}`
 - `vimfluency#pinpoints#p<ID>#lesson()` → list of show/try frames (optional)
 
-The leading `p` is required — vim autoload segments can't start with a digit.
-`{id}` is a free-form string (e.g. `"1A.2"`).
+`{id}` is a descriptive snake_case slug (e.g. `move_single_char_left_right`,
+`save_vs_quit`). The slug is the filename minus `.vim` and is the
+identifier the user types into `:Vf <id>`. Slug starts with a letter —
+no `p` prefix needed anymore.
 
-`prereqs` is a list of pinpoint IDs or group/tier prefixes that must be at
-aim before drilling this one. Mirror `CATALOG.md` exactly — `['T0']` means
-"tier 0 must be at aim", `['1A']` means "all of group 1A must be at aim",
-`['1C.1', '1C.2']` names specific siblings. Tier and group are derived
-from the ID at runtime, not stored in `meta()`. Under the exhaustive-
-hierarchy framework, prereqs are *diagnostic, not gating* — `:VfList`
-surfaces them as suggestions ("your `dw` rate plateaued; drop back to
-`w/b`") rather than locking the learner out.
+`prereqs` is a list of specific pinpoint slugs that must be at aim before
+drilling this one. No group/tier prefix matching — every entry names a
+real pinpoint by slug. Under the exhaustive-hierarchy framework, prereqs
+are *diagnostic, not gating* — `:VfList` surfaces them as suggestions
+("your `delete_to_word_start_forward_backward` rate plateaued; drop back
+to `move_to_word_start_forward_backward`") rather than locking the
+learner out. A prereq that names a pinpoint not yet in the registry
+counts as satisfied (vacuous).
+
+Required `family` field: short identifier (`survival`, `motion`,
+`delete`, `change`, `yank`, `paste`, `v`, `indent`, `text-object-recall`,
+…) used by `:VfList` to group pinpoints visually. See
+[`.strategy/catalog-v2/verb-families.md`](.strategy/catalog-v2/verb-families.md)
+for the family taxonomy.
 
 Two optional structural-annotation fields formalize relationships across
-pinpoints (used by `:VfList` for grouping and lessons for cross-reference;
-no impact on training behavior):
+pinpoints (used by `:VfList`/`:VfHierarchy` for grouping and lessons for
+cross-reference; no impact on training behavior):
 
 - `narrower_of: '<id>'` — this pinpoint is a narrower sub-component of
-  the named broader pinpoint. Example: `1A.3` (`h l`) has
-  `narrower_of: '1A.1'` (`hjkl`). The broader form is the typical default
-  drill; the narrower form is the fallback for learners who plateau on
-  one axis specifically.
+  the named broader pinpoint. Example: `move_single_char_left_right` has
+  `narrower_of: 'move_single_char_up_down_left_right'`. The broader form
+  is the typical default drill; the narrower form is the fallback for
+  learners who plateau on one axis specifically.
 - `parallel_to: ['<id>', ...]` — this pinpoint shares rule-statement
   shape and matched lesson structure with the listed peers. Example:
-  `1B.1` (`w b`) is parallel-by-design with `1B.2` (`e ge`). Used to
-  group related pinpoints visually and to let lessons reference their
-  kin ("this is the same shape as 1B.2's rule").
+  `move_to_word_start_forward_backward` is parallel-by-design with
+  `move_to_word_end_forward_backward`. Used to group related pinpoints
+  visually and to let lessons reference their kin.
 
 Both fields default to absent / `[]`. Adding them to a pinpoint is
 schema-additive — no runner work required to land them.
@@ -74,11 +82,13 @@ For every new pinpoint, work through what the learner could use *instead* of
 the intended motion to reach the target. Adjust content (alphabet, line
 layout, target distance, start position) until the intended motion is
 **strictly the shortest path**. Document the analysis as comments at the top
-of the pinpoint file. See `autoload/vimfluency/pinpoints/p1A_1.vim` and `p1B_1.vim`
-for worked examples.
+of the pinpoint file. See
+`autoload/vimfluency/pinpoints/move_single_char_up_down_left_right.vim`
+and `move_to_word_start_forward_backward.vim` for worked examples.
 
-Visual aesthetics are negotiable; pinpoint integrity is not. The 1B.1
-vowel-heavy alphabet looks like soup — that's intentional.
+Visual aesthetics are negotiable; pinpoint integrity is not. The
+`move_to_word_start_forward_backward` vowel-heavy alphabet looks like
+soup — that's intentional.
 
 ## Buffer-shape gotcha for line-removing operators
 
@@ -90,7 +100,7 @@ lesson buffer (header rows above the content). In the training buffer, vim's
 removes the line entirely because the header rows above it satisfy vim's
 minimum-1-line rule, leaving zero content rows. The runner's
 `getline(header_offset+1, '$')` returns `[]`, no match against `['']`, the
-frame never advances. See `p2_1.vim` for a worked-around example: items
+frame never advances. See `discriminate_delete_char_vs_line.vim` for a worked-around example: items
 use a 2-line buffer so any `dd` leaves a survivor line that satisfies the
 target check in either context. Future pinpoints that delete entire lines
 should follow the same pattern.
@@ -104,9 +114,10 @@ accumulates per-motion rate, average actual motions, and total wasted motions
 `← noisy` markers.
 
 `optimal_motions` formulas in current pinpoints:
-- 1A.1: manhattan distance
-- 1A.2: constant 1
-- 1B.1: `dist` for w/b/ge, `dist + 1` for e (because `e` from start-of-word
+- `move_single_char_up_down_left_right`: manhattan distance
+- `move_to_line_edges_all`: constant 1
+- `move_to_word_start_forward_backward`, `move_to_word_end_forward_backward`:
+  `dist` for w/b/ge, `dist + 1` for e (because `e` from start-of-word
   first lands at end of *current* word)
 
 ## Lesson DI principles
@@ -167,8 +178,9 @@ accumulates per-motion rate, average actual motions, and total wasted motions
 - For whitespace-sensitive motions (`$` vs `g_`), set
   `listchars=trail:·` in the lesson buffer so the difference is observable
 
-See `autoload/vimfluency/pinpoints/p1C_1.vim` for the active-introduction
-pattern; `p1A_2.vim` for the whitespace-listchars pattern.
+See `autoload/vimfluency/pinpoints/move_to_char_forward_backward.vim`
+for the active-introduction pattern; `move_to_line_edges_all.vim` for
+the whitespace-listchars pattern.
 
 ## Buffer naming
 

@@ -1,4 +1,4 @@
-" 1A.1 — hjkl. Move cursor 1 or 2 cells in any direction (including diagonal).
+" move_single_char_up_down_left_right — hjkl. Move cursor 1 or 2 cells in any direction (including diagonal).
 "
 " Design constraints to keep hjkl the strictly shortest path:
 "   - target Chebyshev distance to start ∈ {1, 2}
@@ -12,12 +12,12 @@ let s:chars = ['a','b','c','d','e','f','g','h','i','j','k','m','n','p',
   \ 'q','r','s','t','u','v','w','x','y','z',
   \ '2','3','4','5','6','7','8','9']
 
-function! vimfluency#pinpoints#p1A_1#meta() abort
-  return {'id': '1A.1', 'name': 'hjkl', 'aim': 60,
-    \ 'allowed_keys': 'hjkl', 'prereqs': ['T0']}
+function! vimfluency#pinpoints#move_single_char_up_down_left_right#meta() abort
+  return {'id': 'move_single_char_up_down_left_right', 'name': 'hjkl', 'aim': 60,
+    \ 'allowed_keys': 'hjkl', 'prereqs': ['recognize_current_mode', 'insert_basic'], 'family': 'motion'}
 endfunction
 
-function! vimfluency#pinpoints#p1A_1#lesson() abort
+function! vimfluency#pinpoints#move_single_char_up_down_left_right#lesson() abort
   " Each motion gets its own try frame — the prompt names the rule, the
   " learner performs it. Tail of the lesson chains motions and combines
   " them diagonally.
@@ -50,7 +50,7 @@ function! s:make_line(len) abort
   return s
 endfunction
 
-function! vimfluency#pinpoints#p1A_1#generate() abort
+function! vimfluency#pinpoints#move_single_char_up_down_left_right#generate() abort
   let line_len = 20
   let n_lines = 7
   let lines = []

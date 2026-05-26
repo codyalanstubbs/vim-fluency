@@ -1,4 +1,4 @@
-" 4.3 — delete to line edge (d0, d$). Composite-behavior pinpoint
+" delete_to_line_edges_beginning_end — delete to line edge (d0, d$). Composite-behavior pinpoint
 " pairing the delete operator with the two line-edge motions. Shared
 " quality: delete to a line edge. Juxtaposed quality: direction
 " (line-start vs line-end).
@@ -24,11 +24,11 @@ let s:words = ['def', 'class', 'return', 'import', 'from', 'while',
   \ 'if', 'else', 'for', 'in', 'True', 'False', 'None', 'self',
   \ 'data', 'value']
 
-function! vimfluency#pinpoints#p4_3#meta() abort
-  return {'id': '4.3', 'name': 'd0 d$', 'aim': 35,
+function! vimfluency#pinpoints#delete_to_line_edges_beginning_end#meta() abort
+  return {'id': 'delete_to_line_edges_beginning_end', 'name': 'd0 d$', 'aim': 35,
     \ 'allowed_keys': 'd0$', 'kind': 'editing',
-    \ 'prereqs': ['1A.5'],
-    \ 'parallel_to': ['4.1', '4.4']}
+    \ 'prereqs': ['move_to_line_edges_beginning_end'],
+    \ 'parallel_to': ['delete_to_word_start_forward_backward', 'delete_single_char_left_right'], 'family': 'delete'}
 endfunction
 
 function! s:rand(n) abort
@@ -44,7 +44,7 @@ function! s:make_line() abort
   return join(parts, ' ')
 endfunction
 
-function! vimfluency#pinpoints#p4_3#generate() abort
+function! vimfluency#pinpoints#delete_to_line_edges_beginning_end#generate() abort
   let line = s:make_line()
   let llen = len(line)
   " cursor in interior (≥ 3 from each edge for non-trivial deletions)
@@ -83,7 +83,7 @@ function! vimfluency#pinpoints#p4_3#generate() abort
     \ }
 endfunction
 
-function! vimfluency#pinpoints#p4_3#lesson() abort
+function! vimfluency#pinpoints#delete_to_line_edges_beginning_end#lesson() abort
   let buf = ['if data: return value']
   return [
     \ {'kind': 'show', 'lines': buf, 'cursor': [1, 10],

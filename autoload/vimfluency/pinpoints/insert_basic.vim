@@ -1,4 +1,4 @@
-" T0.1 — Enter/leave insert mode. The four canonical insert-entry keys
+" insert_basic — Enter/leave insert mode. The four canonical insert-entry keys
 " plus the closing Esc:  i  a  I  A.
 "
 " Training shape: mode kind. The conceptual target is a GAP between two
@@ -71,12 +71,12 @@ let s:lines_endable = [
 " discriminative content; the prose just frames the task.
 let s:PROMPT = 'Enter insert mode at the marked gap, then press Esc.'
 
-function! vimfluency#pinpoints#pT0_1#meta() abort
+function! vimfluency#pinpoints#insert_basic#meta() abort
   " Catalog aim 50/min. Insert-entry is purely motor (single key +
   " Esc) once the discrimination is automatic. Starting guess.
-  return {'id': 'T0.1', 'name': 'enter / leave insert mode',
+  return {'id': 'insert_basic', 'name': 'enter / leave insert mode',
     \ 'aim': 50, 'allowed_keys': 'iaIA<Esc>', 'kind': 'mode',
-    \ 'prereqs': []}
+    \ 'prereqs': [], 'family': 'survival'}
 endfunction
 
 " DI sequence: three short show frames introduce the ▶◀ cue, then
@@ -91,7 +91,7 @@ endfunction
 " Prompts are lists of short lines (≤ ~60 chars each) so the lesson
 " buffer stays readable at any zoom — the runner splices each line
 " into its own row of the header.
-function! vimfluency#pinpoints#pT0_1#lesson() abort
+function! vimfluency#pinpoints#insert_basic#lesson() abort
   let inline = 'the quick brown fox'
   let indented = '    return value'
   let short = 'print hello'
@@ -173,7 +173,7 @@ function! s:first_nonblank_col(line) abort
   return m + 1
 endfunction
 
-function! vimfluency#pinpoints#pT0_1#generate() abort
+function! vimfluency#pinpoints#insert_basic#generate() abort
   let key = ['i', 'a', 'I', 'A'][s:rand(4)]
   if key ==# 'i'
     let line = s:lines_inline[s:rand(len(s:lines_inline))]

@@ -1,4 +1,4 @@
-" 1C.2 — t{char} / T{char}. Find a target character on the current line,
+" move_till_char_forward_backward — t{char} / T{char}. Find a target character on the current line,
 " but land one column shy of it (t = before, T = after).
 "
 " Where 1C.1's f/F land ON the char, t/T land NEXT TO it. The training target
@@ -38,13 +38,13 @@ let s:WORDS = ['return', 'import', 'result', 'parser', 'broken', 'hammer',
   \ 'broaden', 'protect', 'failure', 'rainbow', 'opinion', 'warning',
   \ 'history', 'forward', 'channel', 'monster']
 
-function! vimfluency#pinpoints#p1C_2#meta() abort
-  return {'id': '1C.2', 'name': 'find char (t T)',
-    \ 'aim': 45, 'allowed_keys': 'tT', 'prereqs': ['1C.1'],
-    \ 'parallel_to': ['1C.1']}
+function! vimfluency#pinpoints#move_till_char_forward_backward#meta() abort
+  return {'id': 'move_till_char_forward_backward', 'name': 'find char (t T)',
+    \ 'aim': 45, 'allowed_keys': 'tT', 'prereqs': ['move_to_char_forward_backward'],
+    \ 'parallel_to': ['move_to_char_forward_backward'], 'family': 'motion'}
 endfunction
 
-function! vimfluency#pinpoints#p1C_2#lesson() abort
+function! vimfluency#pinpoints#move_till_char_forward_backward#lesson() abort
   " Each motion via try frame so the learner sees the off-by-one
   " landing from their own keystroke. Frame 3 deliberately calls back
   " to f (the 1C.1 prereq) to make the discrimination concrete: same
@@ -148,7 +148,7 @@ function! s:try_generate() abort
     \ 'expected_motion': motion, 'optimal_motions': 1}
 endfunction
 
-function! vimfluency#pinpoints#p1C_2#generate() abort
+function! vimfluency#pinpoints#move_till_char_forward_backward#generate() abort
   let attempts = 0
   while attempts < 30
     let attempts += 1

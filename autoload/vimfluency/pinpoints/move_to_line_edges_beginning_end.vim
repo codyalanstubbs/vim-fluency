@@ -1,4 +1,4 @@
-" 1A.5 — 0 vs $. Narrower 2-cell sibling of 1A.2 (line start/end
+" move_to_line_edges_beginning_end — 0 vs $. Narrower 2-cell sibling of 1A.2 (line start/end
 " bundle). Shared quality: line-edge motion. Juxtaposed quality:
 " direction (line-start vs line-end). Drops the whitespace-
 " sensitivity axis (^ and g_) so the only thing the learner
@@ -15,15 +15,15 @@ let s:words = ['def', 'class', 'return', 'import', 'from', 'while',
   \ 'if', 'else', 'for', 'in', 'True', 'False', 'None', 'self',
   \ 'data', 'value']
 
-function! vimfluency#pinpoints#p1A_5#meta() abort
+function! vimfluency#pinpoints#move_to_line_edges_beginning_end#meta() abort
   " Aim slightly above 1A.2's 50/min — narrower discrimination,
   " no whitespace axis to read. Starting guess.
-  return {'id': '1A.5', 'name': '0 $', 'aim': 55,
-    \ 'allowed_keys': '0$', 'prereqs': ['T0'],
-    \ 'narrower_of': '1A.2'}
+  return {'id': 'move_to_line_edges_beginning_end', 'name': '0 $', 'aim': 55,
+    \ 'allowed_keys': '0$', 'prereqs': ['recognize_current_mode', 'insert_basic'],
+    \ 'narrower_of': 'move_to_line_edges_all', 'family': 'motion'}
 endfunction
 
-function! vimfluency#pinpoints#p1A_5#lesson() abort
+function! vimfluency#pinpoints#move_to_line_edges_beginning_end#lesson() abort
   return [
     \ {'kind': 'show', 'lines': ['if data: return value'], 'cursor': [1, 10],
     \  'prompt': '0 sends cursor to column 1; $ sends cursor to the last column. They differ only by direction.'},
@@ -51,7 +51,7 @@ function! s:make_line() abort
   return join(parts, ' ')
 endfunction
 
-function! vimfluency#pinpoints#p1A_5#generate() abort
+function! vimfluency#pinpoints#move_to_line_edges_beginning_end#generate() abort
   let line = s:make_line()
   let llen = len(line)
   " cursor in interior — at least 2 cols from each edge so neither

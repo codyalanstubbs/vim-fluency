@@ -1,4 +1,4 @@
-" 1A.3 — h vs l. Narrower 2-cell sibling of 1A.1 (hjkl). Shared
+" move_single_char_left_right — h vs l. Narrower 2-cell sibling of 1A.1 (hjkl). Shared
 " quality: single-char horizontal motion. Juxtaposed quality:
 " direction (left vs right). Use this pinpoint as a fallback for
 " learners who plateau on 1A.1 specifically on the horizontal axis.
@@ -17,17 +17,17 @@ let s:chars = ['a','b','c','d','e','f','g','h','i','j','k','m','n','p',
   \ 'q','r','s','t','u','v','w','x','y','z',
   \ '2','3','4','5','6','7','8','9']
 
-function! vimfluency#pinpoints#p1A_3#meta() abort
+function! vimfluency#pinpoints#move_single_char_left_right#meta() abort
   " Aim ~ 1A.1's 60/min. Narrower discrimination = slightly easier
   " in principle, but a learner who reaches here is here because they
   " plateaued — keep the aim honest rather than inflated. Starting
   " guess, revise on data.
-  return {'id': '1A.3', 'name': 'h l', 'aim': 60,
-    \ 'allowed_keys': 'hl', 'prereqs': ['T0'],
-    \ 'narrower_of': '1A.1', 'parallel_to': ['1A.4']}
+  return {'id': 'move_single_char_left_right', 'name': 'h l', 'aim': 60,
+    \ 'allowed_keys': 'hl', 'prereqs': ['recognize_current_mode', 'insert_basic'],
+    \ 'narrower_of': 'move_single_char_up_down_left_right', 'parallel_to': ['move_single_char_up_down'], 'family': 'motion'}
 endfunction
 
-function! vimfluency#pinpoints#p1A_3#lesson() abort
+function! vimfluency#pinpoints#move_single_char_left_right#lesson() abort
   let buf = ['abcdef', 'ghijkl', 'mnopqr', 'stuvwx', 'yzabcd']
   return [
     \ {'kind': 'show', 'lines': buf, 'cursor': [3, 4],
@@ -55,7 +55,7 @@ function! s:make_line(len) abort
   return s
 endfunction
 
-function! vimfluency#pinpoints#p1A_3#generate() abort
+function! vimfluency#pinpoints#move_single_char_left_right#generate() abort
   let line_len = 20
   let n_lines = 7
   let lines = []

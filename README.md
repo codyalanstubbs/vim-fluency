@@ -34,7 +34,7 @@ A session opens a new tab with a single buffer. The target cell is highlighted i
 
 Because it's real vim, every keystroke is interpreted natively — no need to maintain a parallel command dispatcher.
 
-For motion-only pinpoints (Tier 0/1), the target cell is enough — the buffer content doesn't change. For editing pinpoints (Tier 2+), where the target lines differ from the start lines, this single-pane display will need a "before" reference somewhere (popup, virtual text, or split). Address that when the first editing pinpoint lands.
+For motion-only pinpoints, the target cell is enough — the buffer content doesn't change. For editing pinpoints (`delete`-family, etc.), where the target lines differ from the start lines, this single-pane display will need a "before" reference somewhere (popup, virtual text, or split). Address that when the first editing pinpoint lands.
 
 ## Logs
 
@@ -42,7 +42,7 @@ JSONL appended to `$XDG_DATA_HOME/vimfluency/sessions.jsonl` (or `~/.local/share
 
 ## Adding a pinpoint
 
-See `:help vf-pinpoints` or copy `autoload/vimfluency/pinpoints/p1A_1.vim` as a template. Two functions: `meta()` returns the pinpoint metadata; `generate()` returns one item.
+See `:help vf-pinpoints` or copy `autoload/vimfluency/pinpoints/move_single_char_up_down_left_right.vim` as a template. Two functions: `meta()` returns the pinpoint metadata; `generate()` returns one item.
 
 ## v1 limits
 

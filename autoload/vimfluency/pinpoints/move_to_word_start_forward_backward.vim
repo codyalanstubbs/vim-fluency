@@ -1,4 +1,4 @@
-" 1B.1 — w b. Forward/backward to the start of a nearby word.
+" move_to_word_start_forward_backward — w b. Forward/backward to the start of a nearby word.
 "
 " Juxtaposition pair: same landing position (word start), opposite
 " direction. The discrimination axis is purely direction. The end-of-
@@ -19,13 +19,13 @@
 
 let s:chars = ['a', 'e', 'i', 'o', 'r', 's']
 
-function! vimfluency#pinpoints#p1B_1#meta() abort
-  return {'id': '1B.1', 'name': 'w b', 'aim': 45,
-    \ 'allowed_keys': 'wb', 'prereqs': ['1A'],
-    \ 'parallel_to': ['1B.2']}
+function! vimfluency#pinpoints#move_to_word_start_forward_backward#meta() abort
+  return {'id': 'move_to_word_start_forward_backward', 'name': 'w b', 'aim': 45,
+    \ 'allowed_keys': 'wb', 'prereqs': ['move_single_char_up_down_left_right'],
+    \ 'parallel_to': ['move_to_word_end_forward_backward'], 'family': 'motion'}
 endfunction
 
-function! vimfluency#pinpoints#p1B_1#lesson() abort
+function! vimfluency#pinpoints#move_to_word_start_forward_backward#lesson() abort
   " Each motion gets a try frame so the learner sees the cursor jump
   " from their own keystroke. Rule statement at the end names the
   " parallel structure. Real words used so frames stay readable;
@@ -58,7 +58,7 @@ function! s:make_word() abort
   return s
 endfunction
 
-function! vimfluency#pinpoints#p1B_1#generate() abort
+function! vimfluency#pinpoints#move_to_word_start_forward_backward#generate() abort
   let n_words = 10
   let words = []
   for _ in range(n_words)

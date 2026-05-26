@@ -1,4 +1,4 @@
-" T0.5 — Mode awareness. Given a SCREEN (a mock vim window with the
+" recognize_current_mode — Mode awareness. Given a SCREEN (a mock vim window with the
 " bottom-of-screen indicator rendered as it would appear in real vim),
 " name the mode. Recall training.
 "
@@ -60,13 +60,13 @@ let s:items = [
   \ {'answer': ':', 'modeline': ':_'},
   \ ]
 
-function! vimfluency#pinpoints#pT0_5#meta() abort
+function! vimfluency#pinpoints#recognize_current_mode#meta() abort
   " Single-keystroke answers, so aim climbs significantly above the
   " original 60/min for full mode names. Starting guess; revise on
   " data.
-  return {'id': 'T0.5', 'name': 'mode awareness',
+  return {'id': 'recognize_current_mode', 'name': 'mode awareness',
     \ 'aim': 120, 'allowed_keys': 'nivr:', 'kind': 'recall',
-    \ 'prereqs': []}
+    \ 'prereqs': [], 'family': 'survival'}
 endfunction
 
 function! s:rand(n) abort
@@ -81,7 +81,7 @@ function! s:mock_screen(modeline) abort
   return mock
 endfunction
 
-function! vimfluency#pinpoints#pT0_5#generate() abort
+function! vimfluency#pinpoints#recognize_current_mode#generate() abort
   let pick = s:items[s:rand(len(s:items))]
   return {
     \ 'lines': [],
@@ -99,11 +99,11 @@ endfunction
 " and teach the mode→key mapping, then one try frame per mode with
 " the mock screen rendered below the input (same view the training
 " presents).
-function! vimfluency#pinpoints#pT0_5#lesson() abort
+function! vimfluency#pinpoints#recognize_current_mode#lesson() abort
   return [
     \ {'kind': 'show', 'lines': [], 'cursor': [1, 1],
     \  'prompt': [
-    \    'T0.5 — name the current mode by pressing ONE key.',
+    \    'name the current mode by pressing ONE key.',
     \    'The key is (mostly) the first letter of the mode name:',
     \    '    n = normal',
     \    '    i = insert',
