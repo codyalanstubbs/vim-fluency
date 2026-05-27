@@ -143,6 +143,18 @@ endfunction
 " them to appear. Labels are plain section names — the header
 " template adds the section framing, so don't bake "family" into
 " the label (that produced "Delete family family — delete").
+" :VfList column layout. Fixed so rows scan vertically and the
+" breakdown rate column lines up under the parent's recent_rate. The
+" rate fields are always 7 display cols ("%3d/min"), right-aligned on
+" the number. LIST_RATE_COL is the 0-indexed display column where the
+" recent_rate VALUE begins; it's derived from the literal prefix so it
+" can't drift:
+"   "    " (4) + label (LABEL_W) + "aim: " (5) + aim field (7)
+"   + "  recent_rate: " (15)
+let s:LIST_LABEL_W = 50
+let s:LIST_RATE_COL = 4 + s:LIST_LABEL_W + 5 + 7 + 15
+let s:LIST_TREE_INDENT = 68
+
 let s:FAMILY_NAMES = [
   \ ['survival',          'Survival'],
   \ ['motion',            'Motions'],
@@ -315,22 +327,29 @@ function! s:build_list_view(registry, sessions_by_id, expanded) abort
       let unmet = s:unmet_prereqs(m, a:registry, status_map)
       let keys = get(m, 'keys', '')
       let label_col = empty(keys) ? id : printf('%s (%s)', id, keys)
-      let cur_str = rate > 0 ? printf('%d/min', float2nr(rate + 0.5)) : '—'
-      " Pad cur by DISPLAY width (the '—' placeholder is 1 column but
-      " 3 bytes; printf's %-Ns pads by bytes and would misalign the
-      " status column). aim and label are ASCII, so %-Ns is fine there.
-      let cur_pad = cur_str . repeat(' ', max([0, 8 - strdisplaywidth(cur_str)]))
+      " Rate fields are 7 display cols, number right-aligned on 3
+      " ("%3d/min"); no-data is a right-aligned em-dash.
+      let aim_field = printf('%3d/min', m.aim)
+      let rate_field = rate > 0 ? printf('%3d/min', float2nr(rate + 0.5))
+        \ : repeat(' ', 6) . '—'
+      " Pad status to a fixed width so the "(needs …)" column starts at
+      " a constant position regardless of which status icon/word shows.
+      let status_padded = s:status_label(status)
+      let status_padded .= repeat(' ', max([0, 15 - strdisplaywidth(status_padded)]))
       let need_str = empty(unmet) ? ''
-        \ : '  (needs ' . join(unmet, ', ') . ' at aim)'
-      call add(lines, printf('    %-50s aim: %-8s cur: %s%s%s',
-        \ label_col, printf('%d/min', m.aim), cur_pad,
-        \ s:status_label(status), need_str))
+        \ : '(needs ' . join(unmet, ', ') . ' at aim)'
+      " Trim trailing space: when there's no "(needs …)", the status
+      " padding would otherwise leave a ragged trailing run.
+      call add(lines, substitute(printf('    %-50saim: %s  recent_rate: %s  %s%s',
+        \ label_col, aim_field, rate_field, status_padded, need_str), '\s\+$', '', ''))
       " Record the main-row coordinate as the row is emitted —
       " len(lines) is its 1-indexed line number.
       let mapping[len(lines)] = id
       call add(pinpoint_rows, len(lines))
       " Per-motion breakdown — only when this pinpoint is expanded
-      " (B toggle). One indented row per motion, rate vs aim.
+      " (B toggle). The motion rate field is aligned under the parent's
+      " recent_rate; the tree connector fills the gap and motion labels
+      " right-align so their colons line up.
       if get(a:expanded, id, 0)
         let pm = s:per_motion_from_sessions(get(a:sessions_by_id, id, []))
         let motions = sort(keys(pm))
@@ -338,11 +357,20 @@ function! s:build_list_view(registry, sessions_by_id, expanded) abort
         let i = 0
         for motion in motions
           let i += 1
-          let connector = (i == n) ? '└─' : '├─'
+          let conn_char = (i == n) ? '└' : '├'
+          let mlabel = motion . ':'
+          " content = connector + dashes + space + label, a constant
+          " display width so labels right-align across rows. Ends one
+          " col short of the rate field; rate's leading space gives gap.
+          let content_w = s:LIST_RATE_COL - s:LIST_TREE_INDENT - 1
+          let dashes = content_w - 1 - 1 - strdisplaywidth(mlabel)
+          let content = conn_char . repeat('─', max([0, dashes])) . ' ' . mlabel
+          let prefix = repeat(' ', s:LIST_TREE_INDENT) . content
+          let prefix .= repeat(' ', max([0, s:LIST_RATE_COL - strdisplaywidth(prefix)]))
           let mrate = float2nr(pm[motion] + 0.5)
-          let mark = mrate >= m.aim ? '✓' : ' '
-          call add(lines, printf('        %s %-8s %d/min  %s',
-            \ connector, motion . ':', mrate, mark))
+          let mfield = printf('%3d/min', mrate)
+          let mmark = mrate >= m.aim ? '✓' : ''
+          call add(lines, substitute(prefix . mfield . '  ' . mmark, '\s\+$', '', ''))
           " Breakdown rows inherit the parent id so action keys still
           " resolve if the cursor lands here.
           let mapping[len(lines)] = id

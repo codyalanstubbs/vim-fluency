@@ -154,13 +154,14 @@ call Assert(s:rendered !~# 'family family',
   \ 'render_list: no doubled "family" in section headers')
 call Assert(s:rendered !~# 'family — motion',
   \ 'render_list: no redundant "— <slug>" tail in section headers')
-" New row format: keystrokes in parens, labelled aim:/cur:.
+" New row format: keystrokes in parens, labelled aim:/recent_rate:.
+" Numbers are right-aligned on 3 cols (%3d), so allow >=1 space.
 call Assert(s:rendered =~# 'hjkl (h/l)',
   \ 'render_list: keystrokes shown in parens after slug')
-call Assert(s:rendered =~# 'aim: 60/min',
-  \ 'render_list: aim shown with aim: N/min label')
-call Assert(s:rendered =~# 'cur: 70/min',
-  \ 'render_list: current rate shown with cur: N/min label')
+call Assert(s:rendered =~# 'aim: \+60/min',
+  \ 'render_list: aim shown with aim: N/min label, right-aligned')
+call Assert(s:rendered =~# 'recent_rate: \+70/min',
+  \ 'render_list: current rate shown with recent_rate: N/min label')
 " Per-motion breakdown is NOT auto-shown (toggled by B).
 call Assert(s:rendered !~# 'h:.*80/min',
   \ 'render_list: per-motion breakdown NOT shown by default')
@@ -172,6 +173,19 @@ call Assert(s:rendered =~# 'needs.*at aim',
   \ 'render_list: blocked-by-prereqs annotation present')
 call Assert(s:rendered =~# "Today's set",
   \ 'render_list: today-summary footer present')
+
+" Column alignment: every main pinpoint row puts "recent_rate:" at the
+" same byte offset (the label column is ASCII and padded to a fixed
+" width, so byte offset == display column here). Guards the user's
+" "columns must line up for quick scanning" requirement.
+let s:rr_cols = {}
+for s:l in s:view.lines
+  if s:l =~# '^    \S' && s:l =~# 'recent_rate:'
+    let s:rr_cols[stridx(s:l, 'recent_rate:')] = 1
+  endif
+endfor
+call AssertEq(len(s:rr_cols), 1,
+  \ 'render_list: recent_rate: column aligned across all pinpoint rows')
 
 " -- expanded breakdown (B toggle) --
 "
