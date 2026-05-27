@@ -143,9 +143,16 @@ let s:sessions_by_id = {
   \   ],
   \ 'line_edges': [s:sess('2026-01-03', 30.0)],
   \ }
-let s:rendered = join(vimfluency#_test_render_list(s:render_reg, s:sessions_by_id), "\n")
-call Assert(s:rendered =~# 'Motions family',
-  \ 'render_list: family header rendered for motion family')
+let s:view = vimfluency#_test_build_list_view(s:render_reg, s:sessions_by_id)
+let s:rendered = join(s:view.lines, "\n")
+" Header is now a clean section marker (no doubled "family", no
+" redundant slug tail). Regression guard for bug #1.
+call Assert(s:rendered =~# '── Motions ──',
+  \ 'render_list: family header rendered as clean section marker')
+call Assert(s:rendered !~# 'family family',
+  \ 'render_list: no doubled "family" in section headers')
+call Assert(s:rendered !~# 'family — motion',
+  \ 'render_list: no redundant "— <slug>" tail in section headers')
 call Assert(s:rendered =~# 'h 80/min',
   \ 'render_list: per-motion breakdown line shows individual motion rates')
 call Assert(s:rendered =~# 'l 60/min',
@@ -159,19 +166,18 @@ call Assert(s:rendered =~# 'needs.*at aim',
 call Assert(s:rendered =~# "Today's set",
   \ 'render_list: today-summary footer present')
 
-" -- list_line_to_id_map (interactive :VfList) --
+" -- coordinate map (interactive :VfList) --
 "
-" Each pinpoint row should map to its id; family headers, blank
-" lines, and the footer should NOT have mapping entries. Per-motion
-" sub-rows inherit the parent's id so action keys still resolve
-" there if the cursor lands via search or mouse. The separate
-" `pinpoint_rows` list — used by j/k navigation — contains only MAIN
-" pinpoint rows (no sub-rows), sorted ascending.
+" The view emits its own line→id map (no re-parsing of formatted
+" text). Each pinpoint row maps to its id; family headers, blank
+" lines, and the footer have no mapping entries. Per-motion sub-rows
+" inherit the parent's id so action keys still resolve there if the
+" cursor lands via search or mouse. The separate `pinpoint_rows` list
+" — used by j/k navigation — contains only MAIN rows, sorted ascending.
 
-let s:lines_for_map = vimfluency#_test_render_list(s:render_reg, s:sessions_by_id)
-let s:coords = vimfluency#_test_list_line_map(s:lines_for_map, s:render_reg)
-let s:line_map = s:coords.mapping
-let s:pp_rows = s:coords.pinpoint_rows
+let s:lines_for_map = s:view.lines
+let s:line_map = s:view.mapping
+let s:pp_rows = s:view.pinpoint_rows
 
 " Every registry id appears in the map at least once.
 let s:ids_in_map = {}
@@ -223,3 +229,19 @@ for s:l in s:lines_for_map
   endif
 endfor
 call Assert(s:has_banner, 'render_list: help banner present')
+
+" -- list_action pre-flight guards (bug #2) --
+"
+" list_action closes the list tab before dispatching, so Chart on a
+" pinpoint with no sessions and Learn on a pinpoint with no lesson
+" must be caught BEFORE the close. These helpers back those guards.
+" (Real pinpoints are on the runtimepath; the session log points at a
+" per-invocation temp dir that starts empty.)
+
+call AssertEq(vimfluency#_test_pinpoint_has_lesson('save_vs_quit'), 1,
+  \ 'has_lesson: a shipped pinpoint with a lesson() reports true')
+call AssertEq(vimfluency#_test_pinpoint_has_lesson('no_such_pinpoint'), 0,
+  \ 'has_lesson: an unknown id reports false')
+
+call AssertEq(vimfluency#_test_pinpoint_has_sessions('no_such_pinpoint'), 0,
+  \ 'has_sessions: a pinpoint with no logged sessions reports false')

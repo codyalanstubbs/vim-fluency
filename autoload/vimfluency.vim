@@ -26,8 +26,16 @@ function! vimfluency#_test_chart_bounds_zoom() abort
   return s:CHART_BOUNDS_ZOOM
 endfunction
 
-function! vimfluency#_test_render_list(registry, sessions_by_id) abort
-  return s:render_list(a:registry, a:sessions_by_id)
+function! vimfluency#_test_build_list_view(registry, sessions_by_id) abort
+  return s:build_list_view(a:registry, a:sessions_by_id)
+endfunction
+
+function! vimfluency#_test_pinpoint_has_lesson(id) abort
+  return s:pinpoint_has_lesson(a:id)
+endfunction
+
+function! vimfluency#_test_pinpoint_has_sessions(id) abort
+  return s:pinpoint_has_sessions(a:id)
 endfunction
 
 function! vimfluency#_test_status_from_sessions(meta, sessions) abort
@@ -129,19 +137,21 @@ endfunction
 
 " Human-readable family labels for navigator display. Mirrors the
 " `family` value in each pinpoint's meta(). Unknown families fall
-" back to the family slug itself. Order in this dict defines the
+" back to the family slug itself. Order in this list defines the
 " display order in :VfList; add new families in the order you want
-" them to appear.
+" them to appear. Labels are plain section names — the header
+" template adds the section framing, so don't bake "family" into
+" the label (that produced "Delete family family — delete").
 let s:FAMILY_NAMES = [
   \ ['survival',          'Survival'],
   \ ['motion',            'Motions'],
   \ ['v',                 'Visual mode'],
-  \ ['delete',            'Delete family'],
-  \ ['change',            'Change family'],
-  \ ['yank',              'Yank family'],
-  \ ['paste',             'Paste family'],
-  \ ['indent',            'Indent family'],
-  \ ['text-object-recall', 'Text-object recall (legacy)'],
+  \ ['delete',            'Delete'],
+  \ ['change',            'Change'],
+  \ ['yank',              'Yank'],
+  \ ['paste',             'Paste'],
+  \ ['indent',            'Indent'],
+  \ ['text-object-recall', 'Text objects (recall, legacy)'],
   \ ]
 
 " Read sessions.jsonl once, return {pinpoint_id → list of records}.
@@ -232,9 +242,20 @@ function! s:unmet_prereqs(meta, registry, status_map) abort
   return unmet
 endfunction
 
-" Build the list-view lines. Pure function over registry + sessions
-" so tests can drive it without touching the user's real log.
-function! s:render_list(registry, sessions_by_id) abort
+" Build the :VfList view in one pass: rendered lines PLUS the
+" line-coordinate map the interactive navigator needs. The renderer
+" is the single source of truth for which line is which pinpoint —
+" the coordinate map is recorded as each row is emitted, never
+" re-parsed from formatted text. Returns:
+"   lines         — buffer lines
+"   mapping       — 1-indexed line → pinpoint id (main rows AND
+"                   per-motion sub-rows, so action keys resolve from
+"                   either)
+"   pinpoint_rows — sorted line numbers of MAIN rows only; j/k
+"                   navigation snaps to these
+" Pure function over registry + sessions so tests can drive it
+" without touching the user's real log.
+function! s:build_list_view(registry, sessions_by_id) abort
   let status_map = {}
   let last_rate = {}
   for [id, m] in items(a:registry)
@@ -245,8 +266,7 @@ function! s:render_list(registry, sessions_by_id) abort
 
   " Group by family. Each pinpoint declares 'family' in meta(); the
   " navigator uses the FAMILY_NAMES order list to render sections in
-  " a stable, curated order. Unknown families fall through to an
-  " 'Other' bucket at the end.
+  " a stable, curated order. Unknown families fall through to the end.
   let by_family = {}
   for [id, m] in items(a:registry)
     let fam = get(m, 'family', 'other')
@@ -254,8 +274,6 @@ function! s:render_list(registry, sessions_by_id) abort
     call add(by_family[fam], id)
   endfor
 
-  " Ordered family keys: those listed in FAMILY_NAMES first (in declared
-  " order), then any remaining (alphabetical) for forward compatibility.
   let ordered_families = []
   for [fam, _label] in s:FAMILY_NAMES
     if has_key(by_family, fam)
@@ -274,6 +292,9 @@ function! s:render_list(registry, sessions_by_id) abort
   endfor
 
   let lines = []
+  let mapping = {}
+  let pinpoint_rows = []
+
   call add(lines, printf('vim-fluency: %d pinpoint(s) built',
     \ len(a:registry)))
   call add(lines, '')
@@ -284,7 +305,7 @@ function! s:render_list(registry, sessions_by_id) abort
 
   for fam in ordered_families
     let label = get(family_label, fam, fam)
-    call add(lines, printf('%s family — %s', label, fam))
+    call add(lines, printf('── %s ──', label))
     for id in sort(by_family[fam])
       let m = a:registry[id]
       let status = status_map[id]
@@ -297,6 +318,10 @@ function! s:render_list(registry, sessions_by_id) abort
       call add(lines, printf('    %-44s  %-30s  %7s  aim %-3d  %s%s',
         \ id, m.name, rate_str, m.aim,
         \ s:status_label(status), need_str))
+      " Record the main-row coordinate as the row is emitted —
+      " len(lines) is its 1-indexed line number.
+      let mapping[len(lines)] = id
+      call add(pinpoint_rows, len(lines))
       " Per-motion breakdown from the most recent session, when there
       " are 2+ motions to compare. Reveals heterogeneity hiding inside
       " a multi-motion pinpoint (e.g. ge dragging the e/ge bundle).
@@ -307,6 +332,9 @@ function! s:render_list(registry, sessions_by_id) abort
           call add(parts, printf('%s %d/min', motion, float2nr(pm[motion] + 0.5)))
         endfor
         call add(lines, '              ' . join(parts, '   '))
+        " Sub-row inherits the parent id so action keys still resolve
+        " if the cursor lands here via /search or mouse.
+        let mapping[len(lines)] = id
       endif
     endfor
     call add(lines, '')
@@ -333,7 +361,8 @@ function! s:render_list(registry, sessions_by_id) abort
   if !empty(at_aim)
     call add(lines, "At aim — consider retiring or revising aim:  " . join(at_aim, ', '))
   endif
-  return lines
+
+  return {'lines': lines, 'mapping': mapping, 'pinpoint_rows': pinpoint_rows}
 endfunction
 
 function! vimfluency#list() abort
@@ -342,54 +371,24 @@ function! vimfluency#list() abort
     echo 'no pinpoints built — see CATALOG.md'
     return
   endif
-  let lines = s:render_list(registry, s:load_sessions_grouped())
-  let coords = s:list_line_to_id_map(lines, registry)
-  call s:show_list_buffer(lines, coords)
+  let view = s:build_list_view(registry, s:load_sessions_grouped())
+  call s:show_list_buffer(view)
 endfunction
 
-" Build the line-coordinate data the interactive :VfList needs:
-"   mapping       — 1-indexed line → pinpoint id (includes per-motion
-"                   sub-rows so action keys still resolve there)
-"   pinpoint_rows — sorted list of line numbers that are MAIN pinpoint
-"                   rows (excludes sub-rows). j/k navigation snaps to
-"                   these so the cursor never lands on a sub-row or
-"                   header.
-" Pinpoint rows are emitted with exactly 4 leading spaces and the ID
-" as the first token. Per-motion sub-rows have 14 leading spaces.
-function! s:list_line_to_id_map(lines, registry) abort
-  let mapping = {}
-  let pinpoint_rows = []
-  let last_id = ''
-  for i in range(len(a:lines))
-    let line_text = a:lines[i]
-    let id = matchstr(line_text, '^    \zs\S\+')
-    if !empty(id) && has_key(a:registry, id)
-      let mapping[i + 1] = id
-      call add(pinpoint_rows, i + 1)
-      let last_id = id
-    elseif line_text =~# '^              \S' && !empty(last_id)
-      let mapping[i + 1] = last_id
-    else
-      let last_id = ''
-    endif
-  endfor
-  return {'mapping': mapping, 'pinpoint_rows': pinpoint_rows}
-endfunction
-
-function! s:show_list_buffer(lines, coords) abort
+function! s:show_list_buffer(view) abort
   tabnew
   let tabnr = tabpagenr()
   setlocal buftype=nofile bufhidden=wipe noswapfile nobuflisted
   setlocal nonumber norelativenumber nowrap signcolumn=no
   setlocal cursorline
   silent! execute 'keepalt file vf-list'
-  call setline(1, a:lines)
+  call setline(1, a:view.lines)
   setlocal nomodifiable nomodified
   let &l:statusline = ' pinpoint list   [L=Learn  T=Train  C=Chart  q=close]'
   let b:vf_summary_tabnr = tabnr
   let b:vf_summary_prev_laststatus = &laststatus
-  let b:vf_list_line_to_id = a:coords.mapping
-  let b:vf_list_pinpoint_rows = a:coords.pinpoint_rows
+  let b:vf_list_line_to_id = a:view.mapping
+  let b:vf_list_pinpoint_rows = a:view.pinpoint_rows
   set laststatus=2
 
   " Action keys: L=lesson, T=train, C=chart.
@@ -436,8 +435,14 @@ function! vimfluency#list_move(action) abort
 endfunction
 
 " Invoked by the buffer-local L/T/C mappings. Reads the pinpoint id
-" off the cursor line, closes the list tab, then launches the
-" requested action.
+" off the cursor line, confirms the action can actually proceed, then
+" closes the list tab and launches it.
+"
+" The pre-flight check matters: close_summary() destroys the list tab,
+" so if we closed first and the action then no-op'd (Chart on a
+" pinpoint with no logged sessions, Learn on a pinpoint with no
+" lesson), the list would vanish with only a fleeting message. Check
+" before closing so a no-op leaves the list intact with a hint.
 function! vimfluency#list_action(action) abort
   if !exists('b:vf_list_line_to_id') | return | endif
   let id = get(b:vf_list_line_to_id, line('.'), '')
@@ -445,6 +450,16 @@ function! vimfluency#list_action(action) abort
     echo 'cursor must be on a pinpoint row'
     return
   endif
+
+  if a:action ==# 'chart' && !s:pinpoint_has_sessions(id)
+    echo 'no sessions logged yet for ' . id . ' — train it first (T)'
+    return
+  endif
+  if a:action ==# 'learn' && !s:pinpoint_has_lesson(id)
+    echo 'no lesson written for ' . id . ' yet'
+    return
+  endif
+
   call vimfluency#close_summary()
   if a:action ==# 'train'
     call vimfluency#start(id)
@@ -455,9 +470,20 @@ function! vimfluency#list_action(action) abort
   endif
 endfunction
 
-function! vimfluency#_test_list_line_map(lines, registry) abort
-  return s:list_line_to_id_map(a:lines, a:registry)
+" True if sessions.jsonl has at least one record for this pinpoint.
+" Mirrors the filter vimfluency#chart uses to decide it has data.
+function! s:pinpoint_has_sessions(id) abort
+  let grouped = s:load_sessions_grouped()
+  return has_key(grouped, a:id) && !empty(grouped[a:id])
 endfunction
+
+" True if the pinpoint module exports a #lesson() function.
+function! s:pinpoint_has_lesson(id) abort
+  let registry = vimfluency#discover_pinpoints()
+  if !has_key(registry, a:id) | return 0 | endif
+  return exists('*vimfluency#pinpoints#' . registry[a:id].module . '#lesson')
+endfunction
+
 
 " -----------------------------------------------------------------
 " :VfHierarchy — structural view of the pinpoint registry
