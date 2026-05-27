@@ -26,8 +26,9 @@ function! vimfluency#_test_chart_bounds_zoom() abort
   return s:CHART_BOUNDS_ZOOM
 endfunction
 
-function! vimfluency#_test_build_list_view(registry, sessions_by_id) abort
-  return s:build_list_view(a:registry, a:sessions_by_id)
+function! vimfluency#_test_build_list_view(registry, sessions_by_id, ...) abort
+  let expanded = a:0 ? a:1 : {}
+  return s:build_list_view(a:registry, a:sessions_by_id, expanded)
 endfunction
 
 function! vimfluency#_test_pinpoint_has_lesson(id) abort
@@ -253,9 +254,12 @@ endfunction
 "                   either)
 "   pinpoint_rows — sorted line numbers of MAIN rows only; j/k
 "                   navigation snaps to these
+" `expanded` is a dict {id: 1} of pinpoints whose per-motion
+" breakdown should be shown (toggled by B). Breakdown rows are NOT
+" auto-shown — the default view is just the pinpoint rows.
 " Pure function over registry + sessions so tests can drive it
 " without touching the user's real log.
-function! s:build_list_view(registry, sessions_by_id) abort
+function! s:build_list_view(registry, sessions_by_id, expanded) abort
   let status_map = {}
   let last_rate = {}
   for [id, m] in items(a:registry)
@@ -298,9 +302,7 @@ function! s:build_list_view(registry, sessions_by_id) abort
   call add(lines, printf('vim-fluency: %d pinpoint(s) built',
     \ len(a:registry)))
   call add(lines, '')
-  call add(lines, 'Move to a pinpoint with j/k, then press one of the following to open it:')
-  call add(lines, '')
-  call add(lines, '    (L)earn   (T)rain   (C)hart            q closes the list')
+  call add(lines, 'Move with j/k, then:  (L)earn  (T)rain  (C)hart  (B)reakdown   ·   q closes')
   call add(lines, '')
 
   for fam in ordered_families
@@ -311,30 +313,40 @@ function! s:build_list_view(registry, sessions_by_id) abort
       let status = status_map[id]
       let rate = last_rate[id]
       let unmet = s:unmet_prereqs(m, a:registry, status_map)
-      let rate_str = rate > 0
-        \ ? printf('%d/min', float2nr(rate + 0.5)) : '—'
+      let keys = get(m, 'keys', '')
+      let label_col = empty(keys) ? id : printf('%s (%s)', id, keys)
+      let cur_str = rate > 0 ? printf('%d/min', float2nr(rate + 0.5)) : '—'
+      " Pad cur by DISPLAY width (the '—' placeholder is 1 column but
+      " 3 bytes; printf's %-Ns pads by bytes and would misalign the
+      " status column). aim and label are ASCII, so %-Ns is fine there.
+      let cur_pad = cur_str . repeat(' ', max([0, 8 - strdisplaywidth(cur_str)]))
       let need_str = empty(unmet) ? ''
         \ : '  (needs ' . join(unmet, ', ') . ' at aim)'
-      call add(lines, printf('    %-44s  %-30s  %7s  aim %-3d  %s%s',
-        \ id, m.name, rate_str, m.aim,
+      call add(lines, printf('    %-50s aim: %-8s cur: %s%s%s',
+        \ label_col, printf('%d/min', m.aim), cur_pad,
         \ s:status_label(status), need_str))
       " Record the main-row coordinate as the row is emitted —
       " len(lines) is its 1-indexed line number.
       let mapping[len(lines)] = id
       call add(pinpoint_rows, len(lines))
-      " Per-motion breakdown from the most recent session, when there
-      " are 2+ motions to compare. Reveals heterogeneity hiding inside
-      " a multi-motion pinpoint (e.g. ge dragging the e/ge bundle).
-      let pm = s:per_motion_from_sessions(get(a:sessions_by_id, id, []))
-      if len(pm) >= 2
-        let parts = []
-        for motion in sort(keys(pm))
-          call add(parts, printf('%s %d/min', motion, float2nr(pm[motion] + 0.5)))
+      " Per-motion breakdown — only when this pinpoint is expanded
+      " (B toggle). One indented row per motion, rate vs aim.
+      if get(a:expanded, id, 0)
+        let pm = s:per_motion_from_sessions(get(a:sessions_by_id, id, []))
+        let motions = sort(keys(pm))
+        let n = len(motions)
+        let i = 0
+        for motion in motions
+          let i += 1
+          let connector = (i == n) ? '└─' : '├─'
+          let mrate = float2nr(pm[motion] + 0.5)
+          let mark = mrate >= m.aim ? '✓' : ' '
+          call add(lines, printf('        %s %-8s %d/min  %s',
+            \ connector, motion . ':', mrate, mark))
+          " Breakdown rows inherit the parent id so action keys still
+          " resolve if the cursor lands here.
+          let mapping[len(lines)] = id
         endfor
-        call add(lines, '              ' . join(parts, '   '))
-        " Sub-row inherits the parent id so action keys still resolve
-        " if the cursor lands here via /search or mouse.
-        let mapping[len(lines)] = id
       endif
     endfor
     call add(lines, '')
@@ -371,7 +383,7 @@ function! vimfluency#list() abort
     echo 'no pinpoints built — see CATALOG.md'
     return
   endif
-  let view = s:build_list_view(registry, s:load_sessions_grouped())
+  let view = s:build_list_view(registry, s:load_sessions_grouped(), {})
   call s:show_list_buffer(view)
 endfunction
 
@@ -384,17 +396,19 @@ function! s:show_list_buffer(view) abort
   silent! execute 'keepalt file vf-list'
   call setline(1, a:view.lines)
   setlocal nomodifiable nomodified
-  let &l:statusline = ' pinpoint list   [L=Learn  T=Train  C=Chart  q=close]'
+  let &l:statusline = ' pinpoint list   [L=Learn  T=Train  C=Chart  B=Breakdown  q=close]'
   let b:vf_summary_tabnr = tabnr
   let b:vf_summary_prev_laststatus = &laststatus
   let b:vf_list_line_to_id = a:view.mapping
   let b:vf_list_pinpoint_rows = a:view.pinpoint_rows
+  let b:vf_list_expanded = {}
   set laststatus=2
 
-  " Action keys: L=lesson, T=train, C=chart.
+  " Action keys: L=lesson, T=train, C=chart, B=toggle breakdown.
   nnoremap <buffer> <silent> L :call vimfluency#list_action('learn')<CR>
   nnoremap <buffer> <silent> T :call vimfluency#list_action('train')<CR>
   nnoremap <buffer> <silent> C :call vimfluency#list_action('chart')<CR>
+  nnoremap <buffer> <silent> B :call vimfluency#list_toggle_breakdown()<CR>
   nnoremap <buffer> <silent> q :call vimfluency#close_summary()<CR>
 
   " Pinpoint-only navigation. j/k snap between MAIN rows (no
@@ -482,6 +496,53 @@ function! s:pinpoint_has_lesson(id) abort
   let registry = vimfluency#discover_pinpoints()
   if !has_key(registry, a:id) | return 0 | endif
   return exists('*vimfluency#pinpoints#' . registry[a:id].module . '#lesson')
+endfunction
+
+" True if the latest session for this pinpoint has 2+ motions to break
+" down. A single-motion breakdown just restates the pinpoint rate, so
+" B is a no-op below 2.
+function! s:pinpoint_has_motion_breakdown(id) abort
+  let grouped = s:load_sessions_grouped()
+  let pm = s:per_motion_from_sessions(get(grouped, a:id, []))
+  return len(pm) >= 2
+endfunction
+
+" B toggles the per-motion breakdown for the pinpoint under the cursor.
+" Rebuilds the whole buffer (cheap — a few dozen lines) with the
+" expanded set updated, then restores the cursor to the same pinpoint.
+function! vimfluency#list_toggle_breakdown() abort
+  if !exists('b:vf_list_line_to_id') | return | endif
+  let id = get(b:vf_list_line_to_id, line('.'), '')
+  if empty(id)
+    echo 'cursor must be on a pinpoint row'
+    return
+  endif
+  if !has_key(b:vf_list_expanded, id) && !s:pinpoint_has_motion_breakdown(id)
+    echo 'no per-motion breakdown for ' . id . ' yet (needs a multi-motion session)'
+    return
+  endif
+  if has_key(b:vf_list_expanded, id)
+    call remove(b:vf_list_expanded, id)
+  else
+    let b:vf_list_expanded[id] = 1
+  endif
+
+  let registry = vimfluency#discover_pinpoints()
+  let view = s:build_list_view(registry, s:load_sessions_grouped(), b:vf_list_expanded)
+  setlocal modifiable
+  silent! %delete _
+  call setline(1, view.lines)
+  setlocal nomodifiable nomodified
+  let b:vf_list_line_to_id = view.mapping
+  let b:vf_list_pinpoint_rows = view.pinpoint_rows
+
+  " Restore the cursor to the toggled pinpoint's main row.
+  for row in view.pinpoint_rows
+    if get(view.mapping, row, '') ==# id
+      call cursor(row, 1)
+      break
+    endif
+  endfor
 endfunction
 
 

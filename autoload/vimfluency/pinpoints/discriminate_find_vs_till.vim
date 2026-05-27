@@ -15,7 +15,7 @@
 
 function! vimfluency#pinpoints#discriminate_find_vs_till#meta() abort
   return {'id': 'discriminate_find_vs_till', 'name': 'discriminate f/t (F/T)',
-    \ 'aim': 35, 'allowed_keys': 'fFtT', 'prereqs': ['move_to_char_forward_backward', 'move_till_char_forward_backward'], 'family': 'motion'}
+    \ 'aim': 35, 'allowed_keys': 'fFtT', 'prereqs': ['move_to_char_forward_backward', 'move_till_char_forward_backward'], 'keys': 'f/F/t/T', 'family': 'motion'}
 endfunction
 
 function! vimfluency#pinpoints#discriminate_find_vs_till#lesson() abort

@@ -76,7 +76,7 @@ function! vimfluency#pinpoints#insert_basic#meta() abort
   " Esc) once the discrimination is automatic. Starting guess.
   return {'id': 'insert_basic', 'name': 'enter / leave insert mode',
     \ 'aim': 50, 'allowed_keys': 'iaIA<Esc>', 'kind': 'mode',
-    \ 'prereqs': [], 'family': 'survival'}
+    \ 'prereqs': [], 'keys': 'i/a/I/A', 'family': 'survival'}
 endfunction
 
 " DI sequence: three short show frames introduce the ▶◀ cue, then

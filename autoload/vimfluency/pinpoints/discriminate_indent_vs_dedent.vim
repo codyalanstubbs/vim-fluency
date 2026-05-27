@@ -34,7 +34,7 @@ function! vimfluency#pinpoints#discriminate_indent_vs_dedent#meta() abort
   " than pure motor; revise on data.
   return {'id': 'discriminate_indent_vs_dedent', 'name': 'discriminate >> vs <<',
     \ 'aim': 35, 'allowed_keys': '><', 'kind': 'editing',
-    \ 'prereqs': ['recognize_current_mode', 'insert_basic'], 'family': 'indent'}
+    \ 'prereqs': ['recognize_current_mode', 'insert_basic'], 'keys': '>>/<<', 'family': 'indent'}
 endfunction
 
 function! s:rand(n) abort

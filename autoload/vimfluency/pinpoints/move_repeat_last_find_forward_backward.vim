@@ -54,7 +54,7 @@ let s:WORDS = ['return', 'import', 'while', 'range', 'class', 'value',
 
 function! vimfluency#pinpoints#move_repeat_last_find_forward_backward#meta() abort
   return {'id': 'move_repeat_last_find_forward_backward', 'name': 'repeat last find (; ,)',
-    \ 'aim': 40, 'allowed_keys': ';,fFtT', 'prereqs': ['move_to_char_forward_backward', 'move_till_char_forward_backward'], 'family': 'motion'}
+    \ 'aim': 40, 'allowed_keys': ';,fFtT', 'prereqs': ['move_to_char_forward_backward', 'move_till_char_forward_backward'], 'keys': ';/,', 'family': 'motion'}
 endfunction
 
 function! vimfluency#pinpoints#move_repeat_last_find_forward_backward#lesson() abort

@@ -22,7 +22,7 @@ let s:chars = ['a', 'e', 'i', 'o', 'r', 's']
 function! vimfluency#pinpoints#move_to_word_start_forward_backward#meta() abort
   return {'id': 'move_to_word_start_forward_backward', 'name': 'w b', 'aim': 45,
     \ 'allowed_keys': 'wb', 'prereqs': ['move_single_char_up_down_left_right'],
-    \ 'parallel_to': ['move_to_word_end_forward_backward'], 'family': 'motion'}
+    \ 'parallel_to': ['move_to_word_end_forward_backward'], 'keys': 'w/b', 'family': 'motion'}
 endfunction
 
 function! vimfluency#pinpoints#move_to_word_start_forward_backward#lesson() abort

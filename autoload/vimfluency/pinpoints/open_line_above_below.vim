@@ -47,7 +47,7 @@ function! vimfluency#pinpoints#open_line_above_below#meta() abort
   " more for the eye to verify before committing.
   return {'id': 'open_line_above_below', 'name': 'open new line (o / O)',
     \ 'aim': 40, 'allowed_keys': 'oO<Esc>', 'kind': 'mode',
-    \ 'prereqs': ['insert_basic'], 'family': 'survival'}
+    \ 'prereqs': ['insert_basic'], 'keys': 'o/O', 'family': 'survival'}
 endfunction
 
 function! s:rand(n) abort

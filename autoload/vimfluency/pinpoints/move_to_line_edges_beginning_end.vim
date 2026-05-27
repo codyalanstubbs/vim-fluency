@@ -20,7 +20,7 @@ function! vimfluency#pinpoints#move_to_line_edges_beginning_end#meta() abort
   " no whitespace axis to read. Starting guess.
   return {'id': 'move_to_line_edges_beginning_end', 'name': '0 $', 'aim': 55,
     \ 'allowed_keys': '0$', 'prereqs': ['recognize_current_mode', 'insert_basic'],
-    \ 'narrower_of': 'move_to_line_edges_all', 'family': 'motion'}
+    \ 'narrower_of': 'move_to_line_edges_all', 'keys': '0/$', 'family': 'motion'}
 endfunction
 
 function! vimfluency#pinpoints#move_to_line_edges_beginning_end#lesson() abort

@@ -33,7 +33,7 @@ function! vimfluency#pinpoints#delete_to_word_start_forward_backward#meta() abor
   return {'id': 'delete_to_word_start_forward_backward', 'name': 'delete with word motion (dw, db)',
     \ 'aim': 60, 'allowed_keys': 'dwb', 'kind': 'editing',
     \ 'prereqs': ['discriminate_delete_char_vs_line', 'move_to_word_start_forward_backward'],
-    \ 'parallel_to': ['delete_to_line_edges_beginning_end', 'delete_single_char_left_right'], 'family': 'delete'}
+    \ 'parallel_to': ['delete_to_line_edges_beginning_end', 'delete_single_char_left_right'], 'keys': 'dw/db', 'family': 'delete'}
 endfunction
 
 function! s:rand(n) abort

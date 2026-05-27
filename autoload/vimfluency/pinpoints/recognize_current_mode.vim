@@ -66,7 +66,7 @@ function! vimfluency#pinpoints#recognize_current_mode#meta() abort
   " data.
   return {'id': 'recognize_current_mode', 'name': 'mode awareness',
     \ 'aim': 120, 'allowed_keys': 'nivr:', 'kind': 'recall',
-    \ 'prereqs': [], 'family': 'survival'}
+    \ 'prereqs': [], 'keys': 'n/i/v/r/:', 'family': 'survival'}
 endfunction
 
 function! s:rand(n) abort

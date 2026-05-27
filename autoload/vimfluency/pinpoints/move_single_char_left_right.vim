@@ -24,7 +24,7 @@ function! vimfluency#pinpoints#move_single_char_left_right#meta() abort
   " guess, revise on data.
   return {'id': 'move_single_char_left_right', 'name': 'h l', 'aim': 60,
     \ 'allowed_keys': 'hl', 'prereqs': ['recognize_current_mode', 'insert_basic'],
-    \ 'narrower_of': 'move_single_char_up_down_left_right', 'parallel_to': ['move_single_char_up_down'], 'family': 'motion'}
+    \ 'narrower_of': 'move_single_char_up_down_left_right', 'parallel_to': ['move_single_char_up_down'], 'keys': 'h/l', 'family': 'motion'}
 endfunction
 
 function! vimfluency#pinpoints#move_single_char_left_right#lesson() abort

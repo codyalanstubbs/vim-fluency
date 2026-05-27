@@ -34,7 +34,7 @@ function! vimfluency#pinpoints#recall_inner_quote_pair#meta() abort
   " Same shape, same cognitive load. Starting guess; revise on data.
   return {'id': 'recall_inner_quote_pair', 'name': 'inner quote — i" vs i' . "'",
     \ 'aim': 40, 'allowed_keys': 'i"' . "'", 'kind': 'recall',
-    \ 'prereqs': ['recognize_current_mode', 'insert_basic'], 'family': 'text-object-recall'}
+    \ 'prereqs': ['recognize_current_mode', 'insert_basic'], 'keys': "i\"/i'", 'family': 'text-object-recall'}
 endfunction
 
 function! s:rand(n) abort

@@ -143,20 +143,27 @@ let s:sessions_by_id = {
   \   ],
   \ 'line_edges': [s:sess('2026-01-03', 30.0)],
   \ }
+let s:render_reg.hjkl.keys = 'h/l'
 let s:view = vimfluency#_test_build_list_view(s:render_reg, s:sessions_by_id)
 let s:rendered = join(s:view.lines, "\n")
-" Header is now a clean section marker (no doubled "family", no
-" redundant slug tail). Regression guard for bug #1.
+" Header is a clean section marker (no doubled "family", no redundant
+" slug tail). Regression guard for review bug #1.
 call Assert(s:rendered =~# '── Motions ──',
   \ 'render_list: family header rendered as clean section marker')
 call Assert(s:rendered !~# 'family family',
   \ 'render_list: no doubled "family" in section headers')
 call Assert(s:rendered !~# 'family — motion',
   \ 'render_list: no redundant "— <slug>" tail in section headers')
-call Assert(s:rendered =~# 'h 80/min',
-  \ 'render_list: per-motion breakdown line shows individual motion rates')
-call Assert(s:rendered =~# 'l 60/min',
-  \ 'render_list: per-motion breakdown lists all motions in the dict')
+" New row format: keystrokes in parens, labelled aim:/cur:.
+call Assert(s:rendered =~# 'hjkl (h/l)',
+  \ 'render_list: keystrokes shown in parens after slug')
+call Assert(s:rendered =~# 'aim: 60/min',
+  \ 'render_list: aim shown with aim: N/min label')
+call Assert(s:rendered =~# 'cur: 70/min',
+  \ 'render_list: current rate shown with cur: N/min label')
+" Per-motion breakdown is NOT auto-shown (toggled by B).
+call Assert(s:rendered !~# 'h:.*80/min',
+  \ 'render_list: per-motion breakdown NOT shown by default')
 call Assert(s:rendered =~# '✓ at aim',
   \ 'render_list: at-aim status icon present for hjkl')
 call Assert(s:rendered =~# '○ not started',
@@ -166,14 +173,26 @@ call Assert(s:rendered =~# 'needs.*at aim',
 call Assert(s:rendered =~# "Today's set",
   \ 'render_list: today-summary footer present')
 
+" -- expanded breakdown (B toggle) --
+"
+" With hjkl expanded, its per-motion breakdown rows appear: one
+" indented row per motion, with the rate and a ✓ when at-or-above aim.
+let s:eview = vimfluency#_test_build_list_view(s:render_reg, s:sessions_by_id, {'hjkl': 1})
+let s:erendered = join(s:eview.lines, "\n")
+call Assert(s:erendered =~# 'h:.*80/min',
+  \ 'render_list expanded: h motion rate shown in breakdown')
+call Assert(s:erendered =~# 'l:.*60/min',
+  \ 'render_list expanded: l motion rate shown in breakdown')
+call Assert(s:erendered =~# '├─\|└─',
+  \ 'render_list expanded: breakdown uses tree connectors')
+
 " -- coordinate map (interactive :VfList) --
 "
 " The view emits its own line→id map (no re-parsing of formatted
 " text). Each pinpoint row maps to its id; family headers, blank
-" lines, and the footer have no mapping entries. Per-motion sub-rows
-" inherit the parent's id so action keys still resolve there if the
-" cursor lands via search or mouse. The separate `pinpoint_rows` list
-" — used by j/k navigation — contains only MAIN rows, sorted ascending.
+" lines, and the footer have no mapping entries. The separate
+" `pinpoint_rows` list — used by j/k navigation — contains only MAIN
+" rows, sorted ascending.
 
 let s:lines_for_map = s:view.lines
 let s:line_map = s:view.mapping
@@ -201,34 +220,39 @@ call Assert(s:row_hjkl > 0, 'line_map: hjkl pinpoint row found')
 call AssertEq(get(s:line_map, s:row_hjkl, ''), 'hjkl',
   \ 'line_map: hjkl row maps to "hjkl"')
 
-" hjkl has per_motion data → the next line should be the breakdown
-" row and should also map to 'hjkl' (sub-row inherits parent id).
-call AssertEq(get(s:line_map, s:row_hjkl + 1, ''), 'hjkl',
-  \ 'line_map: per-motion sub-row inherits parent pinpoint id')
-
-" pinpoint_rows: one entry per registry pinpoint, sorted ascending,
-" excludes per-motion sub-rows.
+" pinpoint_rows: one entry per registry pinpoint, sorted ascending.
+" Default (collapsed) view has no breakdown rows.
 call AssertEq(len(s:pp_rows), len(s:render_reg),
   \ 'pinpoint_rows: one entry per registry pinpoint')
 let s:sorted = sort(copy(s:pp_rows), 'N')
 call AssertEq(s:pp_rows, s:sorted,
   \ 'pinpoint_rows: sorted ascending')
-" hjkl's sub-row (line s:row_hjkl + 1) must NOT be in pinpoint_rows
-" even though it's in the line-id mapping.
-call Assert(index(s:pp_rows, s:row_hjkl + 1) == -1,
-  \ 'pinpoint_rows: excludes per-motion sub-rows')
-call Assert(index(s:pp_rows, s:row_hjkl) >= 0,
-  \ 'pinpoint_rows: includes hjkl main row')
+
+" In the EXPANDED view, breakdown rows map to the parent id but are
+" NOT in pinpoint_rows (j/k skips them).
+let s:erow_hjkl = -1
+for s:i in range(len(s:eview.lines))
+  if s:eview.lines[s:i] =~# '^    hjkl\>'
+    let s:erow_hjkl = s:i + 1
+    break
+  endif
+endfor
+call AssertEq(get(s:eview.mapping, s:erow_hjkl + 1, ''), 'hjkl',
+  \ 'expanded: breakdown row inherits parent pinpoint id')
+call Assert(index(s:eview.pinpoint_rows, s:erow_hjkl + 1) == -1,
+  \ 'expanded: breakdown row excluded from pinpoint_rows')
+call Assert(index(s:eview.pinpoint_rows, s:erow_hjkl) >= 0,
+  \ 'expanded: hjkl main row still in pinpoint_rows')
 
 " Banner rows present, and don't carry mapping entries.
 let s:has_banner = 0
 for s:l in s:lines_for_map
-  if s:l =~# '(L)earn.*(T)rain.*(C)hart'
+  if s:l =~# '(L)earn.*(T)rain.*(C)hart.*(B)reakdown'
     let s:has_banner = 1
     break
   endif
 endfor
-call Assert(s:has_banner, 'render_list: help banner present')
+call Assert(s:has_banner, 'render_list: help banner present with B')
 
 " -- list_action pre-flight guards (bug #2) --
 "
