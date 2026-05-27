@@ -405,7 +405,7 @@ function! s:show_list_buffer(view) abort
   nnoremap <buffer> <silent> G :call vimfluency#list_move('last')<CR>
 
   " Land cursor on the first pinpoint row.
-  let first_line = empty(a:coords.pinpoint_rows) ? 1 : a:coords.pinpoint_rows[0]
+  let first_line = empty(a:view.pinpoint_rows) ? 1 : a:view.pinpoint_rows[0]
   call cursor(first_line, 1)
 endfunction
 
