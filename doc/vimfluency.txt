@@ -26,21 +26,24 @@ COMMANDS                                                        *vf-commands*
     and, within each family, ordered foundational-first (fewest prereq
     layers first). A header row names the columns; each pinpoint row
     then lists, left to right: the pinpoint and its keystrokes in
-    parens, status, aim_rate, last_rate, last_date (date of the most
-    recent training session), and any unmet prereqs — columns aligned
-    for quick scanning. The cursor row is highlighted; j/k snap between
-    pinpoint rows (the header, family headers, blanks, and breakdown
-    rows are skipped). On a pinpoint row press:
+    parens, status, aim_rate, last_rate, and last_date (date of the
+    most recent training session) — columns aligned for quick
+    scanning. The cursor row is highlighted; j/k snap between pinpoint
+    rows (the header, family headers, blanks, and breakdown rows are
+    skipped). On a pinpoint row press:
         L     start a Learn session (:VfLearn) for this pinpoint
         T     start a Train session (:Vf) for this pinpoint
         C     open the celeration Chart (:VfChart) for this pinpoint
-        B     toggle a per-motion Breakdown beneath the pinpoint
+        B     toggle the Breakdown beneath the pinpoint — per-motion
+              rates from the last session, plus a "prereqs:" sub-list
+              showing every prereq (met and unmet) with its own status
         q     close the list
     gg / G jump to the first / last pinpoint. C requires logged
-    sessions, L requires a lesson, B requires a multi-motion session —
-    each is a no-op with a hint otherwise. Unmet prereqs surface in the
-    prereq(s) column and the "Today's set / Not started" footer so the
-    list doubles as a "what should I drill next" guide.
+    sessions, L requires a lesson, B requires either a multi-motion
+    session or at least one prereq — each is a no-op with a hint
+    otherwise. The "Today's set / Not started" footer plus the
+    breakdown's prereqs sub-list together answer "what should I drill
+    next."
 
 :VfQuit                                                          *:VfQuit*
     End the active session, write its log entry, restore the window layout.

@@ -2,8 +2,9 @@
 
 Pinpoints currently shipped, grouped by **family**. The actual
 behavioral hierarchy lives in each pinpoint's `prereqs` list; this
-catalog is the flat index. Use `:VfList` to see status (rate, aim,
-prereq state) — unmet prereqs surface in the "prereq(s): …" column.
+catalog is the flat index. Use `:VfList` to see status (rate, aim);
+press `B` on any row for a breakdown that lists every prereq with its
+own met/unmet status.
 
 Forward-looking spec rows (pinpoints under design but not yet built)
 live in `.strategy/catalog-v2/` slice documents, not here. This file
@@ -25,7 +26,8 @@ is the source of truth for *what's actually shipped*.
   `.strategy/data-contribution.md`.
 - **Prereqs** — specific pinpoint slugs that suggest fallbacks when a
   rate plateaus. **Diagnostic, not gating.** A learner can drill any
-  pinpoint at any time; unmet prereqs surface as "prereq(s): X" hints.
+  pinpoint at any time; press `B` on its `:VfList` row to see each
+  prereq's met/unmet status.
 - **Family** — verb-family or functional grouping (`survival`,
   `motion`, `delete`, `change`, `yank`, `paste`, `v`, `indent`, etc.).
   Used by `:VfList` to group pinpoints visually.

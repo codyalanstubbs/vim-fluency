@@ -154,7 +154,6 @@ let s:COL_STATUS    = 54
 let s:COL_AIM       = 70
 let s:COL_LAST      = 80
 let s:COL_DATE      = 91
-let s:COL_PREREQ    = 104
 let s:COL_BREAKDOWN = 62   " tree-connector start for B breakdown rows
 
 let s:FAMILY_NAMES = [
@@ -368,13 +367,14 @@ function! s:build_list_view(registry, sessions_by_id, expanded) abort
   call add(lines, 'Move with j/k, then:  (L)earn  (T)rain  (C)hart  (B)reakdown   ·   q closes')
   call add(lines, '')
 
-  " Column header row (titles live here, not inline in each row).
+  " Column header row (titles live here, not inline in each row). The
+  " main row stops at last_date; prereq status (met + unmet) shows up
+  " under the B breakdown so it doesn't widen every row.
   let head = s:place('', s:COL_LABEL, 'pinpoint (keys)')
   let head = s:place(head, s:COL_STATUS, 'status')
   let head = s:place(head, s:COL_AIM, 'aim_rate')
   let head = s:place(head, s:COL_LAST, 'last_rate')
   let head = s:place(head, s:COL_DATE, 'last_date')
-  let head = s:place(head, s:COL_PREREQ, 'prereq(s)')
   call add(lines, head)
   call add(lines, '')
 
@@ -389,7 +389,6 @@ function! s:build_list_view(registry, sessions_by_id, expanded) abort
     for id in fam_ids
       let m = a:registry[id]
       let rate = last_rate[id]
-      let unmet = s:unmet_prereqs(m, a:registry, status_map)
       let keys = get(m, 'keys', '')
       let label_col = empty(keys) ? id : printf('%s (%s)', id, keys)
       " Rate fields are 7 display cols, number right-aligned on 3
@@ -398,15 +397,12 @@ function! s:build_list_view(registry, sessions_by_id, expanded) abort
         \ : repeat(' ', 6) . '—'
       let date_field = empty(last_date[id]) ? '—' : last_date[id]
       " Each field starts at its fixed column. Status comes before the
-      " rate columns; prereqs (unmet only) are the last column.
+      " rate columns; prereqs are reserved for the B breakdown.
       let row = s:place('', s:COL_LABEL, label_col)
       let row = s:place(row, s:COL_STATUS, s:status_label(status_map[id]))
       let row = s:place(row, s:COL_AIM, printf('%3d/min', m.aim))
       let row = s:place(row, s:COL_LAST, rate_field)
       let row = s:place(row, s:COL_DATE, date_field)
-      if !empty(unmet)
-        let row = s:place(row, s:COL_PREREQ, join(unmet, ', '))
-      endif
       call add(lines, substitute(row, '\s\+$', '', ''))
       " Record the main-row coordinate as the row is emitted —
       " len(lines) is its 1-indexed line number.
@@ -417,6 +413,9 @@ function! s:build_list_view(registry, sessions_by_id, expanded) abort
       " the tree connector runs from COL_BREAKDOWN and motion labels
       " right-align so their colons line up just before the rate.
       if get(a:expanded, id, 0)
+        " Motions sub-block: per-motion rates from the last session,
+        " aligned under last_rate via the tree connector from
+        " COL_BREAKDOWN. Skipped when there's no per-motion data yet.
         let pm = s:per_motion_from_sessions(get(a:sessions_by_id, id, []))
         let motions = sort(keys(pm))
         let n = len(motions)
@@ -438,6 +437,24 @@ function! s:build_list_view(registry, sessions_by_id, expanded) abort
           " resolve if the cursor lands here.
           let mapping[len(lines)] = id
         endfor
+
+        " Prereqs sub-block: every in-registry prereq (met AND unmet),
+        " each with its own status, in the order the pinpoint declared
+        " them. Out-of-registry prereqs are skipped — they're vacuously
+        " satisfied (see CLAUDE.md). When all prereqs are vacuous or
+        " there are none, the block is omitted entirely.
+        let prereqs = filter(copy(get(m, 'prereqs', [])),
+          \ 'has_key(status_map, v:val)')
+        if !empty(prereqs)
+          call add(lines, repeat(' ', 8) . 'prereqs:')
+          let mapping[len(lines)] = id
+          for prereq in prereqs
+            let pstatus = s:status_label(status_map[prereq])
+            let pstatus .= repeat(' ', max([1, 15 - strdisplaywidth(pstatus)]))
+            call add(lines, repeat(' ', 12) . pstatus . prereq)
+            let mapping[len(lines)] = id
+          endfor
+        endif
       endif
     endfor
     call add(lines, '')
@@ -589,18 +606,25 @@ function! s:pinpoint_has_lesson(id) abort
   return exists('*vimfluency#pinpoints#' . registry[a:id].module . '#lesson')
 endfunction
 
-" True if the latest session for this pinpoint has 2+ motions to break
-" down. A single-motion breakdown just restates the pinpoint rate, so
-" B is a no-op below 2.
-function! s:pinpoint_has_motion_breakdown(id) abort
+" True when B would show something useful: either the last session has
+" 2+ motions to break down, or the pinpoint declares at least one
+" in-registry prereq whose status the user can drill into. A
+" single-motion session with no prereqs just restates the row's
+" last_rate, so B stays a no-op there.
+function! s:pinpoint_has_breakdown(id) abort
+  let registry = vimfluency#discover_pinpoints()
+  let meta = get(registry, a:id, {})
+  let prereqs = filter(copy(get(meta, 'prereqs', [])),
+    \ 'has_key(registry, v:val)')
   let grouped = s:load_sessions_grouped()
   let pm = s:per_motion_from_sessions(get(grouped, a:id, []))
-  return len(pm) >= 2
+  return !empty(prereqs) || len(pm) >= 2
 endfunction
 
-" B toggles the per-motion breakdown for the pinpoint under the cursor.
-" Rebuilds the whole buffer (cheap — a few dozen lines) with the
-" expanded set updated, then restores the cursor to the same pinpoint.
+" B toggles the breakdown for the pinpoint under the cursor — per-motion
+" rates from the last session AND a prereq status sub-list. Rebuilds
+" the whole buffer (cheap — a few dozen lines) with the expanded set
+" updated, then restores the cursor to the same pinpoint.
 function! vimfluency#list_toggle_breakdown() abort
   if !exists('b:vf_list_line_to_id') | return | endif
   let id = get(b:vf_list_line_to_id, line('.'), '')
@@ -608,8 +632,9 @@ function! vimfluency#list_toggle_breakdown() abort
     echo 'cursor must be on a pinpoint row'
     return
   endif
-  if !has_key(b:vf_list_expanded, id) && !s:pinpoint_has_motion_breakdown(id)
-    echo 'no per-motion breakdown for ' . id . ' yet (needs a multi-motion session)'
+  if !has_key(b:vf_list_expanded, id) && !s:pinpoint_has_breakdown(id)
+    echo 'nothing to break down for ' . id
+      \ . ' (no prereqs, and no multi-motion session yet)'
     return
   endif
   if has_key(b:vf_list_expanded, id)

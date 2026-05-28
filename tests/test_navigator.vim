@@ -155,10 +155,14 @@ call Assert(s:rendered !~# 'family family',
 call Assert(s:rendered !~# 'family — motion',
   \ 'render_list: no redundant "— <slug>" tail in section headers')
 " Column titles live in a header row, not inline in each data row.
-call Assert(s:rendered =~# 'status\s\+aim_rate\s\+last_rate\s\+last_date\s\+prereq(s)',
+" Prereqs aren't a row column anymore — they show up under the B
+" breakdown.
+call Assert(s:rendered =~# 'status\s\+aim_rate\s\+last_rate\s\+last_date',
   \ 'render_list: header row lists the columns in order')
 call Assert(s:rendered !~# 'aim_rate:',
   \ 'render_list: no inline aim_rate: label in data rows')
+call Assert(s:rendered !~# '\<prereq(s)\>',
+  \ 'render_list: prereq(s) is not a row column')
 " hjkl row: keys in parens, then status BEFORE the rate columns, then
 " aim_rate, last_rate, and the last training date.
 call Assert(s:rendered =~# 'hjkl (h/l)\s\+✓ at aim\s\+60/min\s\+70/min\s\+2026-01-03',
@@ -170,8 +174,14 @@ call Assert(s:rendered =~# '✓ at aim',
   \ 'render_list: at-aim status icon present for hjkl')
 call Assert(s:rendered =~# '○ not started',
   \ 'render_list: not-started icon present for pinpoints with no sessions')
-call Assert(s:rendered =~# 'word_motions[^\n]*line_edges',
-  \ 'render_list: unmet prereq listed in the prereq(s) column')
+" word_motions's prereq (line_edges) is NOT inline on its row — it
+" only surfaces under the B breakdown for word_motions (asserted below).
+let s:wm_row = ''
+for s:l in s:view.lines
+  if s:l =~# '^    word_motions\>' | let s:wm_row = s:l | break | endif
+endfor
+call Assert(s:wm_row !~# 'line_edges',
+  \ 'render_list: word_motions main row does not list its prereq')
 call Assert(s:rendered =~# "Today's set",
   \ 'render_list: today-summary footer present')
 
@@ -212,6 +222,21 @@ call Assert(s:erendered =~# 'l:.*60/min',
   \ 'render_list expanded: l motion rate shown in breakdown')
 call Assert(s:erendered =~# '├─\|└─',
   \ 'render_list expanded: breakdown uses tree connectors')
+" hjkl has no prereqs in the fixture, so its breakdown carries no
+" prereqs sub-block.
+call Assert(s:erendered !~# 'prereqs:',
+  \ 'render_list expanded: no prereqs sub-block when pinpoint has no prereqs')
+
+" word_motions has line_edges as a prereq. Expanding it should surface
+" line_edges with its OWN status (climbing — 1 session below aim) under
+" a 'prereqs:' sub-block. This is the home of the met-and-unmet prereq
+" list now that the prereq column is gone.
+let s:wview = vimfluency#_test_build_list_view(s:render_reg, s:sessions_by_id, {'word_motions': 1})
+let s:wrendered = join(s:wview.lines, "\n")
+call Assert(s:wrendered =~# 'prereqs:',
+  \ 'render_list expanded: prereqs sub-block label present')
+call Assert(s:wrendered =~# '▶ climbing\s\+line_edges',
+  \ 'render_list expanded: prereq listed with its own status icon')
 
 " -- coordinate map (interactive :VfList) --
 "
