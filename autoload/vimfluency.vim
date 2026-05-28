@@ -144,16 +144,16 @@ endfunction
 " template adds the section framing, so don't bake "family" into
 " the label (that produced "Delete family family — delete").
 " :VfList column layout. Fixed so rows scan vertically and the
-" breakdown rate column lines up under the parent's recent_rate. The
+" breakdown rate column lines up under the parent's last_rate. The
 " rate fields are always 7 display cols ("%3d/min"), right-aligned on
 " the number. LIST_RATE_COL is the 0-indexed display column where the
-" recent_rate VALUE begins; it's derived from the literal prefix so it
+" last_rate VALUE begins; it's derived from the literal prefix so it
 " can't drift:
-"   "    " (4) + label (LABEL_W) + "aim: " (5) + aim field (7)
-"   + "  recent_rate: " (15)
+"   "    " (4) + label (LABEL_W) + "aim_rate: " (10) + aim field (7)
+"   + "  last_rate: " (13)
 let s:LIST_LABEL_W = 50
-let s:LIST_RATE_COL = 4 + s:LIST_LABEL_W + 5 + 7 + 15
-let s:LIST_TREE_INDENT = 68
+let s:LIST_RATE_COL = 4 + s:LIST_LABEL_W + 10 + 7 + 13
+let s:LIST_TREE_INDENT = 73
 
 let s:FAMILY_NAMES = [
   \ ['survival',          'Survival'],
@@ -255,6 +255,25 @@ function! s:unmet_prereqs(meta, registry, status_map) abort
   return unmet
 endfunction
 
+" Transitive prereq depth: max depth of in-registry prereqs + 1; a
+" pinpoint with no (in-registry) prereqs is 0. :VfList orders each
+" family foundational-first by this depth, so a pinpoint always sorts
+" after the ones it builds on (raw prereq count would misorder — a
+" word motion has one prereq but is deeper than a single-char motion
+" with two). The cache doubles as a cycle guard (in-progress = 0).
+function! s:pinpoint_depth(id, registry, cache) abort
+  if has_key(a:cache, a:id) | return a:cache[a:id] | endif
+  let a:cache[a:id] = 0
+  let max_d = 0
+  for prereq in get(a:registry[a:id], 'prereqs', [])
+    if has_key(a:registry, prereq)
+      let max_d = max([max_d, s:pinpoint_depth(prereq, a:registry, a:cache) + 1])
+    endif
+  endfor
+  let a:cache[a:id] = max_d
+  return max_d
+endfunction
+
 " Build the :VfList view in one pass: rendered lines PLUS the
 " line-coordinate map the interactive navigator needs. The renderer
 " is the single source of truth for which line is which pinpoint —
@@ -278,6 +297,12 @@ function! s:build_list_view(registry, sessions_by_id, expanded) abort
     let s = get(a:sessions_by_id, id, [])
     let status_map[id] = s:status_from_sessions(m, s)
     let last_rate[id] = s:last_rate_from_sessions(s)
+  endfor
+
+  " Prereq depth for foundational-first ordering within each family.
+  let depth = {}
+  for id in keys(a:registry)
+    call s:pinpoint_depth(id, a:registry, depth)
   endfor
 
   " Group by family. Each pinpoint declares 'family' in meta(); the
@@ -320,7 +345,12 @@ function! s:build_list_view(registry, sessions_by_id, expanded) abort
   for fam in ordered_families
     let label = get(family_label, fam, fam)
     call add(lines, printf('── %s ──', label))
-    for id in sort(by_family[fam])
+    " Foundational-first: shallower prereq depth before deeper, ties
+    " broken alphabetically.
+    let fam_ids = sort(copy(by_family[fam]), {x, y ->
+      \ depth[x] != depth[y] ? depth[x] - depth[y]
+      \ : (x ==# y ? 0 : (x <# y ? -1 : 1))})
+    for id in fam_ids
       let m = a:registry[id]
       let status = status_map[id]
       let rate = last_rate[id]
@@ -340,7 +370,7 @@ function! s:build_list_view(registry, sessions_by_id, expanded) abort
         \ : 'prereq(s): ' . join(unmet, ', ')
       " Trim trailing space: when there's no "prereq(s):", the status
       " padding would otherwise leave a ragged trailing run.
-      call add(lines, substitute(printf('    %-50saim: %s  recent_rate: %s  %s%s',
+      call add(lines, substitute(printf('    %-50saim_rate: %s  last_rate: %s  %s%s',
         \ label_col, aim_field, rate_field, status_padded, need_str), '\s\+$', '', ''))
       " Record the main-row coordinate as the row is emitted —
       " len(lines) is its 1-indexed line number.
