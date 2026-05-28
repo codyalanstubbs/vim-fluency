@@ -38,16 +38,16 @@ COMMANDS                                                        *vf-commands*
     each is a no-op with a hint otherwise.
 
 :VfHierarchy                                              *:VfHierarchy*
-    Open a buffer showing the prereq DAG as a tree. Each pinpoint nests
-    under its primary prereq (the deepest one; ties broken
-    alphabetically), drawn with ├─/└─/│ connectors. Pinpoints with no
-    prereqs are roots, marked ●. Because a pinpoint can have more than
-    one prereq, the extras beyond the primary are shown inline as
-    '·needs <id>' tags so the full DAG stays visible. Parallel-by-design
-    peers are marked inline with ⟷, and narrower_of relationships appear
-    as 'narrower of <id>'. Complements :VfList — :VfList shows status for
-    active drilling, while :VfHierarchy shows what exists and what
-    unlocks what. Press 'q' or <Enter> to close.
+    The same interactive list as :VfList — identical rows (keystrokes,
+    aim, recent rate, status, unmet prereqs), the same L/T/C/B action
+    keys, the same j/k navigation and B per-motion breakdown — but
+    grouped by prereq signature instead of by family. Each section
+    header names the prereqs its members share ('── needs <id, …> ──'),
+    and sections are ordered topologically: roots (no prereqs) first,
+    then each section whose prereqs are satisfied by earlier sections.
+    Use it to see what unlocks what; use :VfList to browse by verb
+    family. Prereqs are diagnostic (a suggested fallback when a rate
+    plateaus), not gating.
 
 :VfQuit                                                          *:VfQuit*
     End the active session, write its log entry, restore the window layout.
