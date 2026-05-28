@@ -143,17 +143,19 @@ endfunction
 " them to appear. Labels are plain section names — the header
 " template adds the section framing, so don't bake "family" into
 " the label (that produced "Delete family family — delete").
-" :VfList column layout. Fixed so rows scan vertically and the
-" breakdown rate column lines up under the parent's last_rate. The
-" rate fields are always 7 display cols ("%3d/min"), right-aligned on
-" the number. LIST_RATE_COL is the 0-indexed display column where the
-" last_rate VALUE begins; it's derived from the literal prefix so it
-" can't drift:
-"   "    " (4) + label (LABEL_W) + "aim_rate: " (10) + aim field (7)
-"   + "  last_rate: " (13)
-let s:LIST_LABEL_W = 50
-let s:LIST_RATE_COL = 4 + s:LIST_LABEL_W + 10 + 7 + 13
-let s:LIST_TREE_INDENT = 73
+" :VfList column layout — fixed 0-indexed DISPLAY columns so the one
+" header row and every data row line up, and the per-motion breakdown
+" rates sit under the last_rate column. Column titles live in the
+" header row, not inline in each row. Numeric fields are "%3d/min"
+" (7 cols). Keep "id (keys)" under ~48 chars or the label column
+" overflows into status.
+let s:COL_LABEL     = 4
+let s:COL_STATUS    = 54
+let s:COL_AIM       = 70
+let s:COL_LAST      = 80
+let s:COL_DATE      = 91
+let s:COL_PREREQ    = 104
+let s:COL_BREAKDOWN = 62   " tree-connector start for B breakdown rows
 
 let s:FAMILY_NAMES = [
   \ ['survival',          'Survival'],
@@ -215,6 +217,16 @@ function! s:last_rate_from_sessions(sessions) abort
   return usable[0].frequency_per_min
 endfunction
 
+" Simple YYYY-MM-DD date of the most recent session (ANY session, even
+" a zero-rate quit — it's still the last time you trained this). Empty
+" string when there are no sessions.
+function! s:last_date_from_sessions(sessions) abort
+  if empty(a:sessions) | return '' | endif
+  let sorted = sort(copy(a:sessions), {a, b -> a.timestamp ==# b.timestamp ? 0
+    \ : (a.timestamp <# b.timestamp ? 1 : -1)})
+  return strpart(get(sorted[0], 'timestamp', ''), 0, 10)
+endfunction
+
 function! s:status_label(status) abort
   if a:status ==# 'at_aim'       | return '✓ at aim'
   elseif a:status ==# 'climbing' | return '▶ climbing'
@@ -274,6 +286,16 @@ function! s:pinpoint_depth(id, registry, cache) abort
   return max_d
 endfunction
 
+" Append a:text so it starts at DISPLAY column a:col, padding the line
+" with spaces to reach it. If the line already reached/passed the
+" column (a long previous field), fall back to a single separating
+" space so the row stays readable rather than silently concatenating.
+function! s:place(line, col, text) abort
+  let w = strdisplaywidth(a:line)
+  let pad = a:col > w ? a:col - w : 1
+  return a:line . repeat(' ', pad) . a:text
+endfunction
+
 " Build the :VfList view in one pass: rendered lines PLUS the
 " line-coordinate map the interactive navigator needs. The renderer
 " is the single source of truth for which line is which pinpoint —
@@ -293,10 +315,12 @@ endfunction
 function! s:build_list_view(registry, sessions_by_id, expanded) abort
   let status_map = {}
   let last_rate = {}
+  let last_date = {}
   for [id, m] in items(a:registry)
     let s = get(a:sessions_by_id, id, [])
     let status_map[id] = s:status_from_sessions(m, s)
     let last_rate[id] = s:last_rate_from_sessions(s)
+    let last_date[id] = s:last_date_from_sessions(s)
   endfor
 
   " Prereq depth for foundational-first ordering within each family.
@@ -342,6 +366,16 @@ function! s:build_list_view(registry, sessions_by_id, expanded) abort
   call add(lines, 'Move with j/k, then:  (L)earn  (T)rain  (C)hart  (B)reakdown   ·   q closes')
   call add(lines, '')
 
+  " Column header row (titles live here, not inline in each row).
+  let head = s:place('', s:COL_LABEL, 'pinpoint (keys)')
+  let head = s:place(head, s:COL_STATUS, 'status')
+  let head = s:place(head, s:COL_AIM, 'aim_rate')
+  let head = s:place(head, s:COL_LAST, 'last_rate')
+  let head = s:place(head, s:COL_DATE, 'last_date')
+  let head = s:place(head, s:COL_PREREQ, 'prereq(s)')
+  call add(lines, head)
+  call add(lines, '')
+
   for fam in ordered_families
     let label = get(family_label, fam, fam)
     call add(lines, printf('── %s ──', label))
@@ -352,34 +386,34 @@ function! s:build_list_view(registry, sessions_by_id, expanded) abort
       \ : (x ==# y ? 0 : (x <# y ? -1 : 1))})
     for id in fam_ids
       let m = a:registry[id]
-      let status = status_map[id]
       let rate = last_rate[id]
       let unmet = s:unmet_prereqs(m, a:registry, status_map)
       let keys = get(m, 'keys', '')
       let label_col = empty(keys) ? id : printf('%s (%s)', id, keys)
       " Rate fields are 7 display cols, number right-aligned on 3
       " ("%3d/min"); no-data is a right-aligned em-dash.
-      let aim_field = printf('%3d/min', m.aim)
       let rate_field = rate > 0 ? printf('%3d/min', float2nr(rate + 0.5))
         \ : repeat(' ', 6) . '—'
-      " Pad status to a fixed width so the "prereq(s):" column starts at
-      " a constant position regardless of which status icon/word shows.
-      let status_padded = s:status_label(status)
-      let status_padded .= repeat(' ', max([0, 15 - strdisplaywidth(status_padded)]))
-      let need_str = empty(unmet) ? ''
-        \ : 'prereq(s): ' . join(unmet, ', ')
-      " Trim trailing space: when there's no "prereq(s):", the status
-      " padding would otherwise leave a ragged trailing run.
-      call add(lines, substitute(printf('    %-50saim_rate: %s  last_rate: %s  %s%s',
-        \ label_col, aim_field, rate_field, status_padded, need_str), '\s\+$', '', ''))
+      let date_field = empty(last_date[id]) ? '—' : last_date[id]
+      " Each field starts at its fixed column. Status comes before the
+      " rate columns; prereqs (unmet only) are the last column.
+      let row = s:place('', s:COL_LABEL, label_col)
+      let row = s:place(row, s:COL_STATUS, s:status_label(status_map[id]))
+      let row = s:place(row, s:COL_AIM, printf('%3d/min', m.aim))
+      let row = s:place(row, s:COL_LAST, rate_field)
+      let row = s:place(row, s:COL_DATE, date_field)
+      if !empty(unmet)
+        let row = s:place(row, s:COL_PREREQ, join(unmet, ', '))
+      endif
+      call add(lines, substitute(row, '\s\+$', '', ''))
       " Record the main-row coordinate as the row is emitted —
       " len(lines) is its 1-indexed line number.
       let mapping[len(lines)] = id
       call add(pinpoint_rows, len(lines))
       " Per-motion breakdown — only when this pinpoint is expanded
-      " (B toggle). The motion rate field is aligned under the parent's
-      " recent_rate; the tree connector fills the gap and motion labels
-      " right-align so their colons line up.
+      " (B toggle). The motion rate aligns under the last_rate column;
+      " the tree connector runs from COL_BREAKDOWN and motion labels
+      " right-align so their colons line up just before the rate.
       if get(a:expanded, id, 0)
         let pm = s:per_motion_from_sessions(get(a:sessions_by_id, id, []))
         let motions = sort(keys(pm))
@@ -389,18 +423,15 @@ function! s:build_list_view(registry, sessions_by_id, expanded) abort
           let i += 1
           let conn_char = (i == n) ? '└' : '├'
           let mlabel = motion . ':'
-          " content = connector + dashes + space + label, a constant
-          " display width so labels right-align across rows. Ends one
-          " col short of the rate field; rate's leading space gives gap.
-          let content_w = s:LIST_RATE_COL - s:LIST_TREE_INDENT - 1
+          " content = connector + dashes + space + label, sized so it
+          " ends one col short of the rate field (place() adds the gap).
+          let content_w = s:COL_LAST - s:COL_BREAKDOWN - 1
           let dashes = content_w - 1 - 1 - strdisplaywidth(mlabel)
           let content = conn_char . repeat('─', max([0, dashes])) . ' ' . mlabel
-          let prefix = repeat(' ', s:LIST_TREE_INDENT) . content
-          let prefix .= repeat(' ', max([0, s:LIST_RATE_COL - strdisplaywidth(prefix)]))
+          let prefix = repeat(' ', s:COL_BREAKDOWN) . content
           let mrate = float2nr(pm[motion] + 0.5)
-          let mfield = printf('%3d/min', mrate)
-          let mmark = mrate >= m.aim ? '✓' : ''
-          call add(lines, substitute(prefix . mfield . '  ' . mmark, '\s\+$', '', ''))
+          let mfield = printf('%3d/min', mrate) . (mrate >= m.aim ? '  ✓' : '')
+          call add(lines, substitute(s:place(prefix, s:COL_LAST, mfield), '\s\+$', '', ''))
           " Breakdown rows inherit the parent id so action keys still
           " resolve if the cursor lands here.
           let mapping[len(lines)] = id

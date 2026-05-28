@@ -22,12 +22,15 @@ COMMANDS                                                        *vf-commands*
     end-of-session summary breaks down the rate per motion.
 
 :VfList                                                          *:VfList*
-    Open an interactive list of installed pinpoints, grouped by family.
-    Each row shows the keystrokes in parens, the fluency aim, the most
-    recent rate, status, and any unmet prereqs — columns aligned for
-    quick scanning. The cursor row is highlighted; j/k snap between
-    pinpoint rows (headers, blanks, and breakdown rows are skipped).
-    On a pinpoint row press:
+    Open an interactive list of installed pinpoints, grouped by family
+    and, within each family, ordered foundational-first (fewest prereq
+    layers first). A header row names the columns; each pinpoint row
+    then lists, left to right: the pinpoint and its keystrokes in
+    parens, status, aim_rate, last_rate, last_date (date of the most
+    recent training session), and any unmet prereqs — columns aligned
+    for quick scanning. The cursor row is highlighted; j/k snap between
+    pinpoint rows (the header, family headers, blanks, and breakdown
+    rows are skipped). On a pinpoint row press:
         L     start a Learn session (:VfLearn) for this pinpoint
         T     start a Train session (:Vf) for this pinpoint
         C     open the celeration Chart (:VfChart) for this pinpoint
@@ -36,8 +39,8 @@ COMMANDS                                                        *vf-commands*
     gg / G jump to the first / last pinpoint. C requires logged
     sessions, L requires a lesson, B requires a multi-motion session —
     each is a no-op with a hint otherwise. Unmet prereqs surface in the
-    "prereq(s): …" column and the "Today's set / Not started" footer
-    so the list doubles as a "what should I drill next" guide.
+    prereq(s) column and the "Today's set / Not started" footer so the
+    list doubles as a "what should I drill next" guide.
 
 :VfQuit                                                          *:VfQuit*
     End the active session, write its log entry, restore the window layout.

@@ -154,14 +154,15 @@ call Assert(s:rendered !~# 'family family',
   \ 'render_list: no doubled "family" in section headers')
 call Assert(s:rendered !~# 'family — motion',
   \ 'render_list: no redundant "— <slug>" tail in section headers')
-" New row format: keystrokes in parens, labelled aim_rate:/last_rate:.
-" Numbers are right-aligned on 3 cols (%3d), so allow >=1 space.
-call Assert(s:rendered =~# 'hjkl (h/l)',
-  \ 'render_list: keystrokes shown in parens after slug')
-call Assert(s:rendered =~# 'aim_rate: \+60/min',
-  \ 'render_list: aim shown with aim_rate: N/min label, right-aligned')
-call Assert(s:rendered =~# 'last_rate: \+70/min',
-  \ 'render_list: current rate shown with last_rate: N/min label')
+" Column titles live in a header row, not inline in each data row.
+call Assert(s:rendered =~# 'status\s\+aim_rate\s\+last_rate\s\+last_date\s\+prereq(s)',
+  \ 'render_list: header row lists the columns in order')
+call Assert(s:rendered !~# 'aim_rate:',
+  \ 'render_list: no inline aim_rate: label in data rows')
+" hjkl row: keys in parens, then status BEFORE the rate columns, then
+" aim_rate, last_rate, and the last training date.
+call Assert(s:rendered =~# 'hjkl (h/l)\s\+✓ at aim\s\+60/min\s\+70/min\s\+2026-01-03',
+  \ 'render_list: row order is label, status, aim_rate, last_rate, last_date')
 " Per-motion breakdown is NOT auto-shown (toggled by B).
 call Assert(s:rendered !~# 'h:.*80/min',
   \ 'render_list: per-motion breakdown NOT shown by default')
@@ -169,23 +170,23 @@ call Assert(s:rendered =~# '✓ at aim',
   \ 'render_list: at-aim status icon present for hjkl')
 call Assert(s:rendered =~# '○ not started',
   \ 'render_list: not-started icon present for pinpoints with no sessions')
-call Assert(s:rendered =~# 'prereq(s): \w',
-  \ 'render_list: unmet-prereqs annotation present')
+call Assert(s:rendered =~# 'word_motions[^\n]*line_edges',
+  \ 'render_list: unmet prereq listed in the prereq(s) column')
 call Assert(s:rendered =~# "Today's set",
   \ 'render_list: today-summary footer present')
 
-" Column alignment: every main pinpoint row puts "last_rate:" at the
-" same byte offset (the label column is ASCII and padded to a fixed
-" width, so byte offset == display column here). Guards the user's
-" "columns must line up for quick scanning" requirement.
-let s:rr_cols = {}
+" Column alignment: every data row puts the aim_rate "/min" at the same
+" byte offset. The label is ASCII and the single status icon before it
+" is always 3 bytes, so byte offset tracks display column here. Guards
+" the user's "columns must line up for quick scanning" requirement.
+let s:aim_cols = {}
 for s:l in s:view.lines
-  if s:l =~# '^    \S' && s:l =~# 'last_rate:'
-    let s:rr_cols[stridx(s:l, 'last_rate:')] = 1
+  if s:l =~# '^    \S' && s:l =~# '/min'
+    let s:aim_cols[stridx(s:l, '/min')] = 1
   endif
 endfor
-call AssertEq(len(s:rr_cols), 1,
-  \ 'render_list: last_rate: column aligned across all pinpoint rows')
+call AssertEq(len(s:aim_cols), 1,
+  \ 'render_list: aim_rate column aligned across all pinpoint rows')
 
 " Foundational-first ordering within a family: word_motions (depth 1,
 " prereq line_edges) renders after the depth-0 motions it builds on.
