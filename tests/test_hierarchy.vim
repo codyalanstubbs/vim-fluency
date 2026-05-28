@@ -1,7 +1,8 @@
-" Tests for :VfHierarchy's rendering. Build a tiny fixture registry
-" and check that pinpoints are grouped by prereq signature, that
-" sections render in topological order, and that parallel_to /
-" narrower_of annotations appear inline.
+" Tests for :VfHierarchy's prereq-tree rendering. Build a tiny fixture
+" registry and check that each pinpoint nests under its primary prereq,
+" that roots carry the ● marker, that secondary prereqs surface as
+" ·needs tags, and that parallel_to / narrower_of annotations appear
+" inline. Children are deeper-indented than their parent.
 
 let s:reg = {
   \ 'insert_basic': {'id': 'insert_basic', 'name': 'enter / leave insert',
@@ -31,31 +32,61 @@ let s:text = join(s:lines, "\n")
 call Assert(s:text =~# 'vim-fluency hierarchy',
   \ 'render_hierarchy: header present')
 
-" Every pinpoint appears exactly once across the body.
-for s:id in keys(s:reg)
-  let s:n_rows = 0
-  for s:l in s:lines
-    if s:l =~# '^\s\+' . s:id . '\>'
-      let s:n_rows += 1
+" A node line places the id right after a tree connector ('─ <id>').
+" Annotation mentions ('·needs <id>', '⟷ <id>', 'narrower of <id>') are
+" preceded by a space, not the connector, so they don't count as nodes.
+function! s:node_line(lines, id) abort
+  for l in a:lines
+    if l =~# '─ ' . a:id . '\>'
+      return l
     endif
   endfor
-  call AssertEq(s:n_rows, 1,
-    \ 'render_hierarchy: ' . s:id . ' appears in exactly one section')
+  return ''
+endfunction
+
+" Display-column where the id starts on its node line = width of the
+" tree art before it. Deeper nodes have wider art.
+function! s:indent_of(lines, id) abort
+  let l = s:node_line(a:lines, a:id)
+  return strdisplaywidth(strpart(l, 0, match(l, a:id . '\>')))
+endfunction
+
+" Every pinpoint appears as a node exactly once.
+for s:id in keys(s:reg)
+  let s:n = 0
+  for s:l in s:lines
+    if s:l =~# '─ ' . s:id . '\>' | let s:n += 1 | endif
+  endfor
+  call AssertEq(s:n, 1, 'render_hierarchy: ' . s:id . ' is a node exactly once')
 endfor
 
-" Section headers for the prereq signatures present in the fixture.
-call Assert(s:text =~# 'no prereqs',
-  \ 'render_hierarchy: roots section header present')
-call Assert(s:text =~# 'depends on insert_basic\>',
-  \ 'render_hierarchy: insert_basic-only section header present')
-call Assert(s:text =~# 'depends on insert_basic, recognize_current_mode',
-  \ 'render_hierarchy: T0-equivalent section header present')
-call Assert(s:text =~# 'depends on hjkl_broad',
-  \ 'render_hierarchy: hjkl-prereq section header present')
+" Roots carry the ● marker; non-roots do not.
+call Assert(s:text =~# '●─ insert_basic\>',
+  \ 'render_hierarchy: insert_basic is a ● root')
+call Assert(s:text =~# '●─ recognize_current_mode\>',
+  \ 'render_hierarchy: recognize_current_mode is a ● root')
+call Assert(s:node_line(s:lines, 'hjkl_broad') !~# '●',
+  \ 'render_hierarchy: hjkl_broad is not a root')
 
-" Topological order: roots before "depends on insert_basic" (which depends
-" on a root), which is before "depends on hjkl_broad" (depends on something
-" at depth 1).
+" Primary parent: hjkl_broad's prereqs tie at depth 0, so insert_basic
+" (alphabetically first) is the parent and recognize_current_mode shows
+" as a ·needs tag.
+call Assert(s:node_line(s:lines, 'hjkl_broad') =~# '·needs recognize_current_mode',
+  \ 'render_hierarchy: hjkl_broad shows ·needs recognize_current_mode')
+
+" Inline structural annotations.
+call Assert(s:node_line(s:lines, 'hl') =~# 'narrower of hjkl_broad',
+  \ 'render_hierarchy: hl shows narrower of hjkl_broad')
+call Assert(s:node_line(s:lines, 'wb') =~# '⟷ ege',
+  \ 'render_hierarchy: wb shows ⟷ ege')
+
+" Nesting: a child is indented deeper than its parent.
+call Assert(s:indent_of(s:lines, 'hjkl_broad') > s:indent_of(s:lines, 'insert_basic'),
+  \ 'render_hierarchy: hjkl_broad indented under insert_basic')
+call Assert(s:indent_of(s:lines, 'wb') > s:indent_of(s:lines, 'hjkl_broad'),
+  \ 'render_hierarchy: wb indented under hjkl_broad')
+
+" Parent appears before child in the rendered order.
 function! s:index_of(lines, pattern) abort
   for i in range(len(a:lines))
     if a:lines[i] =~# a:pattern | return i | endif
@@ -63,20 +94,9 @@ function! s:index_of(lines, pattern) abort
   return -1
 endfunction
 
-let s:idx_roots   = s:index_of(s:lines, 'no prereqs')
-let s:idx_ib_only = s:index_of(s:lines, 'depends on insert_basic\>')
-let s:idx_t0_grp  = s:index_of(s:lines, 'depends on insert_basic, recognize_current_mode')
-let s:idx_hjkl    = s:index_of(s:lines, 'depends on hjkl_broad')
-
-call Assert(s:idx_roots >= 0 && s:idx_roots < s:idx_ib_only,
-  \ 'render_hierarchy: roots section precedes "depends on insert_basic"')
-call Assert(s:idx_t0_grp < s:idx_hjkl,
-  \ 'render_hierarchy: T0-equivalent section precedes hjkl-prereq section')
-
-" parallel_to inline.
-call Assert(s:text =~# 'wb\s\+w b.*⟷.*ege',
-  \ 'render_hierarchy: wb shows ⟷ ege inline')
-
-" narrower_of inline.
-call Assert(s:text =~# 'hl\s\+h l.*narrower of hjkl_broad',
-  \ 'render_hierarchy: hl shows narrower of hjkl_broad inline')
+call Assert(s:index_of(s:lines, '●─ insert_basic\>')
+  \ < s:index_of(s:lines, '─ hjkl_broad\>'),
+  \ 'render_hierarchy: insert_basic root precedes hjkl_broad')
+call Assert(s:index_of(s:lines, '─ hjkl_broad\>')
+  \ < s:index_of(s:lines, '─ wb\>'),
+  \ 'render_hierarchy: hjkl_broad precedes its child wb')

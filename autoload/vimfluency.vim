@@ -593,60 +593,81 @@ function! vimfluency#_test_render_hierarchy(registry) abort
 endfunction
 
 function! s:render_hierarchy(registry) abort
-  " Group pinpoints by their prereq signature so each section header
-  " names exactly what must be at aim before tackling its members.
-  " Sections render in topological order: roots (no prereqs) first,
-  " then sections whose prereqs are satisfied by earlier sections.
-  let sections = {}
-  for [id, m] in items(a:registry)
-    let prereqs = get(m, 'prereqs', [])
-    let key = empty(prereqs) ? '' : join(sort(copy(prereqs)), ', ')
-    if !has_key(sections, key) | let sections[key] = [] | endif
-    call add(sections[key], id)
-  endfor
-
-  " Depth of each pinpoint = max(depth of its prereqs) + 1. Group
-  " prereqs (e.g. 'T0', '1A') resolve to the max depth across every
-  " matching pinpoint in the registry.
+  " Build a prereq tree. Each pinpoint nests under its PRIMARY parent —
+  " the in-registry prereq with the greatest depth (ties broken
+  " alphabetically). Any remaining prereqs are shown inline as a
+  " '·needs <id>' tag so the full DAG stays visible even though the
+  " layout is a tree. Pinpoints with no in-registry prereq are roots.
   let depth_cache = {}
   for id in keys(a:registry)
     call s:pinpoint_depth(id, a:registry, depth_cache)
   endfor
 
-  " Section depth = max depth of its members. Sort sections by depth,
-  " then alphabetically by signature for stable ties.
-  let section_keys = keys(sections)
-  call sort(section_keys, {a, b ->
-    \ s:section_depth(a, sections, depth_cache) - s:section_depth(b, sections, depth_cache)
-    \ != 0 ? s:section_depth(a, sections, depth_cache) - s:section_depth(b, sections, depth_cache)
-    \ : (a ==# b ? 0 : (a <# b ? -1 : 1))})
+  let children = {}      " primary parent id -> [child ids]
+  let secondary = {}     " id -> [non-primary in-registry prereqs]
+  let roots = []
+  for [id, m] in items(a:registry)
+    let prereqs = filter(copy(get(m, 'prereqs', [])), 'has_key(a:registry, v:val)')
+    if empty(prereqs)
+      call add(roots, id)
+      let secondary[id] = []
+      continue
+    endif
+    " Primary parent: deepest prereq, ties broken alphabetically.
+    let primary = prereqs[0]
+    for p in prereqs[1:]
+      if depth_cache[p] > depth_cache[primary]
+        \ || (depth_cache[p] == depth_cache[primary] && p <# primary)
+        let primary = p
+      endif
+    endfor
+    if !has_key(children, primary) | let children[primary] = [] | endif
+    call add(children[primary], id)
+    let secondary[id] = sort(filter(copy(prereqs), 'v:val !=# primary'))
+  endfor
+
+  " Walk the forest into row records {tree, id, annot}.
+  let rows = []
+  call sort(roots)
+  let n = len(roots)
+  let i = 0
+  for r in roots
+    let i += 1
+    call s:hierarchy_walk(r, a:registry, children, secondary, '', i == n, 1, rows)
+  endfor
+
+  " Align the annotation column to the widest tree+id across all rows.
+  let align = 0
+  for row in rows
+    let align = max([align, strdisplaywidth(row.tree . row.id)])
+  endfor
+  let align += 3
 
   let lines = []
   call add(lines, printf('vim-fluency hierarchy — %d pinpoint(s) built', len(a:registry)))
   call add(lines, '')
-  call add(lines, 'Sections group pinpoints by their prereq signature, in topological')
-  call add(lines, 'order (roots first; each later section''s prereqs are satisfied by')
-  call add(lines, 'pinpoints in earlier sections). ⟷ marks parallel-by-design peers.')
-  call add(lines, 'Prereqs are diagnostic — they suggest fallbacks if a rate plateaus,')
-  call add(lines, 'but do not gate the learner from any pinpoint.')
+  call add(lines, 'Prereq tree: each pinpoint nests under its primary prereq. ● marks a')
+  call add(lines, 'root (no prereqs). A pinpoint with more than one prereq shows the')
+  call add(lines, 'extras as ·needs tags. Prereqs are diagnostic — they suggest fallbacks')
+  call add(lines, 'if a rate plateaus, but do not gate the learner from any pinpoint.')
   call add(lines, '')
 
-  for key in section_keys
-    let header = empty(key)
-      \ ? '── no prereqs (roots) ──'
-      \ : '── depends on ' . key . ' ──'
-    call add(lines, header)
-    for id in sort(sections[key])
-      call add(lines, s:render_hierarchy_line(id, a:registry))
-    endfor
-    call add(lines, '')
+  for row in rows
+    let left = row.tree . row.id
+    if empty(row.annot)
+      call add(lines, left)
+    else
+      let pad = repeat(' ', max([1, align - strdisplaywidth(left)]))
+      call add(lines, left . pad . row.annot)
+    endif
   endfor
 
+  call add(lines, '')
   call add(lines, 'Legend:')
+  call add(lines, '  ●            root pinpoint — no prereqs')
+  call add(lines, '  ·needs <id>  an additional prereq beyond the parent shown above')
   call add(lines, '  ⟷            parallel-by-design — matched rule shape, structural peer')
   call add(lines, '  narrower of  this pinpoint is a strict sub-component of the named broader one')
-  call add(lines, '  prereqs      informational (named in the section header); the navigator')
-  call add(lines, '               suggests fallbacks but does not gate')
   call add(lines, '')
   call add(lines, ' Press q or <Enter> to close.')
 
@@ -685,32 +706,42 @@ function! s:pinpoint_depth(id, registry, cache) abort
   return max_d
 endfunction
 
-function! s:section_depth(key, sections, depth_cache) abort
-  let max_d = 0
-  for id in a:sections[a:key]
-    let d = a:depth_cache[id]
-    if d > max_d | let max_d = d | endif
+" Recursively append a node and its children to a:rows. a:prefix is the
+" accumulated ancestor tree-art; a:is_last says whether this node is the
+" last among its siblings (drives └ vs ├ and the child continuation
+" segment); a:is_root swaps the connector glyph for the ● root marker.
+function! s:hierarchy_walk(id, registry, children, secondary, prefix, is_last, is_root, rows) abort
+  let connector = a:is_root ? '●─ ' : (a:is_last ? '└─ ' : '├─ ')
+  call add(a:rows, {
+    \ 'tree': a:prefix . connector,
+    \ 'id': a:id,
+    \ 'annot': s:hierarchy_annot(a:id, a:registry, a:secondary)})
+  let kids = sort(copy(get(a:children, a:id, [])))
+  let seg = a:is_last ? '   ' : '│  '
+  let n = len(kids)
+  let i = 0
+  for kid in kids
+    let i += 1
+    call s:hierarchy_walk(kid, a:registry, a:children, a:secondary,
+      \ a:prefix . seg, i == n, 0, a:rows)
   endfor
-  return max_d
 endfunction
 
-function! s:render_hierarchy_line(id, registry) abort
+function! s:hierarchy_annot(id, registry, secondary) abort
   let m = a:registry[a:id]
-  let id_col = printf('%-44s', a:id)
-  let name_col = printf('%-30s', m.name)
-
-  let annotations = []
+  let parts = []
+  for p in get(a:secondary, a:id, [])
+    call add(parts, '·needs ' . p)
+  endfor
   let narrower = get(m, 'narrower_of', '')
   if !empty(narrower)
-    call add(annotations, 'narrower of ' . narrower)
+    call add(parts, 'narrower of ' . narrower)
   endif
   let parallel = get(m, 'parallel_to', [])
   if !empty(parallel)
-    call add(annotations, '⟷ ' . join(parallel, ', '))
+    call add(parts, '⟷ ' . join(parallel, ', '))
   endif
-  let annot_str = empty(annotations) ? '' : ('  ' . join(annotations, '  ·  '))
-
-  return '  ' . id_col . '  ' . name_col . annot_str
+  return join(parts, '   ')
 endfunction
 
 function! s:show_hierarchy_buffer(lines) abort
