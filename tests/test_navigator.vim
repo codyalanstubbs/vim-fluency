@@ -169,8 +169,8 @@ call Assert(s:rendered =~# '✓ at aim',
   \ 'render_list: at-aim status icon present for hjkl')
 call Assert(s:rendered =~# '○ not started',
   \ 'render_list: not-started icon present for pinpoints with no sessions')
-call Assert(s:rendered =~# 'needs.*at aim',
-  \ 'render_list: blocked-by-prereqs annotation present')
+call Assert(s:rendered =~# 'prereq(s): \w',
+  \ 'render_list: unmet-prereqs annotation present')
 call Assert(s:rendered =~# "Today's set",
   \ 'render_list: today-summary footer present')
 

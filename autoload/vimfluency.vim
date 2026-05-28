@@ -332,13 +332,13 @@ function! s:build_list_view(registry, sessions_by_id, expanded) abort
       let aim_field = printf('%3d/min', m.aim)
       let rate_field = rate > 0 ? printf('%3d/min', float2nr(rate + 0.5))
         \ : repeat(' ', 6) . '—'
-      " Pad status to a fixed width so the "(needs …)" column starts at
+      " Pad status to a fixed width so the "prereq(s):" column starts at
       " a constant position regardless of which status icon/word shows.
       let status_padded = s:status_label(status)
       let status_padded .= repeat(' ', max([0, 15 - strdisplaywidth(status_padded)]))
       let need_str = empty(unmet) ? ''
-        \ : '(needs ' . join(unmet, ', ') . ' at aim)'
-      " Trim trailing space: when there's no "(needs …)", the status
+        \ : 'prereq(s): ' . join(unmet, ', ')
+      " Trim trailing space: when there's no "prereq(s):", the status
       " padding would otherwise leave a ragged trailing run.
       call add(lines, substitute(printf('    %-50saim: %s  recent_rate: %s  %s%s',
         \ label_col, aim_field, rate_field, status_padded, need_str), '\s\+$', '', ''))

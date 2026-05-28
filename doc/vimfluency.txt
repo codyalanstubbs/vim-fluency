@@ -36,7 +36,7 @@ COMMANDS                                                        *vf-commands*
     gg / G jump to the first / last pinpoint. C requires logged
     sessions, L requires a lesson, B requires a multi-motion session —
     each is a no-op with a hint otherwise. Unmet prereqs surface in the
-    "(needs … at aim)" column and the "Today's set / Not started" footer
+    "prereq(s): …" column and the "Today's set / Not started" footer
     so the list doubles as a "what should I drill next" guide.
 
 :VfQuit                                                          *:VfQuit*
