@@ -206,25 +206,30 @@ function! s:status_from_sessions(meta, sessions) abort
   return 'at_aim'
 endfunction
 
-" Most recent non-zero rate, or 0.0 if none.
-function! s:last_rate_from_sessions(sessions) abort
-  if empty(a:sessions) | return 0.0 | endif
+" Most recent non-zero-rate session, or {} if none. Sole source-of-truth
+" for what "the last training session" means in :VfList — last_rate and
+" last_date derive from the same record so they can't drift, and a
+" zero-rate quit doesn't count as "trained."
+function! s:last_session(sessions) abort
+  if empty(a:sessions) | return {} | endif
   let usable = filter(copy(a:sessions),
     \ 'get(v:val, "frequency_per_min", 0) > 0')
-  if empty(usable) | return 0.0 | endif
+  if empty(usable) | return {} | endif
   call sort(usable, {a, b -> a.timestamp ==# b.timestamp ? 0
     \ : (a.timestamp <# b.timestamp ? 1 : -1)})
-  return usable[0].frequency_per_min
+  return usable[0]
 endfunction
 
-" Simple YYYY-MM-DD date of the most recent session (ANY session, even
-" a zero-rate quit — it's still the last time you trained this). Empty
-" string when there are no sessions.
+function! s:last_rate_from_sessions(sessions) abort
+  let s = s:last_session(a:sessions)
+  return empty(s) ? 0.0 : s.frequency_per_min
+endfunction
+
+" Simple YYYY-MM-DD date of the last training session (the same record
+" last_rate comes from). Empty string when there are no usable sessions.
 function! s:last_date_from_sessions(sessions) abort
-  if empty(a:sessions) | return '' | endif
-  let sorted = sort(copy(a:sessions), {a, b -> a.timestamp ==# b.timestamp ? 0
-    \ : (a.timestamp <# b.timestamp ? 1 : -1)})
-  return strpart(get(sorted[0], 'timestamp', ''), 0, 10)
+  let s = s:last_session(a:sessions)
+  return empty(s) ? '' : strpart(get(s, 'timestamp', ''), 0, 10)
 endfunction
 
 function! s:status_label(status) abort
@@ -234,17 +239,14 @@ function! s:status_label(status) abort
   endif
 endfunction
 
-" Most recent non-zero session's per_motion dict, or {} if none. The
-" runner stores per_motion as {motion → {rate_per_min, correct, ...}}.
-" Returns a flat {motion → rate_per_min (float)} for display.
+" Per-motion breakdown from the SAME session last_rate / last_date come
+" from, or {} if none. Returns a flat {motion → rate_per_min (float)}
+" for display (the runner stores per_motion as {motion → {rate_per_min,
+" correct, ...}}).
 function! s:per_motion_from_sessions(sessions) abort
-  if empty(a:sessions) | return {} | endif
-  let usable = filter(copy(a:sessions),
-    \ 'get(v:val, "frequency_per_min", 0) > 0')
-  if empty(usable) | return {} | endif
-  call sort(usable, {a, b -> a.timestamp ==# b.timestamp ? 0
-    \ : (a.timestamp <# b.timestamp ? 1 : -1)})
-  let pm = get(usable[0], 'per_motion', {})
+  let s = s:last_session(a:sessions)
+  if empty(s) | return {} | endif
+  let pm = get(s, 'per_motion', {})
   let out = {}
   for [motion, stats] in items(pm)
     let out[motion] = get(stats, 'rate_per_min', 0)
