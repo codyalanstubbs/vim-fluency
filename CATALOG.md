@@ -3,7 +3,7 @@
 Pinpoints currently shipped, grouped by **family**. The actual
 behavioral hierarchy lives in each pinpoint's `prereqs` list; this
 catalog is the flat index. Use `:VfList` to see status (rate, aim,
-prereq state) and `:VfHierarchy` to see the prereq DAG.
+prereq state) — unmet prereqs surface in the "(needs …)" column.
 
 Forward-looking spec rows (pinpoints under design but not yet built)
 live in `.strategy/catalog-v2/` slice documents, not here. This file
@@ -115,5 +115,5 @@ Planned families (per `verb-families.md`):
 - `p` — paste family (`p/P`, `gp/gP`, `]p/]P`, count-prefix)
 - register cross-cutting axis (`"a`, `"_`, `"+` prefixes on d/y/p)
 
-Run `:VfHierarchy` for the live prereq DAG of what's currently
-shipped.
+Each pinpoint's `prereqs` list defines what unlocks what; `:VfList`
+surfaces unmet prereqs per row.

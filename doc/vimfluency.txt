@@ -35,19 +35,9 @@ COMMANDS                                                        *vf-commands*
         q     close the list
     gg / G jump to the first / last pinpoint. C requires logged
     sessions, L requires a lesson, B requires a multi-motion session —
-    each is a no-op with a hint otherwise.
-
-:VfHierarchy                                              *:VfHierarchy*
-    The same interactive list as :VfList — identical rows (keystrokes,
-    aim, recent rate, status, unmet prereqs), the same L/T/C/B action
-    keys, the same j/k navigation and B per-motion breakdown — but
-    grouped by prereq signature instead of by family. Each section
-    header names the prereqs its members share ('── needs <id, …> ──'),
-    and sections are ordered topologically: roots (no prereqs) first,
-    then each section whose prereqs are satisfied by earlier sections.
-    Use it to see what unlocks what; use :VfList to browse by verb
-    family. Prereqs are diagnostic (a suggested fallback when a rate
-    plateaus), not gating.
+    each is a no-op with a hint otherwise. Unmet prereqs surface in the
+    "(needs … at aim)" column and the "Today's set / Not started" footer
+    so the list doubles as a "what should I drill next" guide.
 
 :VfQuit                                                          *:VfQuit*
     End the active session, write its log entry, restore the window layout.

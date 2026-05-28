@@ -59,8 +59,8 @@ Required `family` field: short identifier (`survival`, `motion`,
 for the family taxonomy.
 
 Two optional structural-annotation fields formalize relationships across
-pinpoints (used by `:VfList`/`:VfHierarchy` for grouping and lessons for
-cross-reference; no impact on training behavior):
+pinpoints (used by lessons for cross-reference; no impact on training
+behavior):
 
 - `narrower_of: '<id>'` — this pinpoint is a narrower sub-component of
   the named broader pinpoint. Example: `move_single_char_left_right` has

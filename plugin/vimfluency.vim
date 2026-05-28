@@ -13,7 +13,6 @@ endif
 
 command! -nargs=* -complete=customlist,vimfluency#complete Vf call vimfluency#start(<f-args>)
 command! VfList call vimfluency#list()
-command! VfHierarchy call vimfluency#hierarchy()
 command! VfQuit call vimfluency#stop('user')
 command! -nargs=? -complete=customlist,vimfluency#complete VfHistory call vimfluency#history(<f-args>)
 command! -nargs=1 -complete=customlist,vimfluency#complete VfLearn call vimfluency#learn(<f-args>)

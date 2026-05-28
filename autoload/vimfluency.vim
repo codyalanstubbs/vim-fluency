@@ -255,26 +255,23 @@ function! s:unmet_prereqs(meta, registry, status_map) abort
   return unmet
 endfunction
 
-" Build a grouped, interactive list view — the shared engine behind
-" both :VfList and :VfHierarchy. Both show the SAME pinpoint rows
-" (keys, aim, recent_rate, status, unmet prereqs, optional per-motion
-" breakdown) and the SAME navigation/action keys; they differ only in
-" how rows are partitioned into sections and in the intro banner.
-"   `sections` — pre-ordered list of [header_string, [sorted ids]].
-"   `banner`   — intro lines (including the trailing blank).
-" Returns:
+" Build the :VfList view in one pass: rendered lines PLUS the
+" line-coordinate map the interactive navigator needs. The renderer
+" is the single source of truth for which line is which pinpoint —
+" the coordinate map is recorded as each row is emitted, never
+" re-parsed from formatted text. Returns:
 "   lines         — buffer lines
 "   mapping       — 1-indexed line → pinpoint id (main rows AND
 "                   per-motion sub-rows, so action keys resolve from
 "                   either)
-"   pinpoint_rows — sorted line numbers of MAIN rows only; j/k snaps
-"                   to these
-" The coordinate map is recorded as each row is emitted, never
-" re-parsed from formatted text. `expanded` is a dict {id: 1} of
-" pinpoints whose per-motion breakdown should be shown (toggled by B);
-" breakdown rows are NOT auto-shown. Pure over registry + sessions so
-" tests drive it without touching the user's real log.
-function! s:build_grouped_view(registry, sessions_by_id, expanded, sections, banner) abort
+"   pinpoint_rows — sorted line numbers of MAIN rows only; j/k
+"                   navigation snaps to these
+" `expanded` is a dict {id: 1} of pinpoints whose per-motion
+" breakdown should be shown (toggled by B). Breakdown rows are NOT
+" auto-shown — the default view is just the pinpoint rows.
+" Pure function over registry + sessions so tests can drive it
+" without touching the user's real log.
+function! s:build_list_view(registry, sessions_by_id, expanded) abort
   let status_map = {}
   let last_rate = {}
   for [id, m] in items(a:registry)
@@ -283,13 +280,47 @@ function! s:build_grouped_view(registry, sessions_by_id, expanded, sections, ban
     let last_rate[id] = s:last_rate_from_sessions(s)
   endfor
 
-  let lines = copy(a:banner)
+  " Group by family. Each pinpoint declares 'family' in meta(); the
+  " navigator uses the FAMILY_NAMES order list to render sections in
+  " a stable, curated order. Unknown families fall through to the end.
+  let by_family = {}
+  for [id, m] in items(a:registry)
+    let fam = get(m, 'family', 'other')
+    if !has_key(by_family, fam) | let by_family[fam] = [] | endif
+    call add(by_family[fam], id)
+  endfor
+
+  let ordered_families = []
+  for [fam, _label] in s:FAMILY_NAMES
+    if has_key(by_family, fam)
+      call add(ordered_families, fam)
+    endif
+  endfor
+  for fam in sort(keys(by_family))
+    if index(ordered_families, fam) < 0
+      call add(ordered_families, fam)
+    endif
+  endfor
+
+  let family_label = {}
+  for [fam, label] in s:FAMILY_NAMES
+    let family_label[fam] = label
+  endfor
+
+  let lines = []
   let mapping = {}
   let pinpoint_rows = []
 
-  for [header, ids] in a:sections
-    call add(lines, header)
-    for id in ids
+  call add(lines, printf('vim-fluency: %d pinpoint(s) built',
+    \ len(a:registry)))
+  call add(lines, '')
+  call add(lines, 'Move with j/k, then:  (L)earn  (T)rain  (C)hart  (B)reakdown   ·   q closes')
+  call add(lines, '')
+
+  for fam in ordered_families
+    let label = get(family_label, fam, fam)
+    call add(lines, printf('── %s ──', label))
+    for id in sort(by_family[fam])
       let m = a:registry[id]
       let status = status_map[id]
       let rate = last_rate[id]
@@ -349,7 +380,6 @@ function! s:build_grouped_view(registry, sessions_by_id, expanded, sections, ban
     call add(lines, '')
   endfor
 
-  " Status roll-up footer — independent of how rows were grouped.
   let climbing = []
   let at_aim = []
   let not_started = []
@@ -375,44 +405,6 @@ function! s:build_grouped_view(registry, sessions_by_id, expanded, sections, ban
   return {'lines': lines, 'mapping': mapping, 'pinpoint_rows': pinpoint_rows}
 endfunction
 
-" Family grouping (:VfList): ordered [header, ids] sections following
-" the curated FAMILY_NAMES order; unknown families append alphabetically.
-function! s:family_sections(registry) abort
-  let by_family = {}
-  for [id, m] in items(a:registry)
-    let fam = get(m, 'family', 'other')
-    if !has_key(by_family, fam) | let by_family[fam] = [] | endif
-    call add(by_family[fam], id)
-  endfor
-  let label_of = {}
-  for [fam, label] in s:FAMILY_NAMES
-    let label_of[fam] = label
-  endfor
-  let ordered = []
-  for [fam, _label] in s:FAMILY_NAMES
-    if has_key(by_family, fam) | call add(ordered, fam) | endif
-  endfor
-  for fam in sort(keys(by_family))
-    if index(ordered, fam) < 0 | call add(ordered, fam) | endif
-  endfor
-  let sections = []
-  for fam in ordered
-    call add(sections, [printf('── %s ──', get(label_of, fam, fam)),
-      \ sort(by_family[fam])])
-  endfor
-  return sections
-endfunction
-
-function! s:build_list_view(registry, sessions_by_id, expanded) abort
-  let banner = [
-    \ printf('vim-fluency: %d pinpoint(s) built', len(a:registry)),
-    \ '',
-    \ 'Move with j/k, then:  (L)earn  (T)rain  (C)hart  (B)reakdown   ·   q closes',
-    \ '']
-  return s:build_grouped_view(a:registry, a:sessions_by_id, a:expanded,
-    \ s:family_sections(a:registry), banner)
-endfunction
-
 function! vimfluency#list() abort
   let registry = vimfluency#discover_pinpoints()
   if empty(registry)
@@ -420,26 +412,21 @@ function! vimfluency#list() abort
     return
   endif
   let view = s:build_list_view(registry, s:load_sessions_grouped(), {})
-  call s:show_grouped_buffer(view, 'list', 'vf-list',
-    \ ' pinpoint list   [L=Learn  T=Train  C=Chart  B=Breakdown  q=close]')
+  call s:show_list_buffer(view)
 endfunction
 
-" Shared interactive buffer for :VfList and :VfHierarchy. `kind`
-" ('list' | 'hierarchy') is stored so the B toggle rebuilds with the
-" matching grouping; `bufname`/`statusline` distinguish the two views.
-function! s:show_grouped_buffer(view, kind, bufname, statusline) abort
+function! s:show_list_buffer(view) abort
   tabnew
   let tabnr = tabpagenr()
   setlocal buftype=nofile bufhidden=wipe noswapfile nobuflisted
   setlocal nonumber norelativenumber nowrap signcolumn=no
   setlocal cursorline
-  silent! execute 'keepalt file ' . a:bufname
+  silent! execute 'keepalt file vf-list'
   call setline(1, a:view.lines)
   setlocal nomodifiable nomodified
-  let &l:statusline = a:statusline
+  let &l:statusline = ' pinpoint list   [L=Learn  T=Train  C=Chart  B=Breakdown  q=close]'
   let b:vf_summary_tabnr = tabnr
   let b:vf_summary_prev_laststatus = &laststatus
-  let b:vf_view_kind = a:kind
   let b:vf_list_line_to_id = a:view.mapping
   let b:vf_list_pinpoint_rows = a:view.pinpoint_rows
   let b:vf_list_expanded = {}
@@ -569,10 +556,7 @@ function! vimfluency#list_toggle_breakdown() abort
   endif
 
   let registry = vimfluency#discover_pinpoints()
-  let sessions = s:load_sessions_grouped()
-  let view = get(b:, 'vf_view_kind', 'list') ==# 'hierarchy'
-    \ ? s:build_hierarchy_view(registry, sessions, b:vf_list_expanded)
-    \ : s:build_list_view(registry, sessions, b:vf_list_expanded)
+  let view = s:build_list_view(registry, s:load_sessions_grouped(), b:vf_list_expanded)
   setlocal modifiable
   silent! %delete _
   call setline(1, view.lines)
@@ -587,109 +571,6 @@ function! vimfluency#list_toggle_breakdown() abort
       break
     endif
   endfor
-endfunction
-
-
-" -----------------------------------------------------------------
-" :VfHierarchy — same interactive list as :VfList, grouped by prereq
-" -----------------------------------------------------------------
-"
-" Shares the row layout, navigation, and action keys with :VfList
-" (s:build_grouped_view does the rendering). The only difference is the
-" grouping: :VfList partitions rows by verb family, :VfHierarchy by
-" exact prereq signature in topological order — roots (no prereqs)
-" first, then each section whose prereqs are met by earlier sections.
-
-" Test-only accessor — same view dict :VfHierarchy renders, addressable
-" from headless tests where tabnew + getline misbehaves under -Es.
-function! vimfluency#_test_build_hierarchy_view(registry, sessions_by_id, ...) abort
-  let expanded = a:0 ? a:1 : {}
-  return s:build_hierarchy_view(a:registry, a:sessions_by_id, expanded)
-endfunction
-
-" Hierarchy grouping (:VfHierarchy): partition pinpoints by their exact
-" prereq signature (the sorted, comma-joined prereq list), then order
-" the sections topologically by depth so each follows the signatures it
-" depends on. Returns ordered [header, sorted ids] sections.
-function! s:hierarchy_sections(registry) abort
-  let groups = {}
-  for [id, m] in items(a:registry)
-    let prereqs = get(m, 'prereqs', [])
-    let key = empty(prereqs) ? '' : join(sort(copy(prereqs)), ', ')
-    if !has_key(groups, key) | let groups[key] = [] | endif
-    call add(groups[key], id)
-  endfor
-
-  let depth_cache = {}
-  for id in keys(a:registry)
-    call s:pinpoint_depth(id, a:registry, depth_cache)
-  endfor
-
-  let keys = keys(groups)
-  call sort(keys, {a, b ->
-    \ s:section_depth(a, groups, depth_cache) - s:section_depth(b, groups, depth_cache)
-    \ != 0 ? s:section_depth(a, groups, depth_cache) - s:section_depth(b, groups, depth_cache)
-    \ : (a ==# b ? 0 : (a <# b ? -1 : 1))})
-
-  let sections = []
-  for key in keys
-    let header = empty(key)
-      \ ? '── no prereqs (roots) ──'
-      \ : '── needs ' . key . ' ──'
-    call add(sections, [header, sort(groups[key])])
-  endfor
-  return sections
-endfunction
-
-function! s:build_hierarchy_view(registry, sessions_by_id, expanded) abort
-  let banner = [
-    \ printf('vim-fluency hierarchy: %d pinpoint(s) built', len(a:registry)),
-    \ '',
-    \ 'Grouped by prereq signature, roots first (each section''s prereqs are',
-    \ 'met by earlier sections). Prereqs are diagnostic — they suggest a',
-    \ 'fallback if a rate plateaus, they do not gate.',
-    \ '',
-    \ 'Move with j/k, then:  (L)earn  (T)rain  (C)hart  (B)reakdown   ·   q closes',
-    \ '']
-  return s:build_grouped_view(a:registry, a:sessions_by_id, a:expanded,
-    \ s:hierarchy_sections(a:registry), banner)
-endfunction
-
-" Per-pinpoint depth = max depth of in-registry prereqs + 1; roots are
-" 0. The section sort uses this so a signature follows the ones it
-" depends on. The cache doubles as a cycle guard (returns in-progress 0).
-function! s:pinpoint_depth(id, registry, cache) abort
-  if has_key(a:cache, a:id) | return a:cache[a:id] | endif
-  let a:cache[a:id] = 0
-  let max_d = 0
-  for prereq in get(a:registry[a:id], 'prereqs', [])
-    if has_key(a:registry, prereq)
-      let max_d = max([max_d, s:pinpoint_depth(prereq, a:registry, a:cache) + 1])
-    endif
-  endfor
-  let a:cache[a:id] = max_d
-  return max_d
-endfunction
-
-" Section depth = deepest member, so a prereq-signature section sorts
-" after every section it builds on.
-function! s:section_depth(key, groups, depth_cache) abort
-  let max_d = 0
-  for id in a:groups[a:key]
-    let max_d = max([max_d, a:depth_cache[id]])
-  endfor
-  return max_d
-endfunction
-
-function! vimfluency#hierarchy() abort
-  let registry = vimfluency#discover_pinpoints()
-  if empty(registry)
-    echo 'no pinpoints built — see CATALOG.md'
-    return
-  endif
-  let view = s:build_hierarchy_view(registry, s:load_sessions_grouped(), {})
-  call s:show_grouped_buffer(view, 'hierarchy', 'vf-hierarchy',
-    \ ' pinpoint hierarchy   [L=Learn  T=Train  C=Chart  B=Breakdown  q=close]')
 endfunction
 
 function! vimfluency#start(...) abort
