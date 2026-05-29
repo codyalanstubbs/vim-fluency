@@ -309,10 +309,10 @@ let s:M_FAMILY       = 124   " 'family'   (6 chars) at S=117 → ends col 122; m
 
 " Number of leading lines in s:build_list_view's output that form the
 " sticky header — banner intro, action hints, status legend, sort
-" hints, blank, the column-header row, blank. :VfList puts these in a
-" small fixed-height window above the scrollable data window so the
-" column titles stay visible when the user scrolls through the table.
-let s:HEADER_COUNT = 8
+" hints, blank, the column-header row. :VfList puts these in a small
+" fixed-height window above the scrollable data window so the column
+" titles stay visible when the user scrolls through the table.
+let s:HEADER_COUNT = 7
 
 " Breakdown sub-section layout: ├/└/│ in BD_TREE column; prereq entries
 " indent at BD_BODY; the commands sub-table places the ✓-at-aim mark,
@@ -705,7 +705,6 @@ function! s:build_list_view(registry, sessions_by_id, expanded, ...) abort
   let head = s:place_right_hdr(head, s:E_RUNS,          'runs',         sort_col, sort_desc)
   let head = s:place_left_hdr(head,  s:S_FAMILY,        'family',       sort_col, sort_desc, s:M_FAMILY)
   call add(lines, head)
-  call add(lines, '')
 
   for id in sorted_ids
     let m = a:registry[id]
@@ -744,29 +743,6 @@ function! s:build_list_view(registry, sessions_by_id, expanded, ...) abort
     endif
   endfor
 
-  call add(lines, '')
-
-  let climbing = []
-  let at_aim = []
-  let not_started = []
-  for id in sort(keys(a:registry))
-    if status_map[id] ==# 'at_aim'
-      call add(at_aim, id)
-    elseif status_map[id] ==# 'climbing'
-      call add(climbing, id)
-    else
-      call add(not_started, id)
-    endif
-  endfor
-  if !empty(climbing)
-    call add(lines, "Today's set (climbing):  " . join(climbing, ', '))
-  endif
-  if !empty(not_started)
-    call add(lines, "Not started yet:  " . join(not_started, ', '))
-  endif
-  if !empty(at_aim)
-    call add(lines, "At aim — consider retiring or revising aim:  " . join(at_aim, ', '))
-  endif
 
   return {'lines': lines, 'mapping': mapping, 'pinpoint_rows': pinpoint_rows}
 endfunction
@@ -841,6 +817,17 @@ function! vimfluency#list() abort
   endif
   let view = s:build_list_view(registry, s:load_sessions_grouped(), {})
   call s:show_list_buffer(view)
+endfunction
+
+" Wipe the companion 'vf-list-header' buffer so its window doesn't
+" linger after the data window closes. Called from a BufWipeout
+" autocmd on the data buffer; bwipe is wrapped in silent! so a
+" double-close (e.g. user already wiped the header) doesn't error.
+function! s:cleanup_list_header_window() abort
+  let hbufnr = bufnr('vf-list-header')
+  if hbufnr > 0
+    silent! execute 'bwipeout! ' . hbufnr
+  endif
 endfunction
 
 " Split view.lines into the sticky-header slice and the scrollable
@@ -923,6 +910,13 @@ function! s:show_list_buffer(view) abort
   let b:vf_list_sort_desc = 0
   set laststatus=2
 
+  " When the data window goes away (via `q`, `:q`, `:close`, etc.),
+  " wipe the companion header buffer so its window doesn't linger and
+  " require a second :q. BufWipeout fires after vim has already wiped
+  " the data buffer; bwipe on the header buffer closes its window and
+  " — because that's the last window in the tab — closes the tab too.
+  autocmd BufWipeout <buffer> silent! call s:cleanup_list_header_window()
+
   " Action keys: L=lesson, T=train, C=chart, B=toggle breakdown.
   nnoremap <buffer> <silent> L :call vimfluency#list_action('learn')<CR>
   nnoremap <buffer> <silent> T :call vimfluency#list_action('train')<CR>
@@ -967,7 +961,10 @@ function! s:show_list_buffer(view) abort
   silent! execute 'keepalt file vf-list-header'
   call setline(1, split.header_lines)
   setlocal nomodifiable nomodified
-  let &l:statusline = ' vf-list (sticky header)'
+  " Empty statusline so the inter-window separator is a clean horizontal
+  " bar with no label — keeps the visual transition between header and
+  " data minimal.
+  let &l:statusline = ' '
   " Return to the data window where the cursor lives.
   wincmd j
 

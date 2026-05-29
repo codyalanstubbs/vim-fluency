@@ -197,8 +197,10 @@ for s:l in s:view.lines
 endfor
 call Assert(s:wm_row !~# 'line_edges',
   \ 'render_list: word_motions main row does not list its prereq')
-call Assert(s:rendered =~# "Today's set",
-  \ 'render_list: today-summary footer present')
+" Footer section (Today's set / Not started / At aim) was removed;
+" status is conveyed by the per-row bullet alone now.
+call Assert(s:rendered !~# "Today's set",
+  \ 'render_list: today-summary footer removed')
 
 " Column alignment: every data row puts the aim_rate "/min" at the same
 " byte offset. Rows begin with ' ▶/✓/○ behavior'; the bullet is the
