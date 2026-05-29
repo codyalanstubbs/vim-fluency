@@ -307,6 +307,13 @@ let s:M_DRILL        = 9     " 'drill'    (5 chars) at S=3   → ends col 7;   m
 let s:M_COMMANDS     = 54    " 'commands' (8 chars) at S=45  → ends col 52;  marker col 54
 let s:M_FAMILY       = 124   " 'family'   (6 chars) at S=117 → ends col 122; marker col 124
 
+" Number of leading lines in s:build_list_view's output that form the
+" sticky header — banner intro, action hints, status legend, sort
+" hints, blank, the column-header row, blank. :VfList puts these in a
+" small fixed-height window above the scrollable data window so the
+" column titles stay visible when the user scrolls through the table.
+let s:HEADER_COUNT = 8
+
 " Breakdown sub-section layout: ├/└/│ in BD_TREE column; prereq entries
 " indent at BD_BODY; the commands sub-table places the ✓-at-aim mark,
 " the command name, and the three numeric columns at fixed cols.
@@ -836,20 +843,79 @@ function! vimfluency#list() abort
   call s:show_list_buffer(view)
 endfunction
 
+" Split view.lines into the sticky-header slice and the scrollable
+" data slice, and translate view.mapping / view.pinpoint_rows (keyed
+" by line numbers in the COMBINED output) to line numbers within the
+" data slice (so the navigator's b: vars line up with the data buffer).
+function! s:split_view(view) abort
+  let header_lines = a:view.lines[: s:HEADER_COUNT - 1]
+  let data_lines   = a:view.lines[s:HEADER_COUNT :]
+  let mapping = {}
+  for [k, id] in items(a:view.mapping)
+    let ln = str2nr(k) - s:HEADER_COUNT
+    if ln >= 1 | let mapping[ln] = id | endif
+  endfor
+  let pinpoint_rows = []
+  for r in a:view.pinpoint_rows
+    let dr = r - s:HEADER_COUNT
+    if dr >= 1 | call add(pinpoint_rows, dr) | endif
+  endfor
+  return {'header_lines': header_lines, 'data_lines': data_lines,
+    \ 'mapping': mapping, 'pinpoint_rows': pinpoint_rows}
+endfunction
+
+" Replace the contents of the data window (assumed current) AND the
+" header window for the active :VfList. Used by every rebuild path
+" (sort, toggle breakdown, set aim) so the sticky header stays in
+" sync with the data when the sort marker or column widths change.
+function! s:apply_view(view) abort
+  let split = s:split_view(a:view)
+  " --- Data window (current) ---
+  setlocal modifiable
+  silent! %delete _
+  call setline(1, split.data_lines)
+  setlocal nomodifiable nomodified
+  let b:vf_list_line_to_id    = split.mapping
+  let b:vf_list_pinpoint_rows = split.pinpoint_rows
+  " --- Header window (find the buffer named 'vf-list-header' and
+  " replace its lines without disturbing the cursor's window). ---
+  let hdr_bufnr = bufnr('vf-list-header')
+  if hdr_bufnr <= 0 | return | endif
+  let cur_winnr = winnr()
+  let hdr_winnr = 0
+  for win in range(1, winnr('$'))
+    if winbufnr(win) == hdr_bufnr
+      let hdr_winnr = win | break
+    endif
+  endfor
+  if hdr_winnr == 0 | return | endif
+  execute hdr_winnr . 'wincmd w'
+  setlocal modifiable
+  silent! %delete _
+  call setline(1, split.header_lines)
+  setlocal nomodifiable nomodified
+  execute cur_winnr . 'wincmd w'
+endfunction
+
 function! s:show_list_buffer(view) abort
+  let split = s:split_view(a:view)
   tabnew
   let tabnr = tabpagenr()
+
+  " --- Data window (current after tabnew). Holds the scrollable
+  " body. The cursor lives here; all navigation and action keys are
+  " mapped on this buffer. ---
   setlocal buftype=nofile bufhidden=wipe noswapfile nobuflisted
   setlocal nonumber norelativenumber nowrap signcolumn=no
   setlocal cursorline
   silent! execute 'keepalt file vf-list'
-  call setline(1, a:view.lines)
+  call setline(1, split.data_lines)
   setlocal nomodifiable nomodified
   let &l:statusline = ' pinpoint list   [L=Learn  T=Train  C=Chart  B=Breakdown  A=Aim  D=Duration  s+col=Sort  q=close]'
   let b:vf_summary_tabnr = tabnr
   let b:vf_summary_prev_laststatus = &laststatus
-  let b:vf_list_line_to_id = a:view.mapping
-  let b:vf_list_pinpoint_rows = a:view.pinpoint_rows
+  let b:vf_list_line_to_id    = split.mapping
+  let b:vf_list_pinpoint_rows = split.pinpoint_rows
   let b:vf_list_expanded = {}
   " Sort state: empty col = default (family, depth, slug). When a sort
   " key is pressed, list_sort() updates these and rebuilds the buffer.
@@ -887,8 +953,26 @@ function! s:show_list_buffer(view) abort
   nnoremap <buffer> <silent> gg :call vimfluency#list_move('first')<CR>
   nnoremap <buffer> <silent> G :call vimfluency#list_move('last')<CR>
 
+  " --- Header window: a small split ABOVE the data window with the
+  " banner + column-header row. Fixed height (winfixheight), no
+  " cursorline, read-only. The user can't move the cursor into it
+  " via j/k (those are mapped on the data buffer); :wincmd k would
+  " technically land there but the buffer is harmless. tabclose
+  " from `q` tears the whole tab down so both windows close together.
+  topleft new
+  execute 'resize ' . s:HEADER_COUNT
+  setlocal buftype=nofile bufhidden=wipe noswapfile nobuflisted
+  setlocal nonumber norelativenumber nowrap signcolumn=no
+  setlocal winfixheight nocursorline
+  silent! execute 'keepalt file vf-list-header'
+  call setline(1, split.header_lines)
+  setlocal nomodifiable nomodified
+  let &l:statusline = ' vf-list (sticky header)'
+  " Return to the data window where the cursor lives.
+  wincmd j
+
   " Land cursor on the first pinpoint row.
-  let first_line = empty(a:view.pinpoint_rows) ? 1 : a:view.pinpoint_rows[0]
+  let first_line = empty(split.pinpoint_rows) ? 1 : split.pinpoint_rows[0]
   call cursor(first_line, 1)
 endfunction
 
@@ -1009,16 +1093,10 @@ function! vimfluency#list_toggle_breakdown() abort
     \ b:vf_list_expanded,
     \ get(b:, 'vf_list_sort_col', ''),
     \ get(b:, 'vf_list_sort_desc', 0))
-  setlocal modifiable
-  silent! %delete _
-  call setline(1, view.lines)
-  setlocal nomodifiable nomodified
-  let b:vf_list_line_to_id = view.mapping
-  let b:vf_list_pinpoint_rows = view.pinpoint_rows
-
+  call s:apply_view(view)
   " Restore the cursor to the toggled pinpoint's main row.
-  for row in view.pinpoint_rows
-    if get(view.mapping, row, '') ==# id
+  for row in b:vf_list_pinpoint_rows
+    if get(b:vf_list_line_to_id, row, '') ==# id
       call cursor(row, 1)
       break
     endif
@@ -1068,17 +1146,11 @@ function! vimfluency#list_sort(col) abort
   let registry = vimfluency#discover_pinpoints()
   let view = s:build_list_view(registry, s:load_sessions_grouped(),
     \ b:vf_list_expanded, b:vf_list_sort_col, b:vf_list_sort_desc)
-  setlocal modifiable
-  silent! %delete _
-  call setline(1, view.lines)
-  setlocal nomodifiable nomodified
-  let b:vf_list_line_to_id = view.mapping
-  let b:vf_list_pinpoint_rows = view.pinpoint_rows
-
-  if cur_idx >= 0 && cur_idx < len(view.pinpoint_rows)
-    call cursor(view.pinpoint_rows[cur_idx], 1)
-  elseif !empty(view.pinpoint_rows)
-    call cursor(view.pinpoint_rows[0], 1)
+  call s:apply_view(view)
+  if cur_idx >= 0 && cur_idx < len(b:vf_list_pinpoint_rows)
+    call cursor(b:vf_list_pinpoint_rows[cur_idx], 1)
+  elseif !empty(b:vf_list_pinpoint_rows)
+    call cursor(b:vf_list_pinpoint_rows[0], 1)
   endif
 endfunction
 
@@ -1092,20 +1164,15 @@ function! s:rebuild_list_buffer_keeping_pinpoint(id) abort
     \ b:vf_list_expanded,
     \ get(b:, 'vf_list_sort_col', ''),
     \ get(b:, 'vf_list_sort_desc', 0))
-  setlocal modifiable
-  silent! %delete _
-  call setline(1, view.lines)
-  setlocal nomodifiable nomodified
-  let b:vf_list_line_to_id = view.mapping
-  let b:vf_list_pinpoint_rows = view.pinpoint_rows
-  for row in view.pinpoint_rows
-    if get(view.mapping, row, '') ==# a:id
+  call s:apply_view(view)
+  for row in b:vf_list_pinpoint_rows
+    if get(b:vf_list_line_to_id, row, '') ==# a:id
       call cursor(row, 1)
       return
     endif
   endfor
-  if !empty(view.pinpoint_rows)
-    call cursor(view.pinpoint_rows[0], 1)
+  if !empty(b:vf_list_pinpoint_rows)
+    call cursor(b:vf_list_pinpoint_rows[0], 1)
   endif
 endfunction
 

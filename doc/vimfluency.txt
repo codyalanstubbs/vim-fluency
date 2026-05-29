@@ -64,9 +64,14 @@ COMMANDS                                                        *vf-commands*
         sn    runs          (numeric)
         sf    family        (curated FAMILY_NAMES order)
 
-    The cursor row is highlighted; j/k snap between pinpoint rows
-    (header row, blank lines, and breakdown rows are skipped). On a
-    pinpoint row press:
+    The banner, status legend, sort hints, and column-header row live
+    in a small STICKY-HEADER window above the scrollable data window.
+    The header stays visible while you scroll through the rows; sort
+    markers update there when you change the sort. The cursor lives
+    in the data window — `q` closes both windows together via the
+    tab. The cursor row is highlighted; j/k snap between pinpoint
+    rows (blank lines and breakdown rows are skipped). On a pinpoint
+    row press:
         L     start a Learn session (:VfLearn) for this pinpoint
         T     start a Train session (:Vf) for this pinpoint
         C     open the celeration Chart (:VfChart) for this pinpoint
