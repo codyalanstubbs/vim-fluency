@@ -144,17 +144,31 @@ endfunction
 " template adds the section framing, so don't bake "family" into
 " the label (that produced "Delete family family — delete").
 " :VfList column layout — fixed 0-indexed DISPLAY columns so the one
-" header row and every data row line up, and the per-motion breakdown
-" rates sit under the last_rate column. Column titles live in the
+" header row and every data row line up. Column titles live in the
 " header row, not inline in each row. Numeric fields are "%3d/min"
-" (7 cols). Keep "id (keys)" under ~48 chars or the label column
-" overflows into status.
-let s:COL_LABEL     = 4
-let s:COL_STATUS    = 54
-let s:COL_AIM       = 70
-let s:COL_LAST      = 80
-let s:COL_DATE      = 91
-let s:COL_BREAKDOWN = 62   " tree-connector start for B breakdown rows
+" (7 cols). The status word column is gone; the leading ▶/✓/○ bullet
+" encodes status and a legend in the banner names each icon. Keep
+" behavior slugs under ~40 chars and family names under ~18 chars or
+" the row drifts.
+let s:S_BULLET    = 1     " ▶ / ✓ / ○
+let s:S_BEHAVIOR  = 3
+let s:S_COMMANDS  = 45
+let s:S_FAMILY    = 60
+let s:S_DEPTH     = 80
+let s:S_AIM       = 87
+let s:S_LAST      = 97
+let s:S_DATE      = 108
+
+" Breakdown sub-section layout: ├/└/│ in BD_TREE column; sub-content
+" indents at BD_BODY; the commands sub-table places the ✓-at-aim mark,
+" the command name, and the three numeric columns at fixed cols.
+let s:BD_TREE         = 3
+let s:BD_BODY         = 5
+let s:BD_CMD_MARK     = 5     " ✓ if command's last_rate ≥ pinpoint aim
+let s:BD_CMD_NAME     = 7
+let s:BD_CMD_LAST     = 19
+let s:BD_CMD_STROKES  = 32
+let s:BD_CMD_PER_STR  = 46
 
 let s:FAMILY_NAMES = [
   \ ['survival',          'Survival'],
@@ -238,6 +252,14 @@ function! s:status_label(status) abort
   endif
 endfunction
 
+" Just the bullet glyph, for the leading-column variant in :VfList.
+function! s:status_icon(status) abort
+  if a:status ==# 'at_aim'       | return '✓'
+  elseif a:status ==# 'climbing' | return '▶'
+  else                           | return '○'
+  endif
+endfunction
+
 " Per-motion breakdown from the SAME session last_rate / last_date come
 " from, or {} if none. Returns a flat {motion → rate_per_min (float)}
 " for display (the runner stores per_motion as {motion → {rate_per_min,
@@ -297,6 +319,67 @@ function! s:place(line, col, text) abort
   return a:line . repeat(' ', pad) . a:text
 endfunction
 
+" Characters that require Shift on US QWERTY. Each costs 2 keystrokes
+" (the shift modifier counts as its own physical press) — used by
+" s:command_strokes to count a command's keystroke length.
+let s:SHIFTED_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ~!@#$%^&*()_+{}|:"<>?'
+
+function! s:char_strokes(ch) abort
+  return stridx(s:SHIFTED_CHARS, a:ch) >= 0 ? 2 : 1
+endfunction
+
+" Strokes inside a <…> chord: 1 per modifier (C / S / M / A / D) plus
+" the trailing base key (single char goes through char_strokes; a named
+" key like 'Esc' / 'CR' / 'Tab' / 'F1' counts as 1).
+function! s:chord_strokes(inner) abort
+  let parts = split(a:inner, '-')
+  if empty(parts) | return 1 | endif
+  let n = len(parts) - 1
+  let base = parts[-1]
+  return n + (strlen(base) == 1 ? s:char_strokes(base) : 1)
+endfunction
+
+" Total physical keystrokes for a vim command string. Walks left-to-
+" right: <…> sequences are one chord, everything else is a sequence of
+" base characters. Auto-derived on every breakdown row; a pinpoint can
+" override per-command via meta()'s `stroke_counts: {motion → N}`.
+function! s:command_strokes(cmd) abort
+  let n = 0
+  let i = 0
+  let L = strlen(a:cmd)
+  while i < L
+    if a:cmd[i] ==# '<'
+      let close = stridx(a:cmd, '>', i + 1)
+      if close > i
+        let n += s:chord_strokes(strpart(a:cmd, i + 1, close - i - 1))
+        let i = close + 1
+        continue
+      endif
+    endif
+    let n += s:char_strokes(a:cmd[i])
+    let i += 1
+  endwhile
+  return n
+endfunction
+
+" Test-only accessor for stroke counting.
+function! vimfluency#_test_command_strokes(cmd) abort
+  return s:command_strokes(a:cmd)
+endfunction
+
+" Render last_rate / stroke_count as a rate per minute, dropping the
+" decimal when the result is integer-ish (within 0.05 of a whole
+" number). 25/3 → "8.3/min"; 52/4 → "13/min".
+function! s:stroke_rate_field(rate, strokes) abort
+  if a:strokes <= 0 | return '—' | endif
+  let raw = a:rate * 1.0 / a:strokes
+  let nearest = float2nr(raw + 0.5)
+  if abs(raw - nearest) < 0.05
+    return printf('%d/min', nearest)
+  endif
+  return printf('%.1f/min', raw)
+endfunction
+
 " Build the :VfList view in one pass: rendered lines PLUS the
 " line-coordinate map the interactive navigator needs. The renderer
 " is the single source of truth for which line is which pinpoint —
@@ -324,38 +407,31 @@ function! s:build_list_view(registry, sessions_by_id, expanded) abort
     let last_date[id] = s:last_date_from_sessions(s)
   endfor
 
-  " Prereq depth for foundational-first ordering within each family.
+  " Prereq depth: both a column and the within-family sort key.
   let depth = {}
   for id in keys(a:registry)
     call s:pinpoint_depth(id, a:registry, depth)
   endfor
 
-  " Group by family. Each pinpoint declares 'family' in meta(); the
-  " navigator uses the FAMILY_NAMES order list to render sections in
-  " a stable, curated order. Unknown families fall through to the end.
-  let by_family = {}
-  for [id, m] in items(a:registry)
-    let fam = get(m, 'family', 'other')
-    if !has_key(by_family, fam) | let by_family[fam] = [] | endif
-    call add(by_family[fam], id)
-  endfor
-
-  let ordered_families = []
+  " Curated family ordering from FAMILY_NAMES; unknown families fall
+  " through to the end. Rows sort by (family_index, depth, slug) so
+  " families cluster and each family is foundational-first — no
+  " section dividers needed since the family column carries grouping.
+  let family_order = {}
+  let fi = 0
   for [fam, _label] in s:FAMILY_NAMES
-    if has_key(by_family, fam)
-      call add(ordered_families, fam)
-    endif
+    let family_order[fam] = fi
+    let fi += 1
   endfor
-  for fam in sort(keys(by_family))
-    if index(ordered_families, fam) < 0
-      call add(ordered_families, fam)
-    endif
+  let sort_key = {}
+  for id in keys(a:registry)
+    let fam = get(a:registry[id], 'family', 'zzz')
+    let fkey = get(family_order, fam, 999)
+    let sort_key[id] = printf('%04d:%03d:%s', fkey, depth[id], id)
   endfor
-
-  let family_label = {}
-  for [fam, label] in s:FAMILY_NAMES
-    let family_label[fam] = label
-  endfor
+  let sorted_ids = sort(keys(a:registry), {x, y ->
+    \ sort_key[x] ==# sort_key[y] ? 0
+    \ : (sort_key[x] <# sort_key[y] ? -1 : 1)})
 
   let lines = []
   let mapping = {}
@@ -365,100 +441,51 @@ function! s:build_list_view(registry, sessions_by_id, expanded) abort
     \ len(a:registry)))
   call add(lines, '')
   call add(lines, 'Move with j/k, then:  (L)earn  (T)rain  (C)hart  (B)reakdown   ·   q closes')
+  call add(lines, 'Status:  ✓ at aim    ▶ climbing    ○ not started')
   call add(lines, '')
 
-  " Column header row (titles live here, not inline in each row). The
-  " main row stops at last_date; prereq status (met + unmet) shows up
-  " under the B breakdown so it doesn't widen every row.
-  let head = s:place('', s:COL_LABEL, 'pinpoint (keys)')
-  let head = s:place(head, s:COL_STATUS, 'status')
-  let head = s:place(head, s:COL_AIM, 'aim_rate')
-  let head = s:place(head, s:COL_LAST, 'last_rate')
-  let head = s:place(head, s:COL_DATE, 'last_date')
+  " Column header row. The bullet column at S_BULLET has no header —
+  " the legend above names each icon.
+  let head = s:place('', s:S_BEHAVIOR, 'behavior')
+  let head = s:place(head, s:S_COMMANDS, 'commands')
+  let head = s:place(head, s:S_FAMILY,   'family')
+  let head = s:place(head, s:S_DEPTH,    'depth')
+  let head = s:place(head, s:S_AIM,      'aim_rate')
+  let head = s:place(head, s:S_LAST,     'last_rate')
+  let head = s:place(head, s:S_DATE,     'last_date')
   call add(lines, head)
   call add(lines, '')
 
-  for fam in ordered_families
-    let label = get(family_label, fam, fam)
-    call add(lines, printf('── %s ──', label))
-    " Foundational-first: shallower prereq depth before deeper, ties
-    " broken alphabetically.
-    let fam_ids = sort(copy(by_family[fam]), {x, y ->
-      \ depth[x] != depth[y] ? depth[x] - depth[y]
-      \ : (x ==# y ? 0 : (x <# y ? -1 : 1))})
-    for id in fam_ids
-      let m = a:registry[id]
-      let rate = last_rate[id]
-      let keys = get(m, 'keys', '')
-      let label_col = empty(keys) ? id : printf('%s (%s)', id, keys)
-      " Rate fields are 7 display cols, number right-aligned on 3
-      " ("%3d/min"); no-data is a right-aligned em-dash.
-      let rate_field = rate > 0 ? printf('%3d/min', float2nr(rate + 0.5))
-        \ : repeat(' ', 6) . '—'
-      let date_field = empty(last_date[id]) ? '—' : last_date[id]
-      " Each field starts at its fixed column. Status comes before the
-      " rate columns; prereqs are reserved for the B breakdown.
-      let row = s:place('', s:COL_LABEL, label_col)
-      let row = s:place(row, s:COL_STATUS, s:status_label(status_map[id]))
-      let row = s:place(row, s:COL_AIM, printf('%3d/min', m.aim))
-      let row = s:place(row, s:COL_LAST, rate_field)
-      let row = s:place(row, s:COL_DATE, date_field)
-      call add(lines, substitute(row, '\s\+$', '', ''))
-      " Record the main-row coordinate as the row is emitted —
-      " len(lines) is its 1-indexed line number.
-      let mapping[len(lines)] = id
-      call add(pinpoint_rows, len(lines))
-      " Per-motion breakdown — only when this pinpoint is expanded
-      " (B toggle). The motion rate aligns under the last_rate column;
-      " the tree connector runs from COL_BREAKDOWN and motion labels
-      " right-align so their colons line up just before the rate.
-      if get(a:expanded, id, 0)
-        " Motions sub-block: per-motion rates from the last session,
-        " aligned under last_rate via the tree connector from
-        " COL_BREAKDOWN. Skipped when there's no per-motion data yet.
-        let pm = s:per_motion_from_sessions(get(a:sessions_by_id, id, []))
-        let motions = sort(keys(pm))
-        let n = len(motions)
-        let i = 0
-        for motion in motions
-          let i += 1
-          let conn_char = (i == n) ? '└' : '├'
-          let mlabel = motion . ':'
-          " content = connector + dashes + space + label, sized so it
-          " ends one col short of the rate field (place() adds the gap).
-          let content_w = s:COL_LAST - s:COL_BREAKDOWN - 1
-          let dashes = content_w - 1 - 1 - strdisplaywidth(mlabel)
-          let content = conn_char . repeat('─', max([0, dashes])) . ' ' . mlabel
-          let prefix = repeat(' ', s:COL_BREAKDOWN) . content
-          let mrate = float2nr(pm[motion] + 0.5)
-          let mfield = printf('%3d/min', mrate) . (mrate >= m.aim ? '  ✓' : '')
-          call add(lines, substitute(s:place(prefix, s:COL_LAST, mfield), '\s\+$', '', ''))
-          " Breakdown rows inherit the parent id so action keys still
-          " resolve if the cursor lands here.
-          let mapping[len(lines)] = id
-        endfor
+  for id in sorted_ids
+    let m = a:registry[id]
+    let rate = last_rate[id]
+    let rate_field = rate > 0 ? printf('%3d/min', float2nr(rate + 0.5))
+      \ : repeat(' ', 6) . '—'
+    let date_field = empty(last_date[id]) ? '—' : last_date[id]
+    " 'commands' renders meta()'s `keys` field with slashes turned into
+    " spaces (i/a/I/A → i a I A). The field stays slash-separated for
+    " backwards compatibility; the column is a render concern only.
+    let commands = substitute(get(m, 'keys', ''), '/', ' ', 'g')
 
-        " Prereqs sub-block: every in-registry prereq (met AND unmet),
-        " each with its own status, in the order the pinpoint declared
-        " them. Out-of-registry prereqs are skipped — they're vacuously
-        " satisfied (see CLAUDE.md). When all prereqs are vacuous or
-        " there are none, the block is omitted entirely.
-        let prereqs = filter(copy(get(m, 'prereqs', [])),
-          \ 'has_key(status_map, v:val)')
-        if !empty(prereqs)
-          call add(lines, repeat(' ', 8) . 'prereqs:')
-          let mapping[len(lines)] = id
-          for prereq in prereqs
-            let pstatus = s:status_label(status_map[prereq])
-            let pstatus .= repeat(' ', max([1, 15 - strdisplaywidth(pstatus)]))
-            call add(lines, repeat(' ', 12) . pstatus . prereq)
-            let mapping[len(lines)] = id
-          endfor
-        endif
-      endif
-    endfor
-    call add(lines, '')
+    let row = s:place('', s:S_BULLET, s:status_icon(status_map[id]))
+    let row = s:place(row, s:S_BEHAVIOR, id)
+    let row = s:place(row, s:S_COMMANDS, commands)
+    let row = s:place(row, s:S_FAMILY,   get(m, 'family', ''))
+    let row = s:place(row, s:S_DEPTH,    printf('%5d', depth[id]))
+    let row = s:place(row, s:S_AIM,      printf('%3d/min', m.aim))
+    let row = s:place(row, s:S_LAST,     rate_field)
+    let row = s:place(row, s:S_DATE,     date_field)
+    call add(lines, substitute(row, '\s\+$', '', ''))
+    let mapping[len(lines)] = id
+    call add(pinpoint_rows, len(lines))
+
+    if get(a:expanded, id, 0)
+      call s:append_breakdown(lines, mapping, id, m, status_map,
+        \ s:per_motion_from_sessions(get(a:sessions_by_id, id, [])))
+    endif
   endfor
+
+  call add(lines, '')
 
   let climbing = []
   let at_aim = []
@@ -483,6 +510,68 @@ function! s:build_list_view(registry, sessions_by_id, expanded) abort
   endif
 
   return {'lines': lines, 'mapping': mapping, 'pinpoint_rows': pinpoint_rows}
+endfunction
+
+" Append the B-toggle breakdown for one expanded pinpoint. Two
+" sub-sections, in order:
+"   prereqs:   every in-registry prereq, ▶/✓/○ icon + name only
+"   commands:  per-command sub-table — last_rate, stroke_count, and
+"              stroke_rate (last_rate / strokes); ✓ if the command's
+"              last_rate ≥ pinpoint aim
+" Whichever sub-section is LAST gets the └ glyph so the tree closes;
+" the earlier one gets ├ and its body lines carry │ continuation.
+" Vacuous prereqs (slug not in registry) are skipped. All breakdown
+" rows inherit the parent id in mapping so action keys still resolve
+" from anywhere in the block.
+function! s:append_breakdown(lines, mapping, id, meta, status_map, per_motion) abort
+  let prereqs = filter(copy(get(a:meta, 'prereqs', [])),
+    \ 'has_key(a:status_map, v:val)')
+  let has_prereqs  = !empty(prereqs)
+  let has_commands = !empty(a:per_motion)
+  if !has_prereqs && !has_commands | return | endif
+
+  if has_prereqs
+    let glyph = has_commands ? '├' : '└'
+    call add(a:lines, s:place('', s:BD_TREE, glyph . ' prereqs:'))
+    let a:mapping[len(a:lines)] = a:id
+    for prereq in prereqs
+      let line = has_commands ? s:place('', s:BD_TREE, '│') : ''
+      let line = s:place(line, s:BD_BODY,
+        \ s:status_icon(a:status_map[prereq]) . ' ' . prereq)
+      call add(a:lines, line)
+      let a:mapping[len(a:lines)] = a:id
+    endfor
+    if has_commands
+      call add(a:lines, s:place('', s:BD_TREE, '│'))
+      let a:mapping[len(a:lines)] = a:id
+    endif
+  endif
+
+  if has_commands
+    call add(a:lines, s:place('', s:BD_TREE, '└ commands:'))
+    let a:mapping[len(a:lines)] = a:id
+    let head = s:place('', s:BD_CMD_NAME, 'command')
+    let head = s:place(head, s:BD_CMD_LAST,    'last_rate')
+    let head = s:place(head, s:BD_CMD_STROKES, 'stroke_count')
+    let head = s:place(head, s:BD_CMD_PER_STR, 'stroke_rate')
+    call add(a:lines, substitute(head, '\s\+$', '', ''))
+    let a:mapping[len(a:lines)] = a:id
+    let overrides = get(a:meta, 'stroke_counts', {})
+    let aim = get(a:meta, 'aim', 0)
+    for motion in sort(keys(a:per_motion))
+      let mrate_f = a:per_motion[motion]
+      let mrate_i = float2nr(mrate_f + 0.5)
+      let strokes = get(overrides, motion, s:command_strokes(motion))
+      let row = s:place('', s:BD_CMD_MARK, mrate_i >= aim ? '✓' : '')
+      let row = s:place(row, s:BD_CMD_NAME,    motion)
+      let row = s:place(row, s:BD_CMD_LAST,    printf('%3d/min', mrate_i))
+      let row = s:place(row, s:BD_CMD_STROKES, printf('%d', strokes))
+      let row = s:place(row, s:BD_CMD_PER_STR,
+        \ s:stroke_rate_field(mrate_f, strokes))
+      call add(a:lines, substitute(row, '\s\+$', '', ''))
+      let a:mapping[len(a:lines)] = a:id
+    endfor
+  endif
 endfunction
 
 function! vimfluency#list() abort

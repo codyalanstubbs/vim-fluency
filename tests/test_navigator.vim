@@ -146,39 +146,51 @@ let s:sessions_by_id = {
 let s:render_reg.hjkl.keys = 'h/l'
 let s:view = vimfluency#_test_build_list_view(s:render_reg, s:sessions_by_id)
 let s:rendered = join(s:view.lines, "\n")
-" Header is a clean section marker (no doubled "family", no redundant
-" slug tail). Regression guard for review bug #1.
-call Assert(s:rendered =~# '── Motions ──',
-  \ 'render_list: family header rendered as clean section marker')
-call Assert(s:rendered !~# 'family family',
-  \ 'render_list: no doubled "family" in section headers')
-call Assert(s:rendered !~# 'family — motion',
-  \ 'render_list: no redundant "— <slug>" tail in section headers')
-" Column titles live in a header row, not inline in each data row.
-" Prereqs aren't a row column anymore — they show up under the B
-" breakdown.
-call Assert(s:rendered =~# 'status\s\+aim_rate\s\+last_rate\s\+last_date',
-  \ 'render_list: header row lists the columns in order')
-call Assert(s:rendered !~# 'aim_rate:',
-  \ 'render_list: no inline aim_rate: label in data rows')
-call Assert(s:rendered !~# '\<prereq(s)\>',
-  \ 'render_list: prereq(s) is not a row column')
-" hjkl row: keys in parens, then status BEFORE the rate columns, then
-" aim_rate, last_rate, and the last training date.
-call Assert(s:rendered =~# 'hjkl (h/l)\s\+✓ at aim\s\+60/min\s\+70/min\s\+2026-01-03',
-  \ 'render_list: row order is label, status, aim_rate, last_rate, last_date')
+
+" Family is now a column value, not a '── Motions ──' section divider.
+call Assert(s:rendered !~# '── Motions ──',
+  \ 'render_list: families render as a column, not as section dividers')
+
+" Banner carries a status-icon legend (the column itself is gone).
+call Assert(s:rendered =~# 'Status:.*✓ at aim.*▶ climbing.*○ not started',
+  \ 'render_list: status legend present in banner')
+
+" Header row lists every column in order. No 'status' word column —
+" the ▶/✓/○ bullet at the start of each row carries that meaning.
+call Assert(s:rendered =~# 'behavior\s\+commands\s\+family\s\+depth'
+  \ . '\s\+aim_rate\s\+last_rate\s\+last_date',
+  \ 'render_list: header row lists columns (no status column)')
+call Assert(s:rendered !~# '\<status\s\+aim_rate\>',
+  \ 'render_list: no status word column between behavior and aim_rate')
+
+" Row format: ' ▶ behavior  commands  family  depth  aim_rate  last_rate  last_date'.
+" hjkl is at aim (3 sessions at 70 ≥ aim 60) → ✓ bullet; commands render
+" with slashes turned into spaces (h/l → h l); depth 0; family 'motion'.
+call Assert(s:rendered =~# ' ✓ hjkl\s\+h l\s\+motion\s\+0\s\+60/min'
+  \ . '\s\+70/min\s\+2026-01-03',
+  \ 'render_list: row = bullet behavior commands family depth aim/last/date')
+
+" The status word never appears on any data row (only in the legend).
+" line_edges is climbing, but its row carries only the ▶ icon, not the
+" word.
+let s:le_row = ''
+for s:l in s:view.lines
+  if s:l =~# '^ [▶✓○] line_edges\>' | let s:le_row = s:l | break | endif
+endfor
+call Assert(s:le_row =~# '^ ▶ line_edges',
+  \ 'render_list: climbing pinpoint leads with the ▶ bullet')
+call Assert(s:le_row !~# '\<climbing\>',
+  \ 'render_list: status word does not appear inline on data rows')
+
 " Per-motion breakdown is NOT auto-shown (toggled by B).
-call Assert(s:rendered !~# 'h:.*80/min',
+call Assert(s:rendered !~# '\<h\>\s\+80/min',
   \ 'render_list: per-motion breakdown NOT shown by default')
-call Assert(s:rendered =~# '✓ at aim',
-  \ 'render_list: at-aim status icon present for hjkl')
-call Assert(s:rendered =~# '○ not started',
-  \ 'render_list: not-started icon present for pinpoints with no sessions')
+
 " word_motions's prereq (line_edges) is NOT inline on its row — it
 " only surfaces under the B breakdown for word_motions (asserted below).
 let s:wm_row = ''
 for s:l in s:view.lines
-  if s:l =~# '^    word_motions\>' | let s:wm_row = s:l | break | endif
+  if s:l =~# '^ [▶✓○] word_motions\>' | let s:wm_row = s:l | break | endif
 endfor
 call Assert(s:wm_row !~# 'line_edges',
   \ 'render_list: word_motions main row does not list its prereq')
@@ -186,12 +198,13 @@ call Assert(s:rendered =~# "Today's set",
   \ 'render_list: today-summary footer present')
 
 " Column alignment: every data row puts the aim_rate "/min" at the same
-" byte offset. The label is ASCII and the single status icon before it
-" is always 3 bytes, so byte offset tracks display column here. Guards
-" the user's "columns must line up for quick scanning" requirement.
+" byte offset. Rows begin with ' ▶/✓/○ behavior'; the bullet is the
+" only multibyte character before the rate columns, and it's always 3
+" bytes, so byte offset tracks display column here. Guards the user's
+" "columns must line up for quick scanning" requirement.
 let s:aim_cols = {}
 for s:l in s:view.lines
-  if s:l =~# '^    \S' && s:l =~# '/min'
+  if s:l =~# '^ [▶✓○] ' && s:l =~# '/min'
     let s:aim_cols[stridx(s:l, '/min')] = 1
   endif
 endfor
@@ -206,37 +219,61 @@ function! s:nav_line_idx(lines, pat) abort
   endfor
   return -1
 endfunction
-call Assert(s:nav_line_idx(s:view.lines, '^    line_edges\>')
-  \ < s:nav_line_idx(s:view.lines, '^    word_motions\>'),
+call Assert(s:nav_line_idx(s:view.lines, '^ [▶✓○] line_edges\>')
+  \ < s:nav_line_idx(s:view.lines, '^ [▶✓○] word_motions\>'),
   \ 'render_list: deeper-prereq pinpoint sorts after its prereq within family')
 
 " -- expanded breakdown (B toggle) --
 "
-" With hjkl expanded, its per-motion breakdown rows appear: one
-" indented row per motion, with the rate and a ✓ when at-or-above aim.
+" hjkl has no prereqs but has per-motion data — expansion shows ONLY
+" the commands sub-table (no prereqs sub-block) and closes with └.
 let s:eview = vimfluency#_test_build_list_view(s:render_reg, s:sessions_by_id, {'hjkl': 1})
 let s:erendered = join(s:eview.lines, "\n")
-call Assert(s:erendered =~# 'h:.*80/min',
-  \ 'render_list expanded: h motion rate shown in breakdown')
-call Assert(s:erendered =~# 'l:.*60/min',
-  \ 'render_list expanded: l motion rate shown in breakdown')
-call Assert(s:erendered =~# '├─\|└─',
-  \ 'render_list expanded: breakdown uses tree connectors')
-" hjkl has no prereqs in the fixture, so its breakdown carries no
-" prereqs sub-block.
-call Assert(s:erendered !~# 'prereqs:',
+call Assert(s:erendered =~# '└ commands:',
+  \ 'render_list expanded: commands sub-block (└ since it is the last/only one)')
+call Assert(s:erendered =~# 'command\s\+last_rate\s\+stroke_count\s\+stroke_rate',
+  \ 'render_list expanded: per-command sub-table header')
+" Per-command rows: name, last_rate, stroke_count (1 for h/l), stroke_rate
+" (== last_rate since single-stroke commands). Both commands are at aim
+" (80 ≥ 60, 60 ≥ 60) so both get the ✓ at-aim mark.
+call Assert(s:erendered =~# '✓ h\s\+80/min\s\+1\s\+80/min',
+  \ 'render_list expanded: h command row with stroke_count + stroke_rate')
+call Assert(s:erendered =~# '✓ l\s\+60/min\s\+1\s\+60/min',
+  \ 'render_list expanded: l command row with stroke_count + stroke_rate')
+call Assert(s:erendered !~# '├ prereqs:\|└ prereqs:',
   \ 'render_list expanded: no prereqs sub-block when pinpoint has no prereqs')
 
-" word_motions has line_edges as a prereq. Expanding it should surface
-" line_edges with its OWN status (climbing — 1 session below aim) under
-" a 'prereqs:' sub-block. This is the home of the met-and-unmet prereq
-" list now that the prereq column is gone.
+" word_motions has line_edges as a prereq AND no session data. Expansion
+" shows ONLY the prereqs sub-block (no commands), closed with └. Prereq
+" entries are minimal: bullet + name, no status word.
 let s:wview = vimfluency#_test_build_list_view(s:render_reg, s:sessions_by_id, {'word_motions': 1})
 let s:wrendered = join(s:wview.lines, "\n")
-call Assert(s:wrendered =~# 'prereqs:',
-  \ 'render_list expanded: prereqs sub-block label present')
-call Assert(s:wrendered =~# '▶ climbing\s\+line_edges',
-  \ 'render_list expanded: prereq listed with its own status icon')
+call Assert(s:wrendered =~# '└ prereqs:',
+  \ 'render_list expanded: prereqs is the last sub-block (└)')
+call Assert(s:wrendered =~# '▶ line_edges',
+  \ 'render_list expanded: prereq listed with status icon + name only')
+call Assert(s:wrendered !~# '\<climbing\>\s\+line_edges',
+  \ 'render_list expanded: prereq has no status word, only the icon')
+call Assert(s:wrendered !~# '└ commands:\|├ commands:',
+  \ 'render_list expanded: no commands sub-block when there is no session data')
+
+" -- stroke_counts override --
+"
+" A pinpoint can declare per-command stroke counts in meta() to
+" override the derived count. The breakdown uses the declared value
+" verbatim, and stroke_rate = last_rate / declared_count.
+let s:override_reg = {
+  \ 'leader_cmd': {'id': 'leader_cmd', 'name': 'leader', 'aim': 30,
+  \                'prereqs': [], 'family': 'motion',
+  \                'stroke_counts': {'leader_w': 7}},
+  \ }
+let s:override_sess = {
+  \ 'leader_cmd': [s:sess_pm('2026-01-01', 14.0, {'leader_w': {'rate_per_min': 14.0}})],
+  \ }
+let s:oview = vimfluency#_test_build_list_view(s:override_reg, s:override_sess, {'leader_cmd': 1})
+let s:orendered = join(s:oview.lines, "\n")
+call Assert(s:orendered =~# 'leader_w\s\+14/min\s\+7\s\+2/min',
+  \ 'stroke_counts override: declared count drives stroke_rate (14/7 = 2)')
 
 " -- coordinate map (interactive :VfList) --
 "
@@ -263,7 +300,7 @@ endfor
 " Find hjkl's line and confirm it maps to 'hjkl'.
 let s:row_hjkl = -1
 for s:i in range(len(s:lines_for_map))
-  if s:lines_for_map[s:i] =~# '^    hjkl\>'
+  if s:lines_for_map[s:i] =~# '^ [▶✓○] hjkl\>'
     let s:row_hjkl = s:i + 1
     break
   endif
@@ -284,7 +321,7 @@ call AssertEq(s:pp_rows, s:sorted,
 " NOT in pinpoint_rows (j/k skips them).
 let s:erow_hjkl = -1
 for s:i in range(len(s:eview.lines))
-  if s:eview.lines[s:i] =~# '^    hjkl\>'
+  if s:eview.lines[s:i] =~# '^ [▶✓○] hjkl\>'
     let s:erow_hjkl = s:i + 1
     break
   endif
