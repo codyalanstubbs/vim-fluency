@@ -24,22 +24,22 @@ COMMANDS                                                        *vf-commands*
 :VfList                                                          *:VfList*
     Open an interactive flat table of installed pinpoints. A column
     header row names the columns; each row then lists, left to right:
-        ▶/✓/○             status icon (legend in the banner above the
-                          table: ✓ at aim, ▶ climbing, ○ not started)
-        behavior          the pinpoint id
-        commands          the keystrokes that produce this behavior,
-                          space-separated
-        prereq_depth      transitive prereq depth — 0 = no prereqs,
-                          higher values build on lower ones
-        aim               fluency aim (rate per minute)
-        previous_rate     rate of the most recent non-zero session
-        previous_session  date of that same session
-        sessions_count    number of non-zero-rate sessions for this
-                          pinpoint (zero-rate quits are excluded so
-                          the count matches what previous_rate and
-                          previous_session read from)
-        family            the verb family (survival, motion, delete, …)
-    Default order: family → prereq_depth → slug, so each family
+        ▶/✓/○         status icon (legend in the banner above the
+                      table: ✓ at aim, ▶ climbing, ○ not started)
+        drill         the pinpoint id (what you'd type after :Vf)
+        commands      the keystrokes that produce this behavior,
+                      space-separated
+        prereqs_n     transitive prereq depth — 0 = no prereqs,
+                      higher values build on lower ones
+        aim           fluency aim (rate per minute)
+        last_rate     rate of the most recent non-zero session
+        last_session  date of that same session
+        n_sessions    number of non-zero-rate sessions for this
+                      pinpoint (zero-rate quits are excluded so the
+                      count matches what last_rate and last_session
+                      read from)
+        family        the verb family (survival, motion, delete, …)
+    Default order: family → prereqs_n → drill, so each family
     clusters and within a family the foundational pinpoints come
     first. There are no per-family section dividers — the family
     column carries the grouping.
@@ -55,14 +55,14 @@ COMMANDS                                                        *vf-commands*
     asc-or-desc. After a sort, the cursor stays on the SAME row index
     (the Nth pinpoint from the top), not on the same pinpoint — so
     your eye stays put while the data underneath re-orders. Sort keys:
-        sb    behavior          (alphabetical by slug)
-        sc    commands          (alphabetical by rendered key string)
-        sd    prereq_depth      (numeric)
-        sa    aim               (numeric)
-        sr    previous_rate     (numeric; em-dash sorts lowest)
-        ss    previous_session  (chronological; em-dash sorts lowest)
-        sn    sessions_count    (numeric)
-        sf    family            (curated FAMILY_NAMES order)
+        sd    drill         (alphabetical by slug)
+        sc    commands      (alphabetical by rendered key string)
+        sp    prereqs_n     (numeric)
+        sa    aim           (numeric)
+        sr    last_rate     (numeric; em-dash sorts lowest)
+        ss    last_session  (chronological; em-dash sorts lowest)
+        sn    n_sessions    (numeric)
+        sf    family        (curated FAMILY_NAMES order)
 
     The cursor row is highlighted; j/k snap between pinpoint rows
     (header row, blank lines, and breakdown rows are skipped). On a
@@ -82,12 +82,11 @@ COMMANDS                                                        *vf-commands*
         prereqs:   every in-registry prereq, with its own ▶/✓/○ icon
                    so you can see at a glance which are still
                    climbing
-        commands:  a sub-table per command from the previous session —
-                   command, previous_rate, stroke_count (physical
+        commands:  a sub-table per command from the last session —
+                   command, last_rate, stroke_count (physical
                    keystrokes including modifiers like shift), and
-                   stroke_rate = previous_rate / stroke_count (a
-                   fairness lens for comparing 1-key and multi-key
-                   commands)
+                   stroke_rate = last_rate / stroke_count (a fairness
+                   lens for comparing 1-key and multi-key commands)
     stroke_count is derived from the command string (shift counts as
     its own keystroke, so `q!` = 3 and `:wq` = 4); a pinpoint can
     declare `stroke_counts: {motion → N}` in meta() to override the

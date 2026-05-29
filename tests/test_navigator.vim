@@ -158,8 +158,8 @@ call Assert(s:rendered =~# 'Status:.*✓ at aim.*▶ climbing.*○ not started',
 " Header row lists every column in order. No 'status' word column —
 " the ▶/✓/○ bullet at the start of each row carries that meaning.
 " Family is the LAST column.
-call Assert(s:rendered =~# 'behavior\s\+commands\s\+prereq_depth\s\+aim'
-  \ . '\s\+previous_rate\s\+previous_session\s\+sessions_count\s\+family',
+call Assert(s:rendered =~# 'drill\s\+commands\s\+prereqs_n\s\+aim'
+  \ . '\s\+last_rate\s\+last_session\s\+n_sessions\s\+family',
   \ 'render_list: header row lists columns in order, family last')
 call Assert(s:rendered !~# '\<status\s\+aim\>',
   \ 'render_list: no status word column between behavior and aim')
@@ -234,7 +234,7 @@ let s:eview = vimfluency#_test_build_list_view(s:render_reg, s:sessions_by_id, {
 let s:erendered = join(s:eview.lines, "\n")
 call Assert(s:erendered =~# '└ commands:',
   \ 'render_list expanded: commands sub-block (└ since it is the last/only one)')
-call Assert(s:erendered =~# 'command\s\+previous_rate\s\+stroke_count\s\+stroke_rate',
+call Assert(s:erendered =~# 'command\s\+last_rate\s\+stroke_count\s\+stroke_rate',
   \ 'render_list expanded: per-command sub-table header')
 " Per-command rows: name, last_rate, stroke_count (1 for h/l), stroke_rate
 " (== last_rate since single-stroke commands). Both commands are at aim
@@ -322,11 +322,11 @@ call Assert(s:av.mapping[s:av.pinpoint_rows[0]]
   \ !=# s:dv.mapping[s:dv.pinpoint_rows[0]],
   \ 'sort: row 0 carries a different pinpoint across asc/desc')
 
-" Sort by prereq_depth asc: 0, 0, 1, 2.
-let s:depth_v = vimfluency#_test_build_list_view(s:sort_reg, s:sort_sess, {}, 'prereq_depth', 0)
+" Sort by prereqs_n asc: 0, 0, 1, 2.
+let s:depth_v = vimfluency#_test_build_list_view(s:sort_reg, s:sort_sess, {}, 'prereqs_n', 0)
 call AssertEq(s:nav_pinpoint_order(s:depth_v),
   \ ['foundation_a', 'foundation_b', 'mid', 'top'],
-  \ 'sort prereq_depth asc: 0s first, then 1, then 2')
+  \ 'sort prereqs_n asc: 0s first, then 1, then 2')
 
 " Reset (col=''): same order as default, no marker.
 let s:rv = vimfluency#_test_build_list_view(s:sort_reg, s:sort_sess, {}, '', 0)

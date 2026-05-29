@@ -165,30 +165,30 @@ endfunction
 " next column's header so the marker is unambiguously associated
 " with the column to its left.
 let s:S_BULLET       = 1     " ▶ / ✓ / ○
-let s:S_BEHAVIOR     = 3
-let s:S_COMMANDS     = 45
-let s:E_PREREQ_DEPTH = 70    " header 'prereq_depth' (12 cols)
-let s:E_AIM          = 80    " (next col is 5+ cols away; marker fits)
-let s:E_PREV_RATE    = 97    " +1 vs flush layout — marker at col 98, next header at col 101
-let s:E_PREV_SESSION = 117   " +2 cumulative
-let s:E_SESSIONS     = 135   " +3 cumulative
-let s:S_FAMILY       = 139   " +4 cumulative; family marker hangs 1 col past the 'family' word
+let s:S_DRILL        = 3     " 'drill' column (values: pinpoint slug, max ~38 chars)
+let s:S_COMMANDS     = 45    " 'commands' column (values: space-separated keys)
+let s:E_PREREQS_N    = 70    " 'prereqs_n' (9 cols)
+let s:E_AIM          = 80    " 'aim' (3) but value '%3d/min' (7) sets the width
+let s:E_LAST_RATE    = 93    " 'last_rate' (9) — header right-aligned, marker col 94
+let s:E_LAST_SESSION = 109   " 'last_session' (12)
+let s:E_N_SESSIONS   = 123   " 'n_sessions' (10)
+let s:S_FAMILY       = 127   " family is the last column
 
 " Marker cols for left-aligned columns — 1 col past the END of the
 " HEADER TEXT (not the column's max value extent), so the marker
 " reads as attached to its header name.
-let s:M_BEHAVIOR     = 12    " 'behavior' (8 chars) at S=3 → ends col 10; marker col 12
-let s:M_COMMANDS     = 54    " 'commands' (8 chars) at S=45 → ends col 52; marker col 54
-let s:M_FAMILY       = 146   " 'family'   (6 chars) at S=139 → ends col 144; marker col 146
+let s:M_DRILL        = 9     " 'drill'    (5 chars) at S=3   → ends col 7;   marker col 9
+let s:M_COMMANDS     = 54    " 'commands' (8 chars) at S=45  → ends col 52;  marker col 54
+let s:M_FAMILY       = 134   " 'family'   (6 chars) at S=127 → ends col 132; marker col 134
 
 " Breakdown sub-section layout: ├/└/│ in BD_TREE column; prereq entries
 " indent at BD_BODY; the commands sub-table places the ✓-at-aim mark,
 " the command name, and the three numeric columns at fixed cols.
 let s:BD_TREE         = 3
 let s:BD_BODY         = 5
-let s:BD_CMD_MARK     = 5     " ✓ if command's previous_rate ≥ pinpoint aim
+let s:BD_CMD_MARK     = 5     " ✓ if command's last_rate ≥ pinpoint aim
 let s:BD_CMD_NAME     = 7
-let s:BD_CMD_PREV     = 19    " 'previous_rate' header (13 cols)
+let s:BD_CMD_PREV     = 19    " 'last_rate' header (9 cols)
 let s:BD_CMD_STROKES  = 34    " 'stroke_count' (12 cols)
 let s:BD_CMD_PER_STR  = 48    " 'stroke_rate' (11 cols)
 
@@ -420,19 +420,19 @@ endfunction
 " order. Empty 'previous_session' values sort first (lowest).
 function! s:sort_primary(id, sort_col, ctx) abort
   let m = a:ctx.registry[a:id]
-  if a:sort_col ==# 'behavior'
+  if a:sort_col ==# 'drill'
     return a:id
   elseif a:sort_col ==# 'commands'
     return get(m, 'keys', '')
-  elseif a:sort_col ==# 'prereq_depth'
+  elseif a:sort_col ==# 'prereqs_n'
     return printf('%04d', a:ctx.depth[a:id])
   elseif a:sort_col ==# 'aim'
     return printf('%05d', get(m, 'aim', 0))
-  elseif a:sort_col ==# 'previous_rate'
+  elseif a:sort_col ==# 'last_rate'
     return printf('%010.3f', a:ctx.prev_rate[a:id])
-  elseif a:sort_col ==# 'previous_session'
+  elseif a:sort_col ==# 'last_session'
     return empty(a:ctx.prev_date[a:id]) ? '0000-00-00' : a:ctx.prev_date[a:id]
-  elseif a:sort_col ==# 'sessions_count'
+  elseif a:sort_col ==# 'n_sessions'
     return printf('%05d', a:ctx.sessions_count[a:id])
   endif
   " '' (default) or 'family' → curated family order
@@ -550,20 +550,21 @@ function! s:build_list_view(registry, sessions_by_id, expanded, ...) abort
   call add(lines, '')
   call add(lines, 'Move with j/k, then:  (L)earn  (T)rain  (C)hart  (B)reakdown   ·   q closes')
   call add(lines, 'Status:  ✓ at aim    ▶ climbing    ○ not started')
-  call add(lines, 'Sort with s + column letter:  b c d a r s n f   (repeat letter to reverse; s<Space> resets)')
+  call add(lines, 'Sort with s + column letter:  d c p a r s n f   (repeat letter to reverse; s<Space> resets)')
   call add(lines, '')
 
   " Column header row. The bullet column at S_BULLET has no header —
   " the legend above names each icon. The sorted column gets a ▲/▼
-  " marker in the gutter to the right of the column.
-  let head = s:place_left_hdr('',    s:S_BEHAVIOR,         'behavior',         sort_col, sort_desc, s:M_BEHAVIOR)
-  let head = s:place_left_hdr(head,  s:S_COMMANDS,         'commands',         sort_col, sort_desc, s:M_COMMANDS)
-  let head = s:place_right_hdr(head, s:E_PREREQ_DEPTH,     'prereq_depth',     sort_col, sort_desc)
-  let head = s:place_right_hdr(head, s:E_AIM,              'aim',              sort_col, sort_desc)
-  let head = s:place_right_hdr(head, s:E_PREV_RATE,        'previous_rate',    sort_col, sort_desc)
-  let head = s:place_right_hdr(head, s:E_PREV_SESSION,     'previous_session', sort_col, sort_desc)
-  let head = s:place_right_hdr(head, s:E_SESSIONS,         'sessions_count',   sort_col, sort_desc)
-  let head = s:place_left_hdr(head,  s:S_FAMILY,           'family',           sort_col, sort_desc, s:M_FAMILY)
+  " marker 1 col after the header text (in the gutter for the tight
+  " right-aligned columns).
+  let head = s:place_left_hdr('',    s:S_DRILL,         'drill',        sort_col, sort_desc, s:M_DRILL)
+  let head = s:place_left_hdr(head,  s:S_COMMANDS,      'commands',     sort_col, sort_desc, s:M_COMMANDS)
+  let head = s:place_right_hdr(head, s:E_PREREQS_N,     'prereqs_n',    sort_col, sort_desc)
+  let head = s:place_right_hdr(head, s:E_AIM,           'aim',          sort_col, sort_desc)
+  let head = s:place_right_hdr(head, s:E_LAST_RATE,     'last_rate',    sort_col, sort_desc)
+  let head = s:place_right_hdr(head, s:E_LAST_SESSION,  'last_session', sort_col, sort_desc)
+  let head = s:place_right_hdr(head, s:E_N_SESSIONS,    'n_sessions',   sort_col, sort_desc)
+  let head = s:place_left_hdr(head,  s:S_FAMILY,        'family',       sort_col, sort_desc, s:M_FAMILY)
   call add(lines, head)
   call add(lines, '')
 
@@ -578,15 +579,15 @@ function! s:build_list_view(registry, sessions_by_id, expanded, ...) abort
     " backwards compatibility; the column is a render concern only.
     let commands = substitute(get(m, 'keys', ''), '/', ' ', 'g')
 
-    let row = s:place('',   s:S_BULLET,        s:status_icon(status_map[id]))
-    let row = s:place(row,  s:S_BEHAVIOR,      id)
-    let row = s:place(row,  s:S_COMMANDS,      commands)
-    let row = s:place_right(row, s:E_PREREQ_DEPTH, printf('%d', depth[id]))
-    let row = s:place_right(row, s:E_AIM,          printf('%3d/min', m.aim))
-    let row = s:place_right(row, s:E_PREV_RATE,    rate_field)
-    let row = s:place_right(row, s:E_PREV_SESSION, date_field)
-    let row = s:place_right(row, s:E_SESSIONS,     printf('%d', sessions_count[id]))
-    let row = s:place(row,  s:S_FAMILY,       get(m, 'family', ''))
+    let row = s:place('',   s:S_BULLET,           s:status_icon(status_map[id]))
+    let row = s:place(row,  s:S_DRILL,            id)
+    let row = s:place(row,  s:S_COMMANDS,         commands)
+    let row = s:place_right(row, s:E_PREREQS_N,     printf('%d', depth[id]))
+    let row = s:place_right(row, s:E_AIM,           printf('%3d/min', m.aim))
+    let row = s:place_right(row, s:E_LAST_RATE,     rate_field)
+    let row = s:place_right(row, s:E_LAST_SESSION,  date_field)
+    let row = s:place_right(row, s:E_N_SESSIONS,    printf('%d', sessions_count[id]))
+    let row = s:place(row,  s:S_FAMILY,           get(m, 'family', ''))
     call add(lines, substitute(row, '\s\+$', '', ''))
     let mapping[len(lines)] = id
     call add(pinpoint_rows, len(lines))
@@ -663,7 +664,7 @@ function! s:append_breakdown(lines, mapping, id, meta, status_map, per_motion) a
     call add(a:lines, s:place('', s:BD_TREE, '└ commands:'))
     let a:mapping[len(a:lines)] = a:id
     let head = s:place('', s:BD_CMD_NAME, 'command')
-    let head = s:place(head, s:BD_CMD_PREV,    'previous_rate')
+    let head = s:place(head, s:BD_CMD_PREV,    'last_rate')
     let head = s:place(head, s:BD_CMD_STROKES, 'stroke_count')
     let head = s:place(head, s:BD_CMD_PER_STR, 'stroke_rate')
     call add(a:lines, substitute(head, '\s\+$', '', ''))
@@ -727,13 +728,13 @@ function! s:show_list_buffer(view) abort
   " Sort keys: s + column letter. Same letter twice flips direction;
   " s<Space> resets to the default (family, depth, slug) sort. A bare
   " s with nothing after echoes the legend so the keys stay discoverable.
-  nnoremap <buffer> <silent> sb :call vimfluency#list_sort('behavior')<CR>
+  nnoremap <buffer> <silent> sd :call vimfluency#list_sort('drill')<CR>
   nnoremap <buffer> <silent> sc :call vimfluency#list_sort('commands')<CR>
-  nnoremap <buffer> <silent> sd :call vimfluency#list_sort('prereq_depth')<CR>
+  nnoremap <buffer> <silent> sp :call vimfluency#list_sort('prereqs_n')<CR>
   nnoremap <buffer> <silent> sa :call vimfluency#list_sort('aim')<CR>
-  nnoremap <buffer> <silent> sr :call vimfluency#list_sort('previous_rate')<CR>
-  nnoremap <buffer> <silent> ss :call vimfluency#list_sort('previous_session')<CR>
-  nnoremap <buffer> <silent> sn :call vimfluency#list_sort('sessions_count')<CR>
+  nnoremap <buffer> <silent> sr :call vimfluency#list_sort('last_rate')<CR>
+  nnoremap <buffer> <silent> ss :call vimfluency#list_sort('last_session')<CR>
+  nnoremap <buffer> <silent> sn :call vimfluency#list_sort('n_sessions')<CR>
   nnoremap <buffer> <silent> sf :call vimfluency#list_sort('family')<CR>
   nnoremap <buffer> <silent> s<Space> :call vimfluency#list_sort('')<CR>
   nnoremap <buffer> <silent> s :call vimfluency#list_sort_help()<CR>
@@ -886,8 +887,8 @@ endfunction
 " Echo the sort keys when the user presses a bare `s`. Keeps the
 " mapping legend discoverable without polluting the banner.
 function! vimfluency#list_sort_help() abort
-  echo 'Sort: sb=behavior sc=commands sd=prereq_depth sa=aim sr=previous_rate'
-    \ . ' ss=previous_session sn=sessions_count sf=family   (repeat reverses; s<Space> resets)'
+  echo 'Sort: sd=drill sc=commands sp=prereqs_n sa=aim sr=last_rate'
+    \ . ' ss=last_session sn=n_sessions sf=family   (repeat reverses; s<Space> resets)'
 endfunction
 
 " Apply a sort and rebuild the buffer. Empty col → reset to default
