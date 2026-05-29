@@ -156,26 +156,30 @@ endfunction
 " right-align to the same edge so numbers stack under their headers).
 " Keep behavior slugs under ~40 chars and family values under ~18 or
 " the row drifts.
-" Each right-aligned column's E_* sits 3 cols ahead of where it would
-" sit with a flush layout, so the sort marker has room to land in the
-" gutter at E_* + 1 with 1 empty col on either side. Left-aligned
-" columns have a marker column too — placed in the gap between the
-" column's max value extent and the next column's leftmost element.
+" Each column's marker sits 1 col after the HEADER TEXT (not the
+" column's right edge), so for left-aligned columns the marker stays
+" visually close to its header name instead of drifting all the way
+" to the next column's gutter. Right-aligned numeric columns are
+" headers-flush-right, so their marker DOES land in the gutter — for
+" those the E_* values reserve ≥2 cols between the marker and the
+" next column's header so the marker is unambiguously associated
+" with the column to its left.
 let s:S_BULLET       = 1     " ▶ / ✓ / ○
 let s:S_BEHAVIOR     = 3
 let s:S_COMMANDS     = 45
 let s:E_PREREQ_DEPTH = 70    " header 'prereq_depth' (12 cols)
-let s:E_AIM          = 80    " +1 vs flush layout for the gutter marker
-let s:E_PREV_RATE    = 96    " +2 cumulative
-let s:E_PREV_SESSION = 115   " +3 cumulative
-let s:E_SESSIONS     = 132   " +4 cumulative
-let s:S_FAMILY       = 135   " +5 cumulative
+let s:E_AIM          = 80    " (next col is 5+ cols away; marker fits)
+let s:E_PREV_RATE    = 97    " +1 vs flush layout — marker at col 98, next header at col 101
+let s:E_PREV_SESSION = 117   " +2 cumulative
+let s:E_SESSIONS     = 135   " +3 cumulative
+let s:S_FAMILY       = 139   " +4 cumulative; family marker hangs 1 col past the 'family' word
 
-" Marker cols for left-aligned columns — in the gutter after the
-" column's max value extent, with one col of space before the marker.
-let s:M_BEHAVIOR     = 42    " behavior values max 38 chars (S=3 → col 40); marker col 42
-let s:M_COMMANDS     = 56    " commands values max 10 chars (S=45 → col 54); marker col 56
-let s:M_FAMILY       = 154   " family values max 18 chars (S=135 → col 152); marker col 154
+" Marker cols for left-aligned columns — 1 col past the END of the
+" HEADER TEXT (not the column's max value extent), so the marker
+" reads as attached to its header name.
+let s:M_BEHAVIOR     = 12    " 'behavior' (8 chars) at S=3 → ends col 10; marker col 12
+let s:M_COMMANDS     = 54    " 'commands' (8 chars) at S=45 → ends col 52; marker col 54
+let s:M_FAMILY       = 146   " 'family'   (6 chars) at S=139 → ends col 144; marker col 146
 
 " Breakdown sub-section layout: ├/└/│ in BD_TREE column; prereq entries
 " indent at BD_BODY; the commands sub-table places the ✓-at-aim mark,
