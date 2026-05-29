@@ -156,15 +156,26 @@ endfunction
 " right-align to the same edge so numbers stack under their headers).
 " Keep behavior slugs under ~40 chars and family values under ~18 or
 " the row drifts.
+" Each right-aligned column's E_* sits 3 cols ahead of where it would
+" sit with a flush layout, so the sort marker has room to land in the
+" gutter at E_* + 1 with 1 empty col on either side. Left-aligned
+" columns have a marker column too — placed in the gap between the
+" column's max value extent and the next column's leftmost element.
 let s:S_BULLET       = 1     " ▶ / ✓ / ○
 let s:S_BEHAVIOR     = 3
 let s:S_COMMANDS     = 45
 let s:E_PREREQ_DEPTH = 70    " header 'prereq_depth' (12 cols)
-let s:E_AIM          = 79    " header 'aim' (3) but value '%3d/min' (7) sets the width
-let s:E_PREV_RATE    = 94    " header 'previous_rate' (13)
-let s:E_PREV_SESSION = 112   " header 'previous_session' (16)
-let s:E_SESSIONS     = 128   " header 'sessions_count' (14)
-let s:S_FAMILY       = 130   " family is the last column
+let s:E_AIM          = 80    " +1 vs flush layout for the gutter marker
+let s:E_PREV_RATE    = 96    " +2 cumulative
+let s:E_PREV_SESSION = 115   " +3 cumulative
+let s:E_SESSIONS     = 132   " +4 cumulative
+let s:S_FAMILY       = 135   " +5 cumulative
+
+" Marker cols for left-aligned columns — in the gutter after the
+" column's max value extent, with one col of space before the marker.
+let s:M_BEHAVIOR     = 42    " behavior values max 38 chars (S=3 → col 40); marker col 42
+let s:M_COMMANDS     = 56    " commands values max 10 chars (S=45 → col 54); marker col 56
+let s:M_FAMILY       = 154   " family values max 18 chars (S=135 → col 152); marker col 154
 
 " Breakdown sub-section layout: ├/└/│ in BD_TREE column; prereq entries
 " indent at BD_BODY; the commands sub-table places the ✓-at-aim mark,
@@ -425,12 +436,29 @@ function! s:sort_primary(id, sort_col, ctx) abort
     \ get(m, 'family', 'zzz'), 999))
 endfunction
 
-" Append ▲/▼ to a column header when it's the active sort column.
-function! s:hdr_label(name, sort_col, sort_desc) abort
+" Header placement with optional ▲/▼ marker in the gutter to the
+" RIGHT of the column. The header text is placed first (left- or
+" right-aligned per its column kind); the marker, when the column is
+" the active sort, then lands at a fixed gutter column with a space
+" between header text and marker.
+"   right-aligned columns — marker at end_col + 1 (one col past header
+"                            right edge, in the inter-column gutter)
+"   left-aligned columns  — marker at a per-column marker_col chosen
+"                            to sit past the column's max value extent
+function! s:place_right_hdr(line, end_col, name, sort_col, sort_desc) abort
+  let line = s:place_right(a:line, a:end_col, a:name)
   if a:name ==# a:sort_col
-    return a:name . (a:sort_desc ? '▼' : '▲')
+    let line = s:place(line, a:end_col + 1, a:sort_desc ? '▼' : '▲')
   endif
-  return a:name
+  return line
+endfunction
+
+function! s:place_left_hdr(line, col, name, sort_col, sort_desc, marker_col) abort
+  let line = s:place(a:line, a:col, a:name)
+  if a:name ==# a:sort_col
+    let line = s:place(line, a:marker_col, a:sort_desc ? '▼' : '▲')
+  endif
+  return line
 endfunction
 
 " Build the :VfList view in one pass: rendered lines PLUS the
@@ -522,17 +550,16 @@ function! s:build_list_view(registry, sessions_by_id, expanded, ...) abort
   call add(lines, '')
 
   " Column header row. The bullet column at S_BULLET has no header —
-  " the legend above names each icon. Left-aligned text columns use
-  " place(); numeric columns use place_right() so the header and value
-  " share a right edge. The sorted column gets a ▲/▼ marker appended.
-  let head = s:place('',         s:S_BEHAVIOR,     s:hdr_label('behavior',         sort_col, sort_desc))
-  let head = s:place(head,       s:S_COMMANDS,     s:hdr_label('commands',         sort_col, sort_desc))
-  let head = s:place_right(head, s:E_PREREQ_DEPTH, s:hdr_label('prereq_depth',     sort_col, sort_desc))
-  let head = s:place_right(head, s:E_AIM,          s:hdr_label('aim',              sort_col, sort_desc))
-  let head = s:place_right(head, s:E_PREV_RATE,    s:hdr_label('previous_rate',    sort_col, sort_desc))
-  let head = s:place_right(head, s:E_PREV_SESSION, s:hdr_label('previous_session', sort_col, sort_desc))
-  let head = s:place_right(head, s:E_SESSIONS,     s:hdr_label('sessions_count',   sort_col, sort_desc))
-  let head = s:place(head,       s:S_FAMILY,       s:hdr_label('family',           sort_col, sort_desc))
+  " the legend above names each icon. The sorted column gets a ▲/▼
+  " marker in the gutter to the right of the column.
+  let head = s:place_left_hdr('',    s:S_BEHAVIOR,         'behavior',         sort_col, sort_desc, s:M_BEHAVIOR)
+  let head = s:place_left_hdr(head,  s:S_COMMANDS,         'commands',         sort_col, sort_desc, s:M_COMMANDS)
+  let head = s:place_right_hdr(head, s:E_PREREQ_DEPTH,     'prereq_depth',     sort_col, sort_desc)
+  let head = s:place_right_hdr(head, s:E_AIM,              'aim',              sort_col, sort_desc)
+  let head = s:place_right_hdr(head, s:E_PREV_RATE,        'previous_rate',    sort_col, sort_desc)
+  let head = s:place_right_hdr(head, s:E_PREV_SESSION,     'previous_session', sort_col, sort_desc)
+  let head = s:place_right_hdr(head, s:E_SESSIONS,         'sessions_count',   sort_col, sort_desc)
+  let head = s:place_left_hdr(head,  s:S_FAMILY,           'family',           sort_col, sort_desc, s:M_FAMILY)
   call add(lines, head)
   call add(lines, '')
 
