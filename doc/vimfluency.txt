@@ -45,12 +45,15 @@ COMMANDS                                                        *vf-commands*
     column carries the grouping.
 
     Sort with `s` + a column letter. The active column gets a ▲ (asc)
-    or ▼ (desc) marker next to its header. Pressing the same letter
-    twice flips direction; `s<Space>` clears the sort and returns to
-    the default. The tiebreaker is ALWAYS (family, depth, slug)
-    ascending — flipping direction only affects the primary key, so
-    rows with identical primary values keep the same relative order
-    asc-or-desc. Sort keys:
+    or ▼ (desc) marker to the LEFT of its header (one space between).
+    Pressing the same letter twice flips direction; `s<Space>` clears
+    the sort and returns to the default. The tiebreaker is ALWAYS
+    (family, depth, slug) ascending — flipping direction only affects
+    the primary key, so rows with identical primary values keep the
+    same relative order asc-or-desc. After a sort, the cursor stays on
+    the SAME row index (the Nth pinpoint from the top), not on the
+    same pinpoint — so your eye stays put while the data underneath
+    re-orders. Sort keys:
         sb    behavior          (alphabetical by slug)
         sc    commands          (alphabetical by rendered key string)
         sd    prereq_depth      (numeric)

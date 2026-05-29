@@ -156,15 +156,20 @@ endfunction
 " right-align to the same edge so numbers stack under their headers).
 " Keep behavior slugs under ~40 chars and family values under ~18 or
 " the row drifts.
-let s:S_BULLET       = 1     " ▶ / ✓ / ○
+" Column widths reserve 2 cols on the LEFT of each header for the
+" optional sort marker (▲/▼ + space). Right-aligned columns shift
+" their end positions right to accommodate the wider sorted-header
+" without crowding the previous column; left-aligned columns absorb
+" the marker into their existing gaps.
+let s:S_BULLET       = 1     " ▶ / ✓ / ○  (also where the behavior sort marker hangs)
 let s:S_BEHAVIOR     = 3
 let s:S_COMMANDS     = 45
-let s:E_PREREQ_DEPTH = 70    " header 'prereq_depth' (12 cols)
-let s:E_AIM          = 79    " header 'aim' (3) but value '%3d/min' (7) sets the width
-let s:E_PREV_RATE    = 94    " header 'previous_rate' (13)
-let s:E_PREV_SESSION = 112   " header 'previous_session' (16)
-let s:E_SESSIONS     = 128   " header 'sessions_count' (14)
-let s:S_FAMILY       = 130   " family is the last column
+let s:E_PREREQ_DEPTH = 70    " header 'prereq_depth' (12 cols); marker fits inside the 14-col reserve
+let s:E_AIM          = 79    " header 'aim' (3) but value '%3d/min' (7) absorbs the marker
+let s:E_PREV_RATE    = 96    " +2 for marker space on previous_rate (header 13 → 15 with marker)
+let s:E_PREV_SESSION = 116   " +4 cumulative (header 16 → 18 with marker)
+let s:E_SESSIONS     = 134   " +6 cumulative (header 14 → 16 with marker)
+let s:S_FAMILY       = 138   " family last; marker hangs at S_FAMILY-2 with a 2-col gap
 
 " Breakdown sub-section layout: ├/└/│ in BD_TREE column; prereq entries
 " indent at BD_BODY; the commands sub-table places the ✓-at-aim mark,
@@ -425,12 +430,24 @@ function! s:sort_primary(id, sort_col, ctx) abort
     \ get(m, 'family', 'zzz'), 999))
 endfunction
 
-" Append ▲/▼ to a column header when it's the active sort column.
-function! s:hdr_label(name, sort_col, sort_desc) abort
+" Header placement with optional ▲/▼ marker to the LEFT of the
+" column name (single space between). When this column is the active
+" sort, the marker hangs into the column's left margin:
+"   left-aligned columns  — marker sits at col-2 (header text still at col)
+"   right-aligned columns — marker is the prefix; whole string is right-aligned
+function! s:place_left_hdr(line, col, name, sort_col, sort_desc) abort
   if a:name ==# a:sort_col
-    return a:name . (a:sort_desc ? '▼' : '▲')
+    return s:place(a:line, a:col - 2,
+      \ (a:sort_desc ? '▼' : '▲') . ' ' . a:name)
   endif
-  return a:name
+  return s:place(a:line, a:col, a:name)
+endfunction
+
+function! s:place_right_hdr(line, end_col, name, sort_col, sort_desc) abort
+  let text = (a:name ==# a:sort_col)
+    \ ? (a:sort_desc ? '▼' : '▲') . ' ' . a:name
+    \ : a:name
+  return s:place_right(a:line, a:end_col, text)
 endfunction
 
 " Build the :VfList view in one pass: rendered lines PLUS the
@@ -522,17 +539,16 @@ function! s:build_list_view(registry, sessions_by_id, expanded, ...) abort
   call add(lines, '')
 
   " Column header row. The bullet column at S_BULLET has no header —
-  " the legend above names each icon. Left-aligned text columns use
-  " place(); numeric columns use place_right() so the header and value
-  " share a right edge. The sorted column gets a ▲/▼ marker appended.
-  let head = s:place('',         s:S_BEHAVIOR,     s:hdr_label('behavior',         sort_col, sort_desc))
-  let head = s:place(head,       s:S_COMMANDS,     s:hdr_label('commands',         sort_col, sort_desc))
-  let head = s:place_right(head, s:E_PREREQ_DEPTH, s:hdr_label('prereq_depth',     sort_col, sort_desc))
-  let head = s:place_right(head, s:E_AIM,          s:hdr_label('aim',              sort_col, sort_desc))
-  let head = s:place_right(head, s:E_PREV_RATE,    s:hdr_label('previous_rate',    sort_col, sort_desc))
-  let head = s:place_right(head, s:E_PREV_SESSION, s:hdr_label('previous_session', sort_col, sort_desc))
-  let head = s:place_right(head, s:E_SESSIONS,     s:hdr_label('sessions_count',   sort_col, sort_desc))
-  let head = s:place(head,       s:S_FAMILY,       s:hdr_label('family',           sort_col, sort_desc))
+  " the legend above names each icon. The sorted column gets a ▲/▼
+  " marker LEFT of its name (one space between).
+  let head = s:place_left_hdr('',    s:S_BEHAVIOR,         'behavior',         sort_col, sort_desc)
+  let head = s:place_left_hdr(head,  s:S_COMMANDS,         'commands',         sort_col, sort_desc)
+  let head = s:place_right_hdr(head, s:E_PREREQ_DEPTH,     'prereq_depth',     sort_col, sort_desc)
+  let head = s:place_right_hdr(head, s:E_AIM,              'aim',              sort_col, sort_desc)
+  let head = s:place_right_hdr(head, s:E_PREV_RATE,        'previous_rate',    sort_col, sort_desc)
+  let head = s:place_right_hdr(head, s:E_PREV_SESSION,     'previous_session', sort_col, sort_desc)
+  let head = s:place_right_hdr(head, s:E_SESSIONS,         'sessions_count',   sort_col, sort_desc)
+  let head = s:place_left_hdr(head,  s:S_FAMILY,           'family',           sort_col, sort_desc)
   call add(lines, head)
   call add(lines, '')
 
@@ -861,11 +877,26 @@ endfunction
 
 " Apply a sort and rebuild the buffer. Empty col → reset to default
 " family/depth/slug order. Same col as the current sort flips
-" direction; a new col starts in ascending. Cursor stays on the same
-" pinpoint when possible.
+" direction; a new col starts in ascending.
+"
+" Cursor stays on the SAME Nth pinpoint row across the resort — it
+" does NOT follow the pinpoint id. So if you sort and your row's
+" pinpoint moves to the bottom, the cursor stays put and the row
+" underneath you changes.
 function! vimfluency#list_sort(col) abort
   if !exists('b:vf_list_line_to_id') | return | endif
-  let cur_id = get(b:vf_list_line_to_id, line('.'), '')
+
+  " Find which Nth pinpoint row the cursor is on (or just past, when
+  " sitting on a breakdown sub-row under that pinpoint).
+  let cur_line = line('.')
+  let cur_idx = -1
+  for i in range(len(b:vf_list_pinpoint_rows))
+    if b:vf_list_pinpoint_rows[i] <= cur_line
+      let cur_idx = i
+    else
+      break
+    endif
+  endfor
 
   if empty(a:col)
     let b:vf_list_sort_col = ''
@@ -887,16 +918,9 @@ function! vimfluency#list_sort(col) abort
   let b:vf_list_line_to_id = view.mapping
   let b:vf_list_pinpoint_rows = view.pinpoint_rows
 
-  " Restore cursor to the same pinpoint, falling back to the first row.
-  if !empty(cur_id)
-    for row in view.pinpoint_rows
-      if get(view.mapping, row, '') ==# cur_id
-        call cursor(row, 1)
-        return
-      endif
-    endfor
-  endif
-  if !empty(view.pinpoint_rows)
+  if cur_idx >= 0 && cur_idx < len(view.pinpoint_rows)
+    call cursor(view.pinpoint_rows[cur_idx], 1)
+  elseif !empty(view.pinpoint_rows)
     call cursor(view.pinpoint_rows[0], 1)
   endif
 endfunction

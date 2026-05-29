@@ -299,8 +299,8 @@ let s:av = vimfluency#_test_build_list_view(s:sort_reg, s:sort_sess, {}, 'aim', 
 call AssertEq(s:nav_pinpoint_order(s:av),
   \ ['top', 'foundation_a', 'foundation_b', 'mid'],
   \ 'sort aim asc: 40 → 60 (tie: family then slug) → 80')
-call Assert(join(s:av.lines, "\n") =~# 'aim▲',
-  \ 'sort aim asc: ▲ marker appended to aim header')
+call Assert(join(s:av.lines, "\n") =~# '▲ aim\>',
+  \ 'sort aim asc: ▲ marker prepended to aim header (left side)')
 
 " Sort by aim descending: 80, 60, 60, 40 — tiebreaker stays asc so
 " two-60s order doesn't flip from the asc case.
@@ -308,8 +308,19 @@ let s:dv = vimfluency#_test_build_list_view(s:sort_reg, s:sort_sess, {}, 'aim', 
 call AssertEq(s:nav_pinpoint_order(s:dv),
   \ ['mid', 'foundation_a', 'foundation_b', 'top'],
   \ 'sort aim desc: 80 → 60s (tiebreaker stays asc) → 40')
-call Assert(join(s:dv.lines, "\n") =~# 'aim▼',
-  \ 'sort aim desc: ▼ marker appended to aim header')
+call Assert(join(s:dv.lines, "\n") =~# '▼ aim\>',
+  \ 'sort aim desc: ▼ marker prepended to aim header (left side)')
+
+" Cursor preservation contract (under-test via row-index math):
+" two views with the same fixture but different sort orders share the
+" same pinpoint_rows LENGTH (one main row per pinpoint, no breakdowns
+" here). So the cursor's Nth-row index translates cleanly between
+" sorts, and the slug at row N is expected to change.
+call AssertEq(len(s:av.pinpoint_rows), len(s:dv.pinpoint_rows),
+  \ 'sort: pinpoint_rows length is invariant across sorts')
+call Assert(s:av.mapping[s:av.pinpoint_rows[0]]
+  \ !=# s:dv.mapping[s:dv.pinpoint_rows[0]],
+  \ 'sort: row 0 carries a different pinpoint across asc/desc')
 
 " Sort by prereq_depth asc: 0, 0, 1, 2.
 let s:depth_v = vimfluency#_test_build_list_view(s:sort_reg, s:sort_sess, {}, 'prereq_depth', 0)
