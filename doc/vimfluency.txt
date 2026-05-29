@@ -39,12 +39,30 @@ COMMANDS                                                        *vf-commands*
                           the count matches what previous_rate and
                           previous_session read from)
         family            the verb family (survival, motion, delete, …)
-    Rows sort by family → prereq_depth → slug, so each family clusters
-    and within a family the foundational pinpoints come first. There
-    are no per-family section dividers — the family column carries
-    the grouping. The cursor row is highlighted; j/k snap between
-    pinpoint rows (header row, blank lines, and breakdown rows are
-    skipped). On a pinpoint row press:
+    Default order: family → prereq_depth → slug, so each family
+    clusters and within a family the foundational pinpoints come
+    first. There are no per-family section dividers — the family
+    column carries the grouping.
+
+    Sort with `s` + a column letter. The active column gets a ▲ (asc)
+    or ▼ (desc) marker next to its header. Pressing the same letter
+    twice flips direction; `s<Space>` clears the sort and returns to
+    the default. The tiebreaker is ALWAYS (family, depth, slug)
+    ascending — flipping direction only affects the primary key, so
+    rows with identical primary values keep the same relative order
+    asc-or-desc. Sort keys:
+        sb    behavior          (alphabetical by slug)
+        sc    commands          (alphabetical by rendered key string)
+        sd    prereq_depth      (numeric)
+        sa    aim               (numeric)
+        sr    previous_rate     (numeric; em-dash sorts lowest)
+        ss    previous_session  (chronological; em-dash sorts lowest)
+        sn    sessions_count    (numeric)
+        sf    family            (curated FAMILY_NAMES order)
+
+    The cursor row is highlighted; j/k snap between pinpoint rows
+    (header row, blank lines, and breakdown rows are skipped). On a
+    pinpoint row press:
         L     start a Learn session (:VfLearn) for this pinpoint
         T     start a Train session (:Vf) for this pinpoint
         C     open the celeration Chart (:VfChart) for this pinpoint
@@ -53,7 +71,8 @@ COMMANDS                                                        *vf-commands*
     gg / G jump to the first / last pinpoint. C requires logged
     sessions, L requires a lesson, B requires either a multi-command
     session or at least one prereq — each is a no-op with a hint
-    otherwise.
+    otherwise. Sort state is per-buffer and does NOT persist — a
+    fresh :VfList starts at the default.
 
     The B breakdown shows up to two sub-blocks beneath the pinpoint:
         prereqs:   every in-registry prereq, with its own ▶/✓/○ icon

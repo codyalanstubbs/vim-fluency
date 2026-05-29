@@ -27,8 +27,11 @@ function! vimfluency#_test_chart_bounds_zoom() abort
 endfunction
 
 function! vimfluency#_test_build_list_view(registry, sessions_by_id, ...) abort
-  let expanded = a:0 ? a:1 : {}
-  return s:build_list_view(a:registry, a:sessions_by_id, expanded)
+  let expanded = a:0 >= 1 ? a:1 : {}
+  let sort_col = a:0 >= 2 ? a:2 : ''
+  let sort_desc = a:0 >= 3 ? a:3 : 0
+  return s:build_list_view(a:registry, a:sessions_by_id, expanded,
+    \ sort_col, sort_desc)
 endfunction
 
 function! vimfluency#_test_pinpoint_has_lesson(id) abort
@@ -395,6 +398,41 @@ function! s:stroke_rate_field(rate, strokes) abort
   return printf('%.1f/min', raw)
 endfunction
 
+" Sort-primary string for one pinpoint, keyed by the user-chosen
+" column. Returns a string so vim's lex sort matches the natural
+" order: numeric values are zero-padded, dates are ISO so lex == time.
+" Empty column (or 'family') falls through to the curated family
+" order. Empty 'previous_session' values sort first (lowest).
+function! s:sort_primary(id, sort_col, ctx) abort
+  let m = a:ctx.registry[a:id]
+  if a:sort_col ==# 'behavior'
+    return a:id
+  elseif a:sort_col ==# 'commands'
+    return get(m, 'keys', '')
+  elseif a:sort_col ==# 'prereq_depth'
+    return printf('%04d', a:ctx.depth[a:id])
+  elseif a:sort_col ==# 'aim'
+    return printf('%05d', get(m, 'aim', 0))
+  elseif a:sort_col ==# 'previous_rate'
+    return printf('%010.3f', a:ctx.prev_rate[a:id])
+  elseif a:sort_col ==# 'previous_session'
+    return empty(a:ctx.prev_date[a:id]) ? '0000-00-00' : a:ctx.prev_date[a:id]
+  elseif a:sort_col ==# 'sessions_count'
+    return printf('%05d', a:ctx.sessions_count[a:id])
+  endif
+  " '' (default) or 'family' → curated family order
+  return printf('%04d', get(a:ctx.family_order,
+    \ get(m, 'family', 'zzz'), 999))
+endfunction
+
+" Append ▲/▼ to a column header when it's the active sort column.
+function! s:hdr_label(name, sort_col, sort_desc) abort
+  if a:name ==# a:sort_col
+    return a:name . (a:sort_desc ? '▼' : '▲')
+  endif
+  return a:name
+endfunction
+
 " Build the :VfList view in one pass: rendered lines PLUS the
 " line-coordinate map the interactive navigator needs. The renderer
 " is the single source of truth for which line is which pinpoint —
@@ -409,9 +447,15 @@ endfunction
 " `expanded` is a dict {id: 1} of pinpoints whose per-motion
 " breakdown should be shown (toggled by B). Breakdown rows are NOT
 " auto-shown — the default view is just the pinpoint rows.
+" Optional positional args:
+"   sort_col   — column name to sort by ('' = default family order)
+"   sort_desc  — 0 = ascending, 1 = descending. Tiebreaker is always
+"                (family, depth, slug) ascending regardless of dir.
 " Pure function over registry + sessions so tests can drive it
 " without touching the user's real log.
-function! s:build_list_view(registry, sessions_by_id, expanded) abort
+function! s:build_list_view(registry, sessions_by_id, expanded, ...) abort
+  let sort_col = a:0 >= 1 ? a:1 : ''
+  let sort_desc = a:0 >= 2 ? a:2 : 0
   let status_map = {}
   let prev_rate = {}
   let prev_date = {}
@@ -435,24 +479,35 @@ function! s:build_list_view(registry, sessions_by_id, expanded) abort
   endfor
 
   " Curated family ordering from FAMILY_NAMES; unknown families fall
-  " through to the end. Rows sort by (family_index, depth, slug) so
-  " families cluster and each family is foundational-first — no
-  " section dividers needed since the family column carries grouping.
+  " through to the end. The default sort is (family, depth, slug);
+  " when sort_col is set, that column becomes the primary key and
+  " (family, depth, slug) drops to the tiebreaker. Direction (asc/desc)
+  " flips only the primary — tiebreakers stay ascending so two rows
+  " with the same primary value keep the same relative order whether
+  " you've toggled direction or not.
   let family_order = {}
   let fi = 0
   for [fam, _label] in s:FAMILY_NAMES
     let family_order[fam] = fi
     let fi += 1
   endfor
-  let sort_key = {}
+  let ctx = {'registry': a:registry, 'depth': depth, 'prev_rate': prev_rate,
+    \ 'prev_date': prev_date, 'sessions_count': sessions_count,
+    \ 'family_order': family_order}
+  let primary = {}
+  let tiebreak = {}
   for id in keys(a:registry)
-    let fam = get(a:registry[id], 'family', 'zzz')
-    let fkey = get(family_order, fam, 999)
-    let sort_key[id] = printf('%04d:%03d:%s', fkey, depth[id], id)
+    let primary[id] = s:sort_primary(id, sort_col, ctx)
+    let fkey = get(family_order, get(a:registry[id], 'family', 'zzz'), 999)
+    let tiebreak[id] = printf('%04d:%03d:%s', fkey, depth[id], id)
   endfor
   let sorted_ids = sort(keys(a:registry), {x, y ->
-    \ sort_key[x] ==# sort_key[y] ? 0
-    \ : (sort_key[x] <# sort_key[y] ? -1 : 1)})
+    \ primary[x] !=# primary[y]
+    \   ? (sort_desc
+    \      ? (primary[x] <# primary[y] ? 1 : -1)
+    \      : (primary[x] <# primary[y] ? -1 : 1))
+    \   : (tiebreak[x] ==# tiebreak[y] ? 0
+    \      : (tiebreak[x] <# tiebreak[y] ? -1 : 1))})
 
   let lines = []
   let mapping = {}
@@ -463,20 +518,21 @@ function! s:build_list_view(registry, sessions_by_id, expanded) abort
   call add(lines, '')
   call add(lines, 'Move with j/k, then:  (L)earn  (T)rain  (C)hart  (B)reakdown   ·   q closes')
   call add(lines, 'Status:  ✓ at aim    ▶ climbing    ○ not started')
+  call add(lines, 'Sort with s + column letter:  b c d a r s n f   (repeat letter to reverse; s<Space> resets)')
   call add(lines, '')
 
   " Column header row. The bullet column at S_BULLET has no header —
   " the legend above names each icon. Left-aligned text columns use
   " place(); numeric columns use place_right() so the header and value
-  " share a right edge.
-  let head = s:place('',      s:S_BEHAVIOR,     'behavior')
-  let head = s:place(head,    s:S_COMMANDS,     'commands')
-  let head = s:place_right(head, s:E_PREREQ_DEPTH, 'prereq_depth')
-  let head = s:place_right(head, s:E_AIM,          'aim')
-  let head = s:place_right(head, s:E_PREV_RATE,    'previous_rate')
-  let head = s:place_right(head, s:E_PREV_SESSION, 'previous_session')
-  let head = s:place_right(head, s:E_SESSIONS,     'sessions_count')
-  let head = s:place(head,    s:S_FAMILY,       'family')
+  " share a right edge. The sorted column gets a ▲/▼ marker appended.
+  let head = s:place('',         s:S_BEHAVIOR,     s:hdr_label('behavior',         sort_col, sort_desc))
+  let head = s:place(head,       s:S_COMMANDS,     s:hdr_label('commands',         sort_col, sort_desc))
+  let head = s:place_right(head, s:E_PREREQ_DEPTH, s:hdr_label('prereq_depth',     sort_col, sort_desc))
+  let head = s:place_right(head, s:E_AIM,          s:hdr_label('aim',              sort_col, sort_desc))
+  let head = s:place_right(head, s:E_PREV_RATE,    s:hdr_label('previous_rate',    sort_col, sort_desc))
+  let head = s:place_right(head, s:E_PREV_SESSION, s:hdr_label('previous_session', sort_col, sort_desc))
+  let head = s:place_right(head, s:E_SESSIONS,     s:hdr_label('sessions_count',   sort_col, sort_desc))
+  let head = s:place(head,       s:S_FAMILY,       s:hdr_label('family',           sort_col, sort_desc))
   call add(lines, head)
   call add(lines, '')
 
@@ -618,12 +674,16 @@ function! s:show_list_buffer(view) abort
   silent! execute 'keepalt file vf-list'
   call setline(1, a:view.lines)
   setlocal nomodifiable nomodified
-  let &l:statusline = ' pinpoint list   [L=Learn  T=Train  C=Chart  B=Breakdown  q=close]'
+  let &l:statusline = ' pinpoint list   [L=Learn  T=Train  C=Chart  B=Breakdown  s+col=Sort  q=close]'
   let b:vf_summary_tabnr = tabnr
   let b:vf_summary_prev_laststatus = &laststatus
   let b:vf_list_line_to_id = a:view.mapping
   let b:vf_list_pinpoint_rows = a:view.pinpoint_rows
   let b:vf_list_expanded = {}
+  " Sort state: empty col = default (family, depth, slug). When a sort
+  " key is pressed, list_sort() updates these and rebuilds the buffer.
+  let b:vf_list_sort_col = ''
+  let b:vf_list_sort_desc = 0
   set laststatus=2
 
   " Action keys: L=lesson, T=train, C=chart, B=toggle breakdown.
@@ -632,6 +692,20 @@ function! s:show_list_buffer(view) abort
   nnoremap <buffer> <silent> C :call vimfluency#list_action('chart')<CR>
   nnoremap <buffer> <silent> B :call vimfluency#list_toggle_breakdown()<CR>
   nnoremap <buffer> <silent> q :call vimfluency#close_summary()<CR>
+
+  " Sort keys: s + column letter. Same letter twice flips direction;
+  " s<Space> resets to the default (family, depth, slug) sort. A bare
+  " s with nothing after echoes the legend so the keys stay discoverable.
+  nnoremap <buffer> <silent> sb :call vimfluency#list_sort('behavior')<CR>
+  nnoremap <buffer> <silent> sc :call vimfluency#list_sort('commands')<CR>
+  nnoremap <buffer> <silent> sd :call vimfluency#list_sort('prereq_depth')<CR>
+  nnoremap <buffer> <silent> sa :call vimfluency#list_sort('aim')<CR>
+  nnoremap <buffer> <silent> sr :call vimfluency#list_sort('previous_rate')<CR>
+  nnoremap <buffer> <silent> ss :call vimfluency#list_sort('previous_session')<CR>
+  nnoremap <buffer> <silent> sn :call vimfluency#list_sort('sessions_count')<CR>
+  nnoremap <buffer> <silent> sf :call vimfluency#list_sort('family')<CR>
+  nnoremap <buffer> <silent> s<Space> :call vimfluency#list_sort('')<CR>
+  nnoremap <buffer> <silent> s :call vimfluency#list_sort_help()<CR>
 
   " Pinpoint-only navigation. j/k snap between MAIN rows (no
   " landing on sub-rows or headers); gg/G jump to first/last.
@@ -758,7 +832,10 @@ function! vimfluency#list_toggle_breakdown() abort
   endif
 
   let registry = vimfluency#discover_pinpoints()
-  let view = s:build_list_view(registry, s:load_sessions_grouped(), b:vf_list_expanded)
+  let view = s:build_list_view(registry, s:load_sessions_grouped(),
+    \ b:vf_list_expanded,
+    \ get(b:, 'vf_list_sort_col', ''),
+    \ get(b:, 'vf_list_sort_desc', 0))
   setlocal modifiable
   silent! %delete _
   call setline(1, view.lines)
@@ -773,6 +850,55 @@ function! vimfluency#list_toggle_breakdown() abort
       break
     endif
   endfor
+endfunction
+
+" Echo the sort keys when the user presses a bare `s`. Keeps the
+" mapping legend discoverable without polluting the banner.
+function! vimfluency#list_sort_help() abort
+  echo 'Sort: sb=behavior sc=commands sd=prereq_depth sa=aim sr=previous_rate'
+    \ . ' ss=previous_session sn=sessions_count sf=family   (repeat reverses; s<Space> resets)'
+endfunction
+
+" Apply a sort and rebuild the buffer. Empty col → reset to default
+" family/depth/slug order. Same col as the current sort flips
+" direction; a new col starts in ascending. Cursor stays on the same
+" pinpoint when possible.
+function! vimfluency#list_sort(col) abort
+  if !exists('b:vf_list_line_to_id') | return | endif
+  let cur_id = get(b:vf_list_line_to_id, line('.'), '')
+
+  if empty(a:col)
+    let b:vf_list_sort_col = ''
+    let b:vf_list_sort_desc = 0
+  elseif get(b:, 'vf_list_sort_col', '') ==# a:col
+    let b:vf_list_sort_desc = !get(b:, 'vf_list_sort_desc', 0)
+  else
+    let b:vf_list_sort_col = a:col
+    let b:vf_list_sort_desc = 0
+  endif
+
+  let registry = vimfluency#discover_pinpoints()
+  let view = s:build_list_view(registry, s:load_sessions_grouped(),
+    \ b:vf_list_expanded, b:vf_list_sort_col, b:vf_list_sort_desc)
+  setlocal modifiable
+  silent! %delete _
+  call setline(1, view.lines)
+  setlocal nomodifiable nomodified
+  let b:vf_list_line_to_id = view.mapping
+  let b:vf_list_pinpoint_rows = view.pinpoint_rows
+
+  " Restore cursor to the same pinpoint, falling back to the first row.
+  if !empty(cur_id)
+    for row in view.pinpoint_rows
+      if get(view.mapping, row, '') ==# cur_id
+        call cursor(row, 1)
+        return
+      endif
+    endfor
+  endif
+  if !empty(view.pinpoint_rows)
+    call cursor(view.pinpoint_rows[0], 1)
+  endif
 endfunction
 
 function! vimfluency#start(...) abort

@@ -260,6 +260,70 @@ call Assert(s:wrendered !~# '\<climbing\>\s\+line_edges',
 call Assert(s:wrendered !~# '└ commands:\|├ commands:',
   \ 'render_list expanded: no commands sub-block when there is no session data')
 
+" -- column sort --
+"
+" Fixture for sort tests: 4 pinpoints with different aims so order is
+" observable. Two share the same aim to verify tiebreaker stability.
+let s:sort_reg = {
+  \ 'foundation_a': {'id': 'foundation_a', 'name': 'a', 'aim': 60,
+  \                  'prereqs': [], 'family': 'survival'},
+  \ 'foundation_b': {'id': 'foundation_b', 'name': 'b', 'aim': 60,
+  \                  'prereqs': [], 'family': 'motion'},
+  \ 'mid':          {'id': 'mid', 'name': 'mid', 'aim': 80,
+  \                  'prereqs': ['foundation_a'], 'family': 'motion'},
+  \ 'top':          {'id': 'top', 'name': 'top', 'aim': 40,
+  \                  'prereqs': ['mid'], 'family': 'delete'},
+  \ }
+let s:sort_sess = {}
+
+" Helper: list of pinpoint slugs in the rendered order.
+function! s:nav_pinpoint_order(view) abort
+  let out = []
+  for row in a:view.pinpoint_rows
+    call add(out, a:view.mapping[row])
+  endfor
+  return out
+endfunction
+
+" Default sort: family curated order (survival, motion, delete) then
+" depth then alpha. No ▲/▼ marker.
+let s:dview = vimfluency#_test_build_list_view(s:sort_reg, s:sort_sess)
+call AssertEq(s:nav_pinpoint_order(s:dview),
+  \ ['foundation_a', 'foundation_b', 'mid', 'top'],
+  \ 'sort default: family → depth → slug')
+call Assert(join(s:dview.lines, "\n") !~# '[▲▼]',
+  \ 'sort default: no ▲/▼ marker in header')
+
+" Sort by aim ascending: 40, 60, 60, 80 — ties broken by family/depth/slug.
+let s:av = vimfluency#_test_build_list_view(s:sort_reg, s:sort_sess, {}, 'aim', 0)
+call AssertEq(s:nav_pinpoint_order(s:av),
+  \ ['top', 'foundation_a', 'foundation_b', 'mid'],
+  \ 'sort aim asc: 40 → 60 (tie: family then slug) → 80')
+call Assert(join(s:av.lines, "\n") =~# 'aim▲',
+  \ 'sort aim asc: ▲ marker appended to aim header')
+
+" Sort by aim descending: 80, 60, 60, 40 — tiebreaker stays asc so
+" two-60s order doesn't flip from the asc case.
+let s:dv = vimfluency#_test_build_list_view(s:sort_reg, s:sort_sess, {}, 'aim', 1)
+call AssertEq(s:nav_pinpoint_order(s:dv),
+  \ ['mid', 'foundation_a', 'foundation_b', 'top'],
+  \ 'sort aim desc: 80 → 60s (tiebreaker stays asc) → 40')
+call Assert(join(s:dv.lines, "\n") =~# 'aim▼',
+  \ 'sort aim desc: ▼ marker appended to aim header')
+
+" Sort by prereq_depth asc: 0, 0, 1, 2.
+let s:depth_v = vimfluency#_test_build_list_view(s:sort_reg, s:sort_sess, {}, 'prereq_depth', 0)
+call AssertEq(s:nav_pinpoint_order(s:depth_v),
+  \ ['foundation_a', 'foundation_b', 'mid', 'top'],
+  \ 'sort prereq_depth asc: 0s first, then 1, then 2')
+
+" Reset (col=''): same order as default, no marker.
+let s:rv = vimfluency#_test_build_list_view(s:sort_reg, s:sort_sess, {}, '', 0)
+call AssertEq(s:nav_pinpoint_order(s:rv), s:nav_pinpoint_order(s:dview),
+  \ 'sort reset: empty col reproduces the default order')
+call Assert(join(s:rv.lines, "\n") !~# '[▲▼]',
+  \ 'sort reset: no marker in header')
+
 " -- sessions_count excludes zero-rate quits --
 "
 " A pinpoint with 2 usable sessions plus a 0-rate quit shows
