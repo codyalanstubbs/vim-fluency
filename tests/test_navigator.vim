@@ -11,33 +11,33 @@ endfunction
 let s:meta_aim50 = {'aim': 50}
 
 call AssertEq(
-  \ vimfluency#_test_status_from_sessions(s:meta_aim50, []),
+  \ vimfluency#_test_status_from_sessions(s:meta_aim50.aim, []),
   \ 'not_started', 'status: empty sessions → not_started')
 
 call AssertEq(
-  \ vimfluency#_test_status_from_sessions(s:meta_aim50,
+  \ vimfluency#_test_status_from_sessions(s:meta_aim50.aim,
   \   [s:sess('2026-01-01', 0.0)]),
   \ 'not_started', 'status: only zero-rate sessions → not_started')
 
 call AssertEq(
-  \ vimfluency#_test_status_from_sessions(s:meta_aim50,
+  \ vimfluency#_test_status_from_sessions(s:meta_aim50.aim,
   \   [s:sess('2026-01-01', 60.0)]),
   \ 'climbing', 'status: 1 session at aim → still climbing (need 3)')
 
 call AssertEq(
-  \ vimfluency#_test_status_from_sessions(s:meta_aim50,
+  \ vimfluency#_test_status_from_sessions(s:meta_aim50.aim,
   \   [s:sess('2026-01-01', 60.0), s:sess('2026-01-02', 60.0)]),
   \ 'climbing', 'status: 2 at-aim sessions → still climbing (need 3)')
 
 call AssertEq(
-  \ vimfluency#_test_status_from_sessions(s:meta_aim50, [
+  \ vimfluency#_test_status_from_sessions(s:meta_aim50.aim, [
   \   s:sess('2026-01-01', 60.0),
   \   s:sess('2026-01-02', 55.0),
   \   s:sess('2026-01-03', 70.0)]),
   \ 'at_aim', 'status: 3 consecutive at-aim → at_aim')
 
 call AssertEq(
-  \ vimfluency#_test_status_from_sessions(s:meta_aim50, [
+  \ vimfluency#_test_status_from_sessions(s:meta_aim50.aim, [
   \   s:sess('2026-01-01', 60.0),
   \   s:sess('2026-01-02', 40.0),
   \   s:sess('2026-01-03', 70.0)]),
@@ -45,7 +45,7 @@ call AssertEq(
 
 " Zero-rate quit in the middle is filtered out before counting last 3.
 call AssertEq(
-  \ vimfluency#_test_status_from_sessions(s:meta_aim50, [
+  \ vimfluency#_test_status_from_sessions(s:meta_aim50.aim, [
   \   s:sess('2026-01-01', 60.0),
   \   s:sess('2026-01-02', 0.0),
   \   s:sess('2026-01-03', 55.0),

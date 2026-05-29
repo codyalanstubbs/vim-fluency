@@ -42,8 +42,8 @@ function! vimfluency#_test_pinpoint_has_sessions(id) abort
   return s:pinpoint_has_sessions(a:id)
 endfunction
 
-function! vimfluency#_test_status_from_sessions(meta, sessions) abort
-  return s:status_from_sessions(a:meta, a:sessions)
+function! vimfluency#_test_status_from_sessions(aim, sessions) abort
+  return s:status_from_sessions(a:aim, a:sessions)
 endfunction
 
 function! vimfluency#_test_unmet_prereqs(meta, registry, status_map) abort
@@ -121,6 +121,127 @@ function! vimfluency#log_dir() abort
   return dir
 endfunction
 
+" -----------------------------------------------------------------
+" User settings — per-pinpoint aim overrides + global default duration.
+" -----------------------------------------------------------------
+"
+" Settings live in $XDG_DATA_HOME/vimfluency/settings.json next to the
+" session log. Two fields are recognized:
+"   "aims":             {pinpoint_id → integer rate per minute}
+"   "default_duration": integer seconds (applies when :Vf has no arg)
+"
+" Defaults stay in each pinpoint's meta(); the user's overrides sit on
+" top via s:effective_aim() / s:effective_duration(). Status, charts,
+" the VfList view, the breakdown ✓ mark, and the runner ALL read
+" through the effective helpers, so a single override propagates
+" everywhere.
+
+function! s:settings_path() abort
+  return vimfluency#log_dir() . '/settings.json'
+endfunction
+
+" Load the settings dict. Missing file or malformed JSON both yield
+" the empty defaults so the runner never errors on a fresh install.
+function! s:load_settings() abort
+  let path = s:settings_path()
+  if !filereadable(path) | return {'aims': {}} | endif
+  try
+    let raw = join(readfile(path), "\n")
+    let parsed = json_decode(raw)
+    if type(parsed) != type({}) | return {'aims': {}} | endif
+    if !has_key(parsed, 'aims') | let parsed.aims = {} | endif
+    return parsed
+  catch
+    return {'aims': {}}
+  endtry
+endfunction
+
+function! s:save_settings(settings) abort
+  call writefile([json_encode(a:settings)], s:settings_path())
+endfunction
+
+" Effective aim for a pinpoint = user override (if set) else meta.aim.
+function! s:effective_aim(id, meta) abort
+  let aims = get(s:load_settings(), 'aims', {})
+  return get(aims, a:id, get(a:meta, 'aim', 0))
+endfunction
+
+" Effective default duration in seconds for :Vf with no explicit arg.
+" Explicit duration on :Vf <id> N is unaffected — this is JUST the
+" default when the user doesn't specify.
+function! s:effective_duration() abort
+  return get(s:load_settings(), 'default_duration', 60)
+endfunction
+
+" :VfSetAim <id> [rate]
+"   With <rate>: store the override.
+"   Without:     clear the override (revert to the pinpoint's meta.aim).
+function! vimfluency#set_aim(id, ...) abort
+  let registry = vimfluency#discover_pinpoints()
+  if !has_key(registry, a:id)
+    echo 'unknown pinpoint: ' . a:id . '  (try :VfList)'
+    return
+  endif
+  let settings = s:load_settings()
+  if !has_key(settings, 'aims') | let settings.aims = {} | endif
+
+  if a:0 == 0 || empty(a:1)
+    if has_key(settings.aims, a:id)
+      call remove(settings.aims, a:id)
+      call s:save_settings(settings)
+      echo 'aim override cleared for ' . a:id
+        \ . ' (reverted to ' . registry[a:id].aim . '/min)'
+    else
+      echo 'no aim override set for ' . a:id
+    endif
+    return
+  endif
+
+  let rate = str2nr(a:1)
+  if rate <= 0
+    echo 'aim must be a positive integer (rate per minute)'
+    return
+  endif
+  let settings.aims[a:id] = rate
+  call s:save_settings(settings)
+  echo 'aim for ' . a:id . ' set to ' . rate . '/min'
+    \ . ' (default ' . registry[a:id].aim . '/min)'
+endfunction
+
+" :VfSetDuration [seconds]
+"   With <seconds>: store the global default duration override.
+"   Without:        clear the override (revert to 60s).
+function! vimfluency#set_duration(...) abort
+  let settings = s:load_settings()
+  if a:0 == 0 || empty(a:1)
+    if has_key(settings, 'default_duration')
+      call remove(settings, 'default_duration')
+      call s:save_settings(settings)
+      echo 'default duration cleared (reverted to 60s)'
+    else
+      echo 'no default duration override set'
+    endif
+    return
+  endif
+  let secs = str2nr(a:1)
+  if secs <= 0
+    echo 'duration must be a positive integer (seconds)'
+    return
+  endif
+  let settings.default_duration = secs
+  call s:save_settings(settings)
+  echo 'default duration set to ' . secs . 's'
+endfunction
+
+" Test accessors.
+function! vimfluency#_test_effective_aim(id, meta) abort
+  return s:effective_aim(a:id, a:meta)
+endfunction
+
+function! vimfluency#_test_effective_duration() abort
+  return s:effective_duration()
+endfunction
+
 function! vimfluency#discover_pinpoints() abort
   let registry = {}
   let files = globpath(&runtimepath, 'autoload/vimfluency/pinpoints/*.vim', 0, 1)
@@ -168,18 +289,18 @@ let s:S_BULLET       = 1     " ▶ / ✓ / ○
 let s:S_DRILL        = 3     " 'drill' column (values: pinpoint slug, max ~38 chars)
 let s:S_COMMANDS     = 45    " 'commands' column (values: space-separated keys)
 let s:E_PREREQS_N    = 66    " 'prereqs_n' (9 cols)
-let s:E_AIM          = 75    " 'aim' (3) but value '%3d/min' (7) sets the width
-let s:E_LAST_RATE    = 88    " 'last_rate' (9) — header right-aligned, marker col 89
-let s:E_LAST_SESSION = 104   " 'last_session' (12)
-let s:E_RUNS         = 112   " 'runs' (4); value up to 3 digits → col width 4
-let s:S_FAMILY       = 116   " family is the last column
+let s:E_AIM          = 76    " 'aim' (3) but value '%3d/min%s' (8) sets the width — the trailing %s is ' ' or '*' for user-override
+let s:E_LAST_RATE    = 89    " 'last_rate' (9)
+let s:E_LAST_SESSION = 105   " 'last_session' (12)
+let s:E_RUNS         = 113   " 'runs' (4); value up to 3 digits → col width 4
+let s:S_FAMILY       = 117   " family is the last column
 
 " Marker cols for left-aligned columns — 1 col past the END of the
 " HEADER TEXT (not the column's max value extent), so the marker
 " reads as attached to its header name.
 let s:M_DRILL        = 9     " 'drill'    (5 chars) at S=3   → ends col 7;   marker col 9
 let s:M_COMMANDS     = 54    " 'commands' (8 chars) at S=45  → ends col 52;  marker col 54
-let s:M_FAMILY       = 123   " 'family'   (6 chars) at S=116 → ends col 121; marker col 123
+let s:M_FAMILY       = 124   " 'family'   (6 chars) at S=117 → ends col 122; marker col 124
 
 " Breakdown sub-section layout: ├/└/│ in BD_TREE column; prereq entries
 " indent at BD_BODY; the commands sub-table places the ✓-at-aim mark,
@@ -227,7 +348,10 @@ endfunction
 " consecutive recent non-zero-rate sessions at-or-above aim. Anything
 " run-but-not-yet-stable is 'climbing'. No sessions (or only zero-rate
 " quits) is 'not_started'.
-function! s:status_from_sessions(meta, sessions) abort
+" Status from session history. Takes the EFFECTIVE aim directly so the
+" caller can supply meta.aim or a user override; status is computed
+" against today's target.
+function! s:status_from_sessions(aim, sessions) abort
   if empty(a:sessions) | return 'not_started' | endif
   let usable = filter(copy(a:sessions),
     \ 'get(v:val, "frequency_per_min", 0) > 0')
@@ -236,7 +360,7 @@ function! s:status_from_sessions(meta, sessions) abort
     \ : (a.timestamp <# b.timestamp ? -1 : 1)})
   if len(usable) < 3 | return 'climbing' | endif
   for s in usable[-3:]
-    if s.frequency_per_min < a:meta.aim | return 'climbing' | endif
+    if s.frequency_per_min < a:aim | return 'climbing' | endif
   endfor
   return 'at_aim'
 endfunction
@@ -427,7 +551,7 @@ function! s:sort_primary(id, sort_col, ctx) abort
   elseif a:sort_col ==# 'prereqs_n'
     return printf('%04d', a:ctx.depth[a:id])
   elseif a:sort_col ==# 'aim'
-    return printf('%05d', get(m, 'aim', 0))
+    return printf('%05d', a:ctx.effective_aims[a:id])
   elseif a:sort_col ==# 'last_rate'
     return printf('%010.3f', a:ctx.prev_rate[a:id])
   elseif a:sort_col ==# 'last_session'
@@ -488,13 +612,16 @@ endfunction
 function! s:build_list_view(registry, sessions_by_id, expanded, ...) abort
   let sort_col = a:0 >= 1 ? a:1 : ''
   let sort_desc = a:0 >= 2 ? a:2 : 0
+  let aim_overrides = get(s:load_settings(), 'aims', {})
   let status_map = {}
   let prev_rate = {}
   let prev_date = {}
   let sessions_count = {}
+  let effective_aims = {}    " effective aim per pinpoint (override or meta.aim)
   for [id, m] in items(a:registry)
     let s = get(a:sessions_by_id, id, [])
-    let status_map[id]     = s:status_from_sessions(m, s)
+    let effective_aims[id] = get(aim_overrides, id, get(m, 'aim', 0))
+    let status_map[id]     = s:status_from_sessions(effective_aims[id], s)
     let prev_rate[id]      = s:last_rate_from_sessions(s)
     let prev_date[id]      = s:last_date_from_sessions(s)
     " Non-zero-rate sessions only — a zero-rate quit isn't a usable
@@ -525,7 +652,7 @@ function! s:build_list_view(registry, sessions_by_id, expanded, ...) abort
   endfor
   let ctx = {'registry': a:registry, 'depth': depth, 'prev_rate': prev_rate,
     \ 'prev_date': prev_date, 'sessions_count': sessions_count,
-    \ 'family_order': family_order}
+    \ 'effective_aims': effective_aims, 'family_order': family_order}
   let primary = {}
   let tiebreak = {}
   for id in keys(a:registry)
@@ -578,12 +705,18 @@ function! s:build_list_view(registry, sessions_by_id, expanded, ...) abort
     " spaces (i/a/I/A → i a I A). The field stays slash-separated for
     " backwards compatibility; the column is a render concern only.
     let commands = substitute(get(m, 'keys', ''), '/', ' ', 'g')
+    " aim is 8 cols: %3d/min + trailing space or '*' when the user has
+    " set a personal override via :VfSetAim. The asterisk sits at the
+    " column's right edge; non-overridden rows pad with a trailing
+    " space so all values right-align to the same col.
+    let aim_suffix = has_key(aim_overrides, id) ? '*' : ' '
+    let aim_field = printf('%3d/min%s', effective_aims[id], aim_suffix)
 
     let row = s:place('',   s:S_BULLET,           s:status_icon(status_map[id]))
     let row = s:place(row,  s:S_DRILL,            id)
     let row = s:place(row,  s:S_COMMANDS,         commands)
     let row = s:place_right(row, s:E_PREREQS_N,     printf('%d', depth[id]))
-    let row = s:place_right(row, s:E_AIM,           printf('%3d/min', m.aim))
+    let row = s:place_right(row, s:E_AIM,           aim_field)
     let row = s:place_right(row, s:E_LAST_RATE,     rate_field)
     let row = s:place_right(row, s:E_LAST_SESSION,  date_field)
     let row = s:place_right(row, s:E_RUNS,          printf('%d', sessions_count[id]))
@@ -594,7 +727,8 @@ function! s:build_list_view(registry, sessions_by_id, expanded, ...) abort
 
     if get(a:expanded, id, 0)
       call s:append_breakdown(lines, mapping, id, m, status_map,
-        \ s:per_motion_from_sessions(get(a:sessions_by_id, id, [])))
+        \ s:per_motion_from_sessions(get(a:sessions_by_id, id, [])),
+        \ effective_aims[id])
     endif
   endfor
 
@@ -636,7 +770,7 @@ endfunction
 " Vacuous prereqs (slug not in registry) are skipped. All breakdown
 " rows inherit the parent id in mapping so action keys still resolve
 " from anywhere in the block.
-function! s:append_breakdown(lines, mapping, id, meta, status_map, per_motion) abort
+function! s:append_breakdown(lines, mapping, id, meta, status_map, per_motion, aim) abort
   let prereqs = filter(copy(get(a:meta, 'prereqs', [])),
     \ 'has_key(a:status_map, v:val)')
   let has_prereqs  = !empty(prereqs)
@@ -670,7 +804,7 @@ function! s:append_breakdown(lines, mapping, id, meta, status_map, per_motion) a
     call add(a:lines, substitute(head, '\s\+$', '', ''))
     let a:mapping[len(a:lines)] = a:id
     let overrides = get(a:meta, 'stroke_counts', {})
-    let aim = get(a:meta, 'aim', 0)
+    let aim = a:aim
     for motion in sort(keys(a:per_motion))
       let mrate_f = a:per_motion[motion]
       let mrate_i = float2nr(mrate_f + 0.5)
@@ -964,7 +1098,10 @@ function! vimfluency#start(...) abort
     return
   endif
   let id = positional[0]
-  let duration = len(positional) >= 2 ? str2nr(positional[1]) : 60
+  " Duration precedence: explicit arg > user's global default > 60s.
+  let duration = len(positional) >= 2
+    \ ? str2nr(positional[1])
+    \ : s:effective_duration()
   let only_filter = has_key(kwargs, 'only')
     \ ? filter(split(kwargs.only, ','), '!empty(v:val)') : []
 
@@ -979,7 +1116,7 @@ function! vimfluency#start(...) abort
     \ 'mode': 'train',
     \ 'id': info.id,
     \ 'name': info.name,
-    \ 'aim': info.aim,
+    \ 'aim': s:effective_aim(info.id, info),
     \ 'module': info.module,
     \ 'kind': get(info, 'kind', 'motion'),
     \ 'duration': duration,
