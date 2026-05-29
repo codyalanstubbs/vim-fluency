@@ -173,64 +173,69 @@ function! s:effective_duration() abort
   return get(s:load_settings(), 'default_duration', 60)
 endfunction
 
-" :VfSetAim <id> [rate]
-"   With <rate>: store the override.
-"   Without:     clear the override (revert to the pinpoint's meta.aim).
-function! vimfluency#set_aim(id, ...) abort
+" :VfSetAim <id> <rate>  — store an aim override for one pinpoint.
+function! vimfluency#set_aim(id, rate) abort
   let registry = vimfluency#discover_pinpoints()
   if !has_key(registry, a:id)
     echo 'unknown pinpoint: ' . a:id . '  (try :VfList)'
     return
   endif
-  let settings = s:load_settings()
-  if !has_key(settings, 'aims') | let settings.aims = {} | endif
-
-  if a:0 == 0 || empty(a:1)
-    if has_key(settings.aims, a:id)
-      call remove(settings.aims, a:id)
-      call s:save_settings(settings)
-      echo 'aim override cleared for ' . a:id
-        \ . ' (reverted to ' . registry[a:id].aim . '/min)'
-    else
-      echo 'no aim override set for ' . a:id
-    endif
-    return
-  endif
-
-  let rate = str2nr(a:1)
+  let rate = str2nr(a:rate)
   if rate <= 0
     echo 'aim must be a positive integer (rate per minute)'
     return
   endif
+  let settings = s:load_settings()
+  if !has_key(settings, 'aims') | let settings.aims = {} | endif
   let settings.aims[a:id] = rate
   call s:save_settings(settings)
   echo 'aim for ' . a:id . ' set to ' . rate . '/min'
     \ . ' (default ' . registry[a:id].aim . '/min)'
 endfunction
 
-" :VfSetDuration [seconds]
-"   With <seconds>: store the global default duration override.
-"   Without:        clear the override (revert to 60s).
-function! vimfluency#set_duration(...) abort
-  let settings = s:load_settings()
-  if a:0 == 0 || empty(a:1)
-    if has_key(settings, 'default_duration')
-      call remove(settings, 'default_duration')
-      call s:save_settings(settings)
-      echo 'default duration cleared (reverted to 60s)'
-    else
-      echo 'no default duration override set'
-    endif
+" :VfResetAim <id>  — clear the aim override for one pinpoint.
+function! vimfluency#reset_aim(id) abort
+  let registry = vimfluency#discover_pinpoints()
+  if !has_key(registry, a:id)
+    echo 'unknown pinpoint: ' . a:id . '  (try :VfList)'
     return
   endif
-  let secs = str2nr(a:1)
+  let settings = s:load_settings()
+  let aims = get(settings, 'aims', {})
+  if !has_key(aims, a:id)
+    echo 'no aim override set for ' . a:id
+    return
+  endif
+  call remove(aims, a:id)
+  let settings.aims = aims
+  call s:save_settings(settings)
+  echo 'aim override cleared for ' . a:id
+    \ . ' (reverted to ' . registry[a:id].aim . '/min)'
+endfunction
+
+" :VfSetDuration <seconds>  — store the global default duration.
+function! vimfluency#set_duration(seconds) abort
+  let secs = str2nr(a:seconds)
   if secs <= 0
     echo 'duration must be a positive integer (seconds)'
     return
   endif
+  let settings = s:load_settings()
   let settings.default_duration = secs
   call s:save_settings(settings)
   echo 'default duration set to ' . secs . 's'
+endfunction
+
+" :VfResetDuration  — clear the global default duration override.
+function! vimfluency#reset_duration() abort
+  let settings = s:load_settings()
+  if !has_key(settings, 'default_duration')
+    echo 'no default duration override set'
+    return
+  endif
+  call remove(settings, 'default_duration')
+  call s:save_settings(settings)
+  echo 'default duration cleared (reverted to 60s)'
 endfunction
 
 " Test accessors.

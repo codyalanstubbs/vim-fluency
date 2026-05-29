@@ -122,11 +122,9 @@ COMMANDS                                                        *vf-commands*
     1-1000 range and the full chart wastes most of its vertical space.
     Sessions or aim lines outside 10-100 are clipped.
 
-:VfSetAim {id} [rate]                                          *:VfSetAim*
-    Set or clear a personal aim override for pinpoint {id}.
-        :VfSetAim insert_basic 75   set the aim to 75/min
-        :VfSetAim insert_basic      clear the override (revert to the
-                                    pinpoint's meta.aim default)
+:VfSetAim {id} {rate}                                          *:VfSetAim*
+    Store a personal aim override for pinpoint {id} (rate per minute).
+        :VfSetAim insert_basic 75
     The override persists across vim restarts in
     $XDG_DATA_HOME/vimfluency/settings.json and is used everywhere the
     aim matters: :VfList rows show the effective value (with a trailing
@@ -135,15 +133,21 @@ COMMANDS                                                        *vf-commands*
     breakdown's ✓ mark on per-command rates uses it. The default in
     meta() stays untouched.
 
-:VfSetDuration [seconds]                                  *:VfSetDuration*
-    Set or clear a personal global default duration (seconds) for :Vf
-    runs that don't specify an explicit duration.
-        :VfSetDuration 90    new sessions default to 90 seconds
-        :VfSetDuration       clear the override (revert to 60s)
+:VfResetAim {id}                                            *:VfResetAim*
+    Clear the personal aim override for pinpoint {id}, reverting to
+    the pinpoint's meta.aim default.
+
+:VfSetDuration {seconds}                                  *:VfSetDuration*
+    Store a personal global default duration (seconds) for :Vf runs
+    that don't specify an explicit duration.
+        :VfSetDuration 90
     Per-invocation arg on :Vf <id> <seconds> still wins over both this
     override and the 60s built-in default. There is no per-pinpoint
     duration override; this is one knob that applies to every :Vf
     that doesn't pass an explicit duration.
+
+:VfResetDuration                                        *:VfResetDuration*
+    Clear the personal default duration override (revert to 60s).
 
 ==============================================================================
 LOG AND SETTINGS                                                     *vf-log*

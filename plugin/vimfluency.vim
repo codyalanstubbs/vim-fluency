@@ -19,7 +19,9 @@ command! -nargs=1 -complete=customlist,vimfluency#complete VfLearn call vimfluen
 command! -nargs=1 -complete=customlist,vimfluency#complete VfChart call vimfluency#chart(<f-args>)
 command! -nargs=1 -complete=customlist,vimfluency#complete VfChartZoom call vimfluency#chart_zoom(<f-args>)
 command! -nargs=+ -complete=customlist,vimfluency#complete VfSetAim call vimfluency#set_aim(<f-args>)
-command! -nargs=? VfSetDuration call vimfluency#set_duration(<f-args>)
+command! -nargs=1 -complete=customlist,vimfluency#complete VfResetAim call vimfluency#reset_aim(<f-args>)
+command! -nargs=1 VfSetDuration call vimfluency#set_duration(<f-args>)
+command! VfResetDuration call vimfluency#reset_duration()
 
 " High-contrast highlights so the target character stays legible against
 " any colorscheme. Saturated bg + dark fg = "highlighter pen" look.
