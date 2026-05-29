@@ -2038,7 +2038,7 @@ function! vimfluency#stop(reason) abort
   call add(lines, '')
   call add(lines, '  logged: ' . vimfluency#log_dir() . '/sessions.jsonl')
   call add(lines, '')
-  call add(lines, '  Press q or <Enter> to close.')
+  call add(lines, '  Next:  C = open :VfChart  ·  L = back to :VfList  ·  q/<Enter> = close')
 
   " Render into the (still-open) training buffer; user dismisses explicitly.
   let prev_laststatus = s:session.prev_laststatus
@@ -2065,11 +2065,16 @@ function! vimfluency#stop(reason) abort
     call setline(1, lines)
     setlocal nomodifiable nomodified
     silent! execute 'keepalt file vf-summary-' . record.pinpoint_id
-    let &l:statusline = ' session ended  [press q or <Enter> to close]'
+    let &l:statusline = ' session ended  [C=Chart  L=List  q=close]'
     let b:vf_summary_tabnr = tabnr
     let b:vf_summary_prev_laststatus = prev_laststatus
+    " Remember which pinpoint this summary is for so C can open the
+    " right chart. L just opens :VfList — no pinpoint context needed.
+    let b:vf_summary_pinpoint_id = record.pinpoint_id
     nnoremap <buffer> <silent> q :call vimfluency#close_summary()<CR>
     nnoremap <buffer> <silent> <CR> :call vimfluency#close_summary()<CR>
+    nnoremap <buffer> <silent> C :call vimfluency#summary_action('chart')<CR>
+    nnoremap <buffer> <silent> L :call vimfluency#summary_action('list')<CR>
     call cursor(1, 1)
   else
     " training window/tab is gone — fall back to echoing
@@ -2087,6 +2092,19 @@ function! vimfluency#close_summary() abort
     let prev_ls = b:vf_summary_prev_laststatus
     silent! execute 'tabclose ' . tabnr
     let &laststatus = prev_ls
+  endif
+endfunction
+
+" Post-session shortcuts: from the summary, jump straight to the
+" celeration chart for the pinpoint you just trained, or back to
+" :VfList. Closes the summary tab first so we don't leave it behind.
+function! vimfluency#summary_action(action) abort
+  let id = get(b:, 'vf_summary_pinpoint_id', '')
+  call vimfluency#close_summary()
+  if a:action ==# 'chart' && !empty(id)
+    call vimfluency#chart(id)
+  elseif a:action ==# 'list'
+    call vimfluency#list()
   endif
 endfunction
 
