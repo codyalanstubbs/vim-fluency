@@ -34,7 +34,7 @@ COMMANDS                                                        *vf-commands*
         aim           fluency aim (rate per minute)
         last_rate     rate of the most recent non-zero session
         last_session  date of that same session
-        n_sessions    number of non-zero-rate sessions for this
+        runs          number of non-zero-rate training runs for this
                       pinpoint (zero-rate quits are excluded so the
                       count matches what last_rate and last_session
                       read from)
@@ -61,7 +61,7 @@ COMMANDS                                                        *vf-commands*
         sa    aim           (numeric)
         sr    last_rate     (numeric; em-dash sorts lowest)
         ss    last_session  (chronological; em-dash sorts lowest)
-        sn    n_sessions    (numeric)
+        sn    runs          (numeric)
         sf    family        (curated FAMILY_NAMES order)
 
     The cursor row is highlighted; j/k snap between pinpoint rows

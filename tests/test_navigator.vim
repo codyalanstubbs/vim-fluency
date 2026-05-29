@@ -159,7 +159,7 @@ call Assert(s:rendered =~# 'Status:.*✓ at aim.*▶ climbing.*○ not started',
 " the ▶/✓/○ bullet at the start of each row carries that meaning.
 " Family is the LAST column.
 call Assert(s:rendered =~# 'drill\s\+commands\s\+prereqs_n\s\+aim'
-  \ . '\s\+last_rate\s\+last_session\s\+n_sessions\s\+family',
+  \ . '\s\+last_rate\s\+last_session\s\+runs\s\+family',
   \ 'render_list: header row lists columns in order, family last')
 call Assert(s:rendered !~# '\<status\s\+aim\>',
   \ 'render_list: no status word column between behavior and aim')

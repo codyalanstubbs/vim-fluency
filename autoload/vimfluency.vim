@@ -171,15 +171,15 @@ let s:E_PREREQS_N    = 66    " 'prereqs_n' (9 cols)
 let s:E_AIM          = 75    " 'aim' (3) but value '%3d/min' (7) sets the width
 let s:E_LAST_RATE    = 88    " 'last_rate' (9) — header right-aligned, marker col 89
 let s:E_LAST_SESSION = 104   " 'last_session' (12)
-let s:E_N_SESSIONS   = 118   " 'n_sessions' (10)
-let s:S_FAMILY       = 122   " family is the last column
+let s:E_RUNS         = 112   " 'runs' (4); value up to 3 digits → col width 4
+let s:S_FAMILY       = 116   " family is the last column
 
 " Marker cols for left-aligned columns — 1 col past the END of the
 " HEADER TEXT (not the column's max value extent), so the marker
 " reads as attached to its header name.
 let s:M_DRILL        = 9     " 'drill'    (5 chars) at S=3   → ends col 7;   marker col 9
 let s:M_COMMANDS     = 54    " 'commands' (8 chars) at S=45  → ends col 52;  marker col 54
-let s:M_FAMILY       = 129   " 'family'   (6 chars) at S=122 → ends col 127; marker col 129
+let s:M_FAMILY       = 123   " 'family'   (6 chars) at S=116 → ends col 121; marker col 123
 
 " Breakdown sub-section layout: ├/└/│ in BD_TREE column; prereq entries
 " indent at BD_BODY; the commands sub-table places the ✓-at-aim mark,
@@ -432,7 +432,7 @@ function! s:sort_primary(id, sort_col, ctx) abort
     return printf('%010.3f', a:ctx.prev_rate[a:id])
   elseif a:sort_col ==# 'last_session'
     return empty(a:ctx.prev_date[a:id]) ? '0000-00-00' : a:ctx.prev_date[a:id]
-  elseif a:sort_col ==# 'n_sessions'
+  elseif a:sort_col ==# 'runs'
     return printf('%05d', a:ctx.sessions_count[a:id])
   endif
   " '' (default) or 'family' → curated family order
@@ -563,7 +563,7 @@ function! s:build_list_view(registry, sessions_by_id, expanded, ...) abort
   let head = s:place_right_hdr(head, s:E_AIM,           'aim',          sort_col, sort_desc)
   let head = s:place_right_hdr(head, s:E_LAST_RATE,     'last_rate',    sort_col, sort_desc)
   let head = s:place_right_hdr(head, s:E_LAST_SESSION,  'last_session', sort_col, sort_desc)
-  let head = s:place_right_hdr(head, s:E_N_SESSIONS,    'n_sessions',   sort_col, sort_desc)
+  let head = s:place_right_hdr(head, s:E_RUNS,          'runs',         sort_col, sort_desc)
   let head = s:place_left_hdr(head,  s:S_FAMILY,        'family',       sort_col, sort_desc, s:M_FAMILY)
   call add(lines, head)
   call add(lines, '')
@@ -586,7 +586,7 @@ function! s:build_list_view(registry, sessions_by_id, expanded, ...) abort
     let row = s:place_right(row, s:E_AIM,           printf('%3d/min', m.aim))
     let row = s:place_right(row, s:E_LAST_RATE,     rate_field)
     let row = s:place_right(row, s:E_LAST_SESSION,  date_field)
-    let row = s:place_right(row, s:E_N_SESSIONS,    printf('%d', sessions_count[id]))
+    let row = s:place_right(row, s:E_RUNS,          printf('%d', sessions_count[id]))
     let row = s:place(row,  s:S_FAMILY,           get(m, 'family', ''))
     call add(lines, substitute(row, '\s\+$', '', ''))
     let mapping[len(lines)] = id
@@ -734,7 +734,7 @@ function! s:show_list_buffer(view) abort
   nnoremap <buffer> <silent> sa :call vimfluency#list_sort('aim')<CR>
   nnoremap <buffer> <silent> sr :call vimfluency#list_sort('last_rate')<CR>
   nnoremap <buffer> <silent> ss :call vimfluency#list_sort('last_session')<CR>
-  nnoremap <buffer> <silent> sn :call vimfluency#list_sort('n_sessions')<CR>
+  nnoremap <buffer> <silent> sn :call vimfluency#list_sort('runs')<CR>
   nnoremap <buffer> <silent> sf :call vimfluency#list_sort('family')<CR>
   nnoremap <buffer> <silent> s<Space> :call vimfluency#list_sort('')<CR>
   nnoremap <buffer> <silent> s :call vimfluency#list_sort_help()<CR>
@@ -888,7 +888,7 @@ endfunction
 " mapping legend discoverable without polluting the banner.
 function! vimfluency#list_sort_help() abort
   echo 'Sort: sd=drill sc=commands sp=prereqs_n sa=aim sr=last_rate'
-    \ . ' ss=last_session sn=n_sessions sf=family   (repeat reverses; s<Space> resets)'
+    \ . ' ss=last_session sn=runs sf=family   (repeat reverses; s<Space> resets)'
 endfunction
 
 " Apply a sort and rebuild the buffer. Empty col → reset to default
