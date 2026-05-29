@@ -34,8 +34,10 @@ COMMANDS                                                        *vf-commands*
         aim               fluency aim (rate per minute)
         previous_rate     rate of the most recent non-zero session
         previous_session  date of that same session
-        sessions_count    total recorded sessions for this pinpoint,
-                          including zero-rate quits
+        sessions_count    number of non-zero-rate sessions for this
+                          pinpoint (zero-rate quits are excluded so
+                          the count matches what previous_rate and
+                          previous_session read from)
         family            the verb family (survival, motion, delete, …)
     Rows sort by family → prereq_depth → slug, so each family clusters
     and within a family the foundational pinpoints come first. There

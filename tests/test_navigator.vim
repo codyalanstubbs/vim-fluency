@@ -260,6 +260,33 @@ call Assert(s:wrendered !~# '\<climbing\>\s\+line_edges',
 call Assert(s:wrendered !~# '└ commands:\|├ commands:',
   \ 'render_list expanded: no commands sub-block when there is no session data')
 
+" -- sessions_count excludes zero-rate quits --
+"
+" A pinpoint with 2 usable sessions plus a 0-rate quit shows
+" sessions_count = 2, not 3. Keeps the column consistent with
+" previous_rate / previous_session, which both read from the most
+" recent NON-ZERO session.
+let s:zq_reg = {
+  \ 'zq': {'id': 'zq', 'name': 'zq', 'aim': 50,
+  \        'prereqs': [], 'family': 'motion'},
+  \ }
+let s:zq_sess = {
+  \ 'zq': [
+  \   s:sess('2026-01-01', 40.0),
+  \   s:sess('2026-01-02', 45.0),
+  \   s:sess('2026-01-03', 0.0),
+  \ ],
+  \ }
+let s:zqview = vimfluency#_test_build_list_view(s:zq_reg, s:zq_sess)
+let s:zq_row = ''
+for s:l in s:zqview.lines
+  if s:l =~# '^ [▶✓○] zq\>' | let s:zq_row = s:l | break | endif
+endfor
+" Row carries previous_rate 45/min (most recent non-zero), date
+" 2026-01-02 (same session), and sessions_count 2 — NOT 3.
+call Assert(s:zq_row =~# '\s\+45/min\s\+2026-01-02\s\+2\s\+motion',
+  \ 'sessions_count: zero-rate quits not counted')
+
 " -- stroke_counts override --
 "
 " A pinpoint can declare per-command stroke counts in meta() to

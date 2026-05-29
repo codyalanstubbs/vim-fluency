@@ -421,10 +421,11 @@ function! s:build_list_view(registry, sessions_by_id, expanded) abort
     let status_map[id]     = s:status_from_sessions(m, s)
     let prev_rate[id]      = s:last_rate_from_sessions(s)
     let prev_date[id]      = s:last_date_from_sessions(s)
-    " Raw count of recorded sessions, INCLUDING zero-rate quits —
-    " sessions_count answers "how many times have I tried this," not
-    " "how many usable rate samples do I have."
-    let sessions_count[id] = len(s)
+    " Non-zero-rate sessions only — a zero-rate quit isn't a usable
+    " training sample, so sessions_count is consistent with what
+    " previous_rate and previous_session both read from.
+    let sessions_count[id] = len(filter(copy(s),
+      \ 'get(v:val, "frequency_per_min", 0) > 0'))
   endfor
 
   " Prereq depth: both a column and the within-family sort key.
