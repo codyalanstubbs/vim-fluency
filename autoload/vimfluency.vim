@@ -1352,10 +1352,16 @@ function! s:next_item() abort
   let GenFn = function('vimfluency#pinpoints#' . s:session.module . '#generate')
   let item = {}
   let attempts = 0
+  let cur_mode = s:session.kind ==# 'mode_switch' ? s:mode_canonical(mode(1)) : ''
   while attempts < 100
     let item = GenFn()
-    if empty(s:session.only_filter)
+    let filter_ok = empty(s:session.only_filter)
       \ || index(s:session.only_filter, get(item, 'expected_motion', '')) >= 0
+    " mode_switch needs target != current (otherwise the user has
+    " nothing to do, and we don't want the same target twice in a row).
+    let mode_ok = s:session.kind !=# 'mode_switch'
+      \ || get(item, 'target_mode_canon', '') !=# cur_mode
+    if filter_ok && mode_ok
       break
     endif
     let attempts += 1
@@ -1386,6 +1392,12 @@ function! s:next_item() abort
   endif
   if s:session.kind ==# 'mode'
     call s:render_mode_item(item)
+    let s:session.advancing = 0
+    return
+  endif
+  if s:session.kind ==# 'mode_switch'
+    call s:render_mode_switch_item(item)
+    call s:start_mode_polling()
     let s:session.advancing = 0
     return
   endif
@@ -1460,6 +1472,13 @@ function! s:install_autocmds() abort
     " autocmds — there's no live "editing area" to watch. Tab still
     " skips, so the existing skip path stays consistent.
     call s:install_recall_maps()
+    return
+  endif
+  if s:session.kind ==# 'mode_switch'
+    " mode_switch credits via a polling timer on mode() — see
+    " s:start_mode_polling, kicked off from s:next_item. No buffer-
+    " change autocmds needed. Tab still skips from normal mode.
+    nnoremap <buffer> <silent> <Tab> :call <SID>skip()<CR>
     return
   endif
   augroup VfTrain
@@ -1822,6 +1841,113 @@ function! s:mode_gap_indicator(item) abort
   return repeat(' ', gap_left - 1) . '▶' . between . '◀'
 endfunction
 
+" -----------------------------------------------------------------
+" mode_switch kind — production training for mode changes
+" -----------------------------------------------------------------
+"
+" Items declare a `target_mode_canon` ∈ {n, i, v, r, c}. The runner
+" polls vim's mode() every 50ms; when the canonical mode matches the
+" target, the item credits and the next item's target is generated
+" with the no-repeat constraint (target != current mode).
+"
+" Why polling and not events: vim 8.1 (the project floor) doesn't
+" have ModeChanged (8.2+). InsertEnter/InsertLeave only cover insert.
+" There's no clean event for visual entry. Polling mode(1) is cheap
+" — a string compare every 50ms — and covers all five modes
+" uniformly.
+
+" Map vim's mode(1) string to one of the five canonical labels.
+" Visual character / line / block all collapse into 'v'; Replace and
+" virtual-replace into 'r'; command-line variants into 'c'.
+function! s:mode_canonical(raw) abort
+  if empty(a:raw) | return 'n' | endif
+  let c = a:raw[0]
+  if c ==# 'i' | return 'i' | endif
+  if c ==# 'R' | return 'r' | endif
+  if c ==# 'c' | return 'c' | endif
+  if c ==# 'v' || c ==# 'V' || c ==# "\<C-v>" | return 'v' | endif
+  return 'n'
+endfunction
+
+function! s:mode_pretty(canon) abort
+  return get({'n': 'NORMAL', 'i': 'INSERT', 'v': 'VISUAL',
+    \ 'r': 'REPLACE', 'c': 'COMMAND'}, a:canon, 'NORMAL')
+endfunction
+
+function! s:render_mode_switch_item(item) abort
+  let target = s:mode_pretty(get(a:item, 'target_mode_canon', 'n'))
+  let lines = [
+    \ '',
+    \ '',
+    \ '    Switch to ' . target . ' mode',
+    \ '',
+    \ '    (from a non-Normal mode, press <Esc> first)',
+    \ '',
+    \ ]
+  let s:session.header_offset = 0
+  setlocal modifiable
+  silent! %delete _
+  call setline(1, lines)
+  call cursor(2, 1)
+  if s:session.target_match_id != -1
+    silent! call matchdelete(s:session.target_match_id)
+    let s:session.target_match_id = -1
+  endif
+  if s:session.deletion_match_id != -1
+    silent! call matchdelete(s:session.deletion_match_id)
+    let s:session.deletion_match_id = -1
+  endif
+  call s:clear_waypoint_matches()
+  redrawstatus
+endfunction
+
+" Start (or restart) the polling timer for the current mode_switch
+" item. Stops any existing timer first so multiple items in a row
+" don't accumulate timers.
+function! s:start_mode_polling() abort
+  call s:stop_mode_polling()
+  let s:session.mode_poll_timer = timer_start(50,
+    \ function('s:check_mode_for_credit'), {'repeat': -1})
+endfunction
+
+function! s:stop_mode_polling() abort
+  if has_key(s:session, 'mode_poll_timer')
+    call timer_stop(s:session.mode_poll_timer)
+    unlet s:session.mode_poll_timer
+  endif
+endfunction
+
+function! s:check_mode_for_credit(timer) abort
+  if empty(s:session) | return | endif
+  if get(s:session, 'advancing', 0) | return | endif
+  let canon = s:mode_canonical(mode(1))
+  let target = get(s:session.current_item, 'target_mode_canon', '')
+  if canon ==# target
+    " current_item_motions for mode_switch is best-effort: we don't
+    " hook each keystroke (would have to install per-key maps in
+    " every mode). Charge 1 stroke if target == 'n' (just <Esc>) or
+    " if previous mode was 'n' (one entry key); otherwise 2 strokes
+    " (<Esc> + entry key). Mirrors the optimal_motions logic so the
+    " per-motion breakdown stays honest.
+    let s:session.current_item_motions = s:mode_switch_strokes(target)
+    call s:credit_item()
+  endif
+endfunction
+
+" Optimal strokes for a mode_switch item based on the CURRENT mode at
+" the time of credit. Always at least 1. Caveat: this is "optimal given
+" the actual transition," not what the user pressed — they can't
+" register inflated strokes because we don't track each keypress.
+function! s:mode_switch_strokes(target) abort
+  if a:target ==# 'n' | return 1 | endif
+  " current mode at credit time IS the target, but PREVIOUSLY they
+  " were in whatever the prior item's target was. Track that for the
+  " optimal count.
+  let prev = get(s:session, 'mode_switch_prev', 'n')
+  let s:session.mode_switch_prev = a:target
+  return prev ==# 'n' ? 1 : 2
+endfunction
+
 function! s:render_mode_item(item) abort
   let s:session.insert_entered = 0
   let s:session.insert_enter_pos = []
@@ -1942,6 +2068,7 @@ function! vimfluency#stop(reason) abort
   if has_key(s:session, 'timer')
     call timer_stop(s:session.timer)
   endif
+  call s:stop_mode_polling()
   silent! augroup VfTrain | autocmd! | augroup END
 
   let elapsed = min([reltimefloat(reltime(s:session.started_at)), s:session.duration * 1.0])

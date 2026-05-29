@@ -773,41 +773,33 @@ function! s:test_T0_3d() abort
   call s:test_T0_3_pair('force_quit_ex_vs_normal_zq', 'force_quit_ex_vs_normal_zq', [':q!', 'ZQ'])
 endfunction
 
-" T0.5 — mode awareness (recall). Each item's answer is one of the
-" five named modes; the prompt is a list (multi-line mock cue);
-" expected_motion mirrors answer.
-function! s:test_T0_5() abort
-  let GenFn = function('vimfluency#pinpoints#recognize_current_mode#generate')
-  " Single-keystroke answers: n=normal, i=insert, v=visual, r=replace,
-  " :=command. The training isolates the recognition step from typing
-  " noise (no word length, no typos).
-  let valid = ['n', 'i', 'v', 'r', ':']
-  let last_lines = {
-    \ 'n': '  ~',
-    \ 'i': '  -- INSERT --',
-    \ 'v': '  -- VISUAL --',
-    \ 'r': '  -- REPLACE --',
-    \ ':': '  :_',
-    \ }
+" change_current_mode — mode-switch production. Each item declares one
+" of the five canonical targets ∈ {n, i, v, r, c}; expected_motion is
+" 'to_<target>'. Runner-side no-repeat (target != current mode) is
+" enforced in s:next_item, not in the generator, so the generator can
+" produce any target uniformly. Over s:N samples we expect all five
+" targets to appear at least once.
+function! s:test_change_current_mode() abort
+  let GenFn = function('vimfluency#pinpoints#change_current_mode#generate')
+  let valid = ['n', 'i', 'v', 'r', 'c']
   let seen = {}
   for i in range(s:N)
     let item = GenFn()
-    call s:assert_recall_common('recognize_current_mode', item)
-    call AssertIn(item.expected_answer, valid,
-      \ 'T0.5: expected_answer in single-key set')
-    call AssertEq(item.optimal_motions, 1,
-      \ 'T0.5: optimal_motions == 1 (single keystroke)')
-    call Assert(has_key(item, 'prompt_after') && type(item.prompt_after) == v:t_list,
-      \ 'T0.5: prompt_after is a list (the mock vim screen)')
-    call AssertEq(item.prompt_after[-1], last_lines[item.expected_answer],
-      \ 'T0.5: mock-screen last line matches expected modeline (or ~ for normal)')
-    call AssertEq(item.expected_motion, item.expected_answer,
-      \ 'T0.5: expected_motion mirrors expected_answer')
-    let seen[item.expected_answer] = 1
+    call Assert(has_key(item, 'target_mode_canon'),
+      \ 'change_current_mode: target_mode_canon set')
+    call AssertIn(item.target_mode_canon, valid,
+      \ 'change_current_mode: target in {n,i,v,r,c}')
+    call AssertEq(item.expected_motion, 'to_' . item.target_mode_canon,
+      \ 'change_current_mode: expected_motion = to_<target>')
+    call Assert(item.optimal_motions >= 1,
+      \ 'change_current_mode: optimal_motions ≥ 1')
+    call Assert(has_key(item, 'prompt') && !empty(item.prompt),
+      \ 'change_current_mode: prompt set')
+    let seen[item.target_mode_canon] = 1
   endfor
   for m in valid
     call Assert(get(seen, m, 0) == 1,
-      \ 'T0.5: ' . m . ' appeared in samples')
+      \ 'change_current_mode: target ' . m . ' appeared in samples')
   endfor
 endfunction
 
@@ -1176,7 +1168,7 @@ call s:test_T0_3b()
 call s:test_T0_3c()
 call s:test_T0_3d()
 call s:test_T0_4()
-call s:test_T0_5()
+call s:test_change_current_mode()
 call s:test_3_2a()
 call s:test_3_2b()
 call s:test_1A_3()

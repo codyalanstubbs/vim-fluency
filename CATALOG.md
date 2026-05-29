@@ -43,7 +43,7 @@ is the source of truth for *what's actually shipped*.
 | `save_quit_ex_vs_normal_zz` | Discriminate `:wq` vs `ZZ` (Ex vs normal-mode) | Disc | 35 | `save_quit_vs_force_quit` |
 | `force_quit_ex_vs_normal_zq` | Discriminate `:q!` vs `ZQ` (Ex vs normal-mode) | Disc | 35 | `save_quit_vs_force_quit` |
 | `undo_redo` | Undo / redo (`u`, `Ctrl-r`) | S→K | 50 | — |
-| `recognize_current_mode` | Given a screen, press the mode key (n/i/v/r/:) | Recall | 120 | — |
+| `change_current_mode` | Production: change INTO the prompted mode (`<Esc>`/`i`/`v`/`R`/`:`); chained transitions | Mode | 60 | — |
 
 ## Motion family
 
@@ -51,11 +51,11 @@ Cursor-only behaviors. No buffer change.
 
 | id (slug) | Behavior | Format | Aim | Prereqs |
 |---|---|---|---|---|
-| `move_single_char_up_down_left_right` | `hjkl` (4-direction) | S→K | 60 | `recognize_current_mode`, `insert_basic` |
-| `move_single_char_left_right` | `h l` (narrower horizontal sibling of hjkl) | S→K | 60 | `recognize_current_mode`, `insert_basic` |
-| `move_single_char_up_down` | `j k` (narrower vertical sibling of hjkl) | S→K | 60 | `recognize_current_mode`, `insert_basic` |
-| `move_to_line_edges_all` | Line start / first-non-blank / end (`0`, `^`, `$`, `g_`) | S→K | 50 | `recognize_current_mode`, `insert_basic` |
-| `move_to_line_edges_beginning_end` | `0 $` (narrower line-edge sibling; no whitespace axis) | S→K | 55 | `recognize_current_mode`, `insert_basic` |
+| `move_single_char_up_down_left_right` | `hjkl` (4-direction) | S→K | 60 | `change_current_mode`, `insert_basic` |
+| `move_single_char_left_right` | `h l` (narrower horizontal sibling of hjkl) | S→K | 60 | `change_current_mode`, `insert_basic` |
+| `move_single_char_up_down` | `j k` (narrower vertical sibling of hjkl) | S→K | 60 | `change_current_mode`, `insert_basic` |
+| `move_to_line_edges_all` | Line start / first-non-blank / end (`0`, `^`, `$`, `g_`) | S→K | 50 | `change_current_mode`, `insert_basic` |
+| `move_to_line_edges_beginning_end` | `0 $` (narrower line-edge sibling; no whitespace axis) | S→K | 55 | `change_current_mode`, `insert_basic` |
 | `move_to_word_start_forward_backward` | `w b` | S→K | 45 | `move_single_char_up_down_left_right` |
 | `move_to_word_end_forward_backward` | `e ge` | S→K | 40 | `move_single_char_up_down_left_right` |
 | `move_to_char_forward_backward` | `f{c} F{c}` | S→K | 50 | `move_single_char_up_down_left_right` |
@@ -72,7 +72,7 @@ broader drills) are designed but not yet built — see
 
 | id (slug) | Behavior | Format | Aim | Prereqs |
 |---|---|---|---|---|
-| `discriminate_delete_char_vs_line` | `x` vs `dd` (navigate then operate) | Disc | 35 | `recognize_current_mode`, `insert_basic` |
+| `discriminate_delete_char_vs_line` | `x` vs `dd` (navigate then operate) | Disc | 35 | `change_current_mode`, `insert_basic` |
 | `delete_to_word_start_forward_backward` | `dw db` (delete to word start, both directions) | Disc | 60 | `discriminate_delete_char_vs_line`, `move_to_word_start_forward_backward` |
 | `delete_to_line_edges_beginning_end` | `d0 d$` (delete to line edge, both directions) | Disc | 35 | `move_to_line_edges_beginning_end` |
 | `delete_single_char_left_right` | `dl dh` (delete one char via motion) | Disc | 40 | `move_single_char_left_right` |
@@ -82,7 +82,7 @@ broader drills) are designed but not yet built — see
 
 | id (slug) | Behavior | Format | Aim | Prereqs |
 |---|---|---|---|---|
-| `discriminate_indent_vs_dedent` | `>>` vs `<<` | Disc | 35 | `recognize_current_mode`, `insert_basic` |
+| `discriminate_indent_vs_dedent` | `>>` vs `<<` | Disc | 35 | `change_current_mode`, `insert_basic` |
 
 ## Text-object recall (legacy)
 
@@ -95,7 +95,7 @@ post-pivot spec.
 
 | id (slug) | Behavior | Format | Aim | Prereqs |
 |---|---|---|---|---|
-| `recall_inner_quote_pair` | Recall `i"` vs `i'` from buffer cue | Recall | 40 | `recognize_current_mode`, `insert_basic` |
+| `recall_inner_quote_pair` | Recall `i"` vs `i'` from buffer cue | Recall | 40 | `change_current_mode`, `insert_basic` |
 | `recall_inner_quote_triple` | Adds `` i` `` (backtick) | Recall | 35 | `recall_inner_quote_pair` |
 
 ## Forward-looking work

@@ -14,7 +14,7 @@ let s:chars = ['a','b','c','d','e','f','g','h','i','j','k','m','n','p',
 
 function! vimfluency#pinpoints#move_single_char_up_down_left_right#meta() abort
   return {'id': 'move_single_char_up_down_left_right', 'name': 'hjkl', 'aim': 60,
-    \ 'allowed_keys': 'hjkl', 'prereqs': ['recognize_current_mode', 'insert_basic'], 'keys': 'h/j/k/l', 'family': 'motion'}
+    \ 'allowed_keys': 'hjkl', 'prereqs': ['change_current_mode', 'insert_basic'], 'keys': 'h/j/k/l', 'family': 'motion'}
 endfunction
 
 function! vimfluency#pinpoints#move_single_char_up_down_left_right#lesson() abort
