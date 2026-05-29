@@ -167,19 +167,19 @@ endfunction
 let s:S_BULLET       = 1     " ▶ / ✓ / ○
 let s:S_DRILL        = 3     " 'drill' column (values: pinpoint slug, max ~38 chars)
 let s:S_COMMANDS     = 45    " 'commands' column (values: space-separated keys)
-let s:E_PREREQS_N    = 70    " 'prereqs_n' (9 cols)
-let s:E_AIM          = 80    " 'aim' (3) but value '%3d/min' (7) sets the width
-let s:E_LAST_RATE    = 93    " 'last_rate' (9) — header right-aligned, marker col 94
-let s:E_LAST_SESSION = 109   " 'last_session' (12)
-let s:E_N_SESSIONS   = 123   " 'n_sessions' (10)
-let s:S_FAMILY       = 127   " family is the last column
+let s:E_PREREQS_N    = 66    " 'prereqs_n' (9 cols)
+let s:E_AIM          = 75    " 'aim' (3) but value '%3d/min' (7) sets the width
+let s:E_LAST_RATE    = 88    " 'last_rate' (9) — header right-aligned, marker col 89
+let s:E_LAST_SESSION = 104   " 'last_session' (12)
+let s:E_N_SESSIONS   = 118   " 'n_sessions' (10)
+let s:S_FAMILY       = 122   " family is the last column
 
 " Marker cols for left-aligned columns — 1 col past the END of the
 " HEADER TEXT (not the column's max value extent), so the marker
 " reads as attached to its header name.
 let s:M_DRILL        = 9     " 'drill'    (5 chars) at S=3   → ends col 7;   marker col 9
 let s:M_COMMANDS     = 54    " 'commands' (8 chars) at S=45  → ends col 52;  marker col 54
-let s:M_FAMILY       = 134   " 'family'   (6 chars) at S=127 → ends col 132; marker col 134
+let s:M_FAMILY       = 129   " 'family'   (6 chars) at S=122 → ends col 127; marker col 129
 
 " Breakdown sub-section layout: ├/└/│ in BD_TREE column; prereq entries
 " indent at BD_BODY; the commands sub-table places the ✓-at-aim mark,
