@@ -157,18 +157,21 @@ call Assert(s:rendered =~# 'Status:.*✓ at aim.*▶ climbing.*○ not started',
 
 " Header row lists every column in order. No 'status' word column —
 " the ▶/✓/○ bullet at the start of each row carries that meaning.
-call Assert(s:rendered =~# 'behavior\s\+commands\s\+family\s\+depth'
-  \ . '\s\+aim_rate\s\+last_rate\s\+last_date',
-  \ 'render_list: header row lists columns (no status column)')
-call Assert(s:rendered !~# '\<status\s\+aim_rate\>',
-  \ 'render_list: no status word column between behavior and aim_rate')
+" Family is the LAST column.
+call Assert(s:rendered =~# 'behavior\s\+commands\s\+prereq_depth\s\+aim'
+  \ . '\s\+previous_rate\s\+previous_session\s\+sessions_count\s\+family',
+  \ 'render_list: header row lists columns in order, family last')
+call Assert(s:rendered !~# '\<status\s\+aim\>',
+  \ 'render_list: no status word column between behavior and aim')
 
-" Row format: ' ▶ behavior  commands  family  depth  aim_rate  last_rate  last_date'.
-" hjkl is at aim (3 sessions at 70 ≥ aim 60) → ✓ bullet; commands render
-" with slashes turned into spaces (h/l → h l); depth 0; family 'motion'.
-call Assert(s:rendered =~# ' ✓ hjkl\s\+h l\s\+motion\s\+0\s\+60/min'
-  \ . '\s\+70/min\s\+2026-01-03',
-  \ 'render_list: row = bullet behavior commands family depth aim/last/date')
+" Row format: bullet, then left-aligned behavior + commands, then the
+" right-aligned numeric columns (prereq_depth, aim, previous_rate,
+" previous_session, sessions_count), then left-aligned family last.
+" hjkl is at aim (3 sessions at 70 ≥ aim 60, so 3 sessions logged) → ✓.
+call Assert(s:rendered =~# ' ✓ hjkl\s\+h l\s\+0\s\+60/min\s\+70/min'
+  \ . '\s\+2026-01-03\s\+3\s\+motion',
+  \ 'render_list: row = bullet behavior commands prereq_depth aim'
+  \ . ' previous_rate previous_session sessions_count family')
 
 " The status word never appears on any data row (only in the legend).
 " line_edges is climbing, but its row carries only the ▶ icon, not the
@@ -231,7 +234,7 @@ let s:eview = vimfluency#_test_build_list_view(s:render_reg, s:sessions_by_id, {
 let s:erendered = join(s:eview.lines, "\n")
 call Assert(s:erendered =~# '└ commands:',
   \ 'render_list expanded: commands sub-block (└ since it is the last/only one)')
-call Assert(s:erendered =~# 'command\s\+last_rate\s\+stroke_count\s\+stroke_rate',
+call Assert(s:erendered =~# 'command\s\+previous_rate\s\+stroke_count\s\+stroke_rate',
   \ 'render_list expanded: per-command sub-table header')
 " Per-command rows: name, last_rate, stroke_count (1 for h/l), stroke_rate
 " (== last_rate since single-stroke commands). Both commands are at aim

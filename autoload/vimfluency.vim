@@ -145,30 +145,34 @@ endfunction
 " the label (that produced "Delete family family — delete").
 " :VfList column layout — fixed 0-indexed DISPLAY columns so the one
 " header row and every data row line up. Column titles live in the
-" header row, not inline in each row. Numeric fields are "%3d/min"
-" (7 cols). The status word column is gone; the leading ▶/✓/○ bullet
-" encodes status and a legend in the banner names each icon. Keep
-" behavior slugs under ~40 chars and family names under ~18 chars or
+" header row, not inline. The status word column is gone; the leading
+" ▶/✓/○ bullet encodes status and a banner legend names each icon.
+"
+" S_* are LEFT-edge start columns (left-aligned text). E_* are RIGHT-
+" edge END columns (one past the last char; both header and value
+" right-align to the same edge so numbers stack under their headers).
+" Keep behavior slugs under ~40 chars and family values under ~18 or
 " the row drifts.
-let s:S_BULLET    = 1     " ▶ / ✓ / ○
-let s:S_BEHAVIOR  = 3
-let s:S_COMMANDS  = 45
-let s:S_FAMILY    = 60
-let s:S_DEPTH     = 80
-let s:S_AIM       = 87
-let s:S_LAST      = 97
-let s:S_DATE      = 108
+let s:S_BULLET       = 1     " ▶ / ✓ / ○
+let s:S_BEHAVIOR     = 3
+let s:S_COMMANDS     = 45
+let s:E_PREREQ_DEPTH = 70    " header 'prereq_depth' (12 cols)
+let s:E_AIM          = 79    " header 'aim' (3) but value '%3d/min' (7) sets the width
+let s:E_PREV_RATE    = 94    " header 'previous_rate' (13)
+let s:E_PREV_SESSION = 112   " header 'previous_session' (16)
+let s:E_SESSIONS     = 128   " header 'sessions_count' (14)
+let s:S_FAMILY       = 130   " family is the last column
 
-" Breakdown sub-section layout: ├/└/│ in BD_TREE column; sub-content
-" indents at BD_BODY; the commands sub-table places the ✓-at-aim mark,
+" Breakdown sub-section layout: ├/└/│ in BD_TREE column; prereq entries
+" indent at BD_BODY; the commands sub-table places the ✓-at-aim mark,
 " the command name, and the three numeric columns at fixed cols.
 let s:BD_TREE         = 3
 let s:BD_BODY         = 5
-let s:BD_CMD_MARK     = 5     " ✓ if command's last_rate ≥ pinpoint aim
+let s:BD_CMD_MARK     = 5     " ✓ if command's previous_rate ≥ pinpoint aim
 let s:BD_CMD_NAME     = 7
-let s:BD_CMD_LAST     = 19
-let s:BD_CMD_STROKES  = 32
-let s:BD_CMD_PER_STR  = 46
+let s:BD_CMD_PREV     = 19    " 'previous_rate' header (13 cols)
+let s:BD_CMD_STROKES  = 34    " 'stroke_count' (12 cols)
+let s:BD_CMD_PER_STR  = 48    " 'stroke_rate' (11 cols)
 
 let s:FAMILY_NAMES = [
   \ ['survival',          'Survival'],
@@ -319,6 +323,17 @@ function! s:place(line, col, text) abort
   return a:line . repeat(' ', pad) . a:text
 endfunction
 
+" Right-aligned variant: append a:text so it ENDS just before display
+" column a:end_col (last char at a:end_col - 1). Used for numeric
+" columns where the header and value share the same right edge — the
+" digits stack under their header without floating to the left.
+function! s:place_right(line, end_col, text) abort
+  let w = strdisplaywidth(a:line)
+  let start = a:end_col - strdisplaywidth(a:text)
+  let pad = start > w ? start - w : 1
+  return a:line . repeat(' ', pad) . a:text
+endfunction
+
 " Characters that require Shift on US QWERTY. Each costs 2 keystrokes
 " (the shift modifier counts as its own physical press) — used by
 " s:command_strokes to count a command's keystroke length.
@@ -398,13 +413,18 @@ endfunction
 " without touching the user's real log.
 function! s:build_list_view(registry, sessions_by_id, expanded) abort
   let status_map = {}
-  let last_rate = {}
-  let last_date = {}
+  let prev_rate = {}
+  let prev_date = {}
+  let sessions_count = {}
   for [id, m] in items(a:registry)
     let s = get(a:sessions_by_id, id, [])
-    let status_map[id] = s:status_from_sessions(m, s)
-    let last_rate[id] = s:last_rate_from_sessions(s)
-    let last_date[id] = s:last_date_from_sessions(s)
+    let status_map[id]     = s:status_from_sessions(m, s)
+    let prev_rate[id]      = s:last_rate_from_sessions(s)
+    let prev_date[id]      = s:last_date_from_sessions(s)
+    " Raw count of recorded sessions, INCLUDING zero-rate quits —
+    " sessions_count answers "how many times have I tried this," not
+    " "how many usable rate samples do I have."
+    let sessions_count[id] = len(s)
   endfor
 
   " Prereq depth: both a column and the within-family sort key.
@@ -445,36 +465,40 @@ function! s:build_list_view(registry, sessions_by_id, expanded) abort
   call add(lines, '')
 
   " Column header row. The bullet column at S_BULLET has no header —
-  " the legend above names each icon.
-  let head = s:place('', s:S_BEHAVIOR, 'behavior')
-  let head = s:place(head, s:S_COMMANDS, 'commands')
-  let head = s:place(head, s:S_FAMILY,   'family')
-  let head = s:place(head, s:S_DEPTH,    'depth')
-  let head = s:place(head, s:S_AIM,      'aim_rate')
-  let head = s:place(head, s:S_LAST,     'last_rate')
-  let head = s:place(head, s:S_DATE,     'last_date')
+  " the legend above names each icon. Left-aligned text columns use
+  " place(); numeric columns use place_right() so the header and value
+  " share a right edge.
+  let head = s:place('',      s:S_BEHAVIOR,     'behavior')
+  let head = s:place(head,    s:S_COMMANDS,     'commands')
+  let head = s:place_right(head, s:E_PREREQ_DEPTH, 'prereq_depth')
+  let head = s:place_right(head, s:E_AIM,          'aim')
+  let head = s:place_right(head, s:E_PREV_RATE,    'previous_rate')
+  let head = s:place_right(head, s:E_PREV_SESSION, 'previous_session')
+  let head = s:place_right(head, s:E_SESSIONS,     'sessions_count')
+  let head = s:place(head,    s:S_FAMILY,       'family')
   call add(lines, head)
   call add(lines, '')
 
   for id in sorted_ids
     let m = a:registry[id]
-    let rate = last_rate[id]
+    let rate = prev_rate[id]
     let rate_field = rate > 0 ? printf('%3d/min', float2nr(rate + 0.5))
-      \ : repeat(' ', 6) . '—'
-    let date_field = empty(last_date[id]) ? '—' : last_date[id]
+      \ : '—'
+    let date_field = empty(prev_date[id]) ? '—' : prev_date[id]
     " 'commands' renders meta()'s `keys` field with slashes turned into
     " spaces (i/a/I/A → i a I A). The field stays slash-separated for
     " backwards compatibility; the column is a render concern only.
     let commands = substitute(get(m, 'keys', ''), '/', ' ', 'g')
 
-    let row = s:place('', s:S_BULLET, s:status_icon(status_map[id]))
-    let row = s:place(row, s:S_BEHAVIOR, id)
-    let row = s:place(row, s:S_COMMANDS, commands)
-    let row = s:place(row, s:S_FAMILY,   get(m, 'family', ''))
-    let row = s:place(row, s:S_DEPTH,    printf('%5d', depth[id]))
-    let row = s:place(row, s:S_AIM,      printf('%3d/min', m.aim))
-    let row = s:place(row, s:S_LAST,     rate_field)
-    let row = s:place(row, s:S_DATE,     date_field)
+    let row = s:place('',   s:S_BULLET,        s:status_icon(status_map[id]))
+    let row = s:place(row,  s:S_BEHAVIOR,      id)
+    let row = s:place(row,  s:S_COMMANDS,      commands)
+    let row = s:place_right(row, s:E_PREREQ_DEPTH, printf('%d', depth[id]))
+    let row = s:place_right(row, s:E_AIM,          printf('%3d/min', m.aim))
+    let row = s:place_right(row, s:E_PREV_RATE,    rate_field)
+    let row = s:place_right(row, s:E_PREV_SESSION, date_field)
+    let row = s:place_right(row, s:E_SESSIONS,     printf('%d', sessions_count[id]))
+    let row = s:place(row,  s:S_FAMILY,       get(m, 'family', ''))
     call add(lines, substitute(row, '\s\+$', '', ''))
     let mapping[len(lines)] = id
     call add(pinpoint_rows, len(lines))
@@ -551,7 +575,7 @@ function! s:append_breakdown(lines, mapping, id, meta, status_map, per_motion) a
     call add(a:lines, s:place('', s:BD_TREE, '└ commands:'))
     let a:mapping[len(a:lines)] = a:id
     let head = s:place('', s:BD_CMD_NAME, 'command')
-    let head = s:place(head, s:BD_CMD_LAST,    'last_rate')
+    let head = s:place(head, s:BD_CMD_PREV,    'previous_rate')
     let head = s:place(head, s:BD_CMD_STROKES, 'stroke_count')
     let head = s:place(head, s:BD_CMD_PER_STR, 'stroke_rate')
     call add(a:lines, substitute(head, '\s\+$', '', ''))
@@ -564,7 +588,7 @@ function! s:append_breakdown(lines, mapping, id, meta, status_map, per_motion) a
       let strokes = get(overrides, motion, s:command_strokes(motion))
       let row = s:place('', s:BD_CMD_MARK, mrate_i >= aim ? '✓' : '')
       let row = s:place(row, s:BD_CMD_NAME,    motion)
-      let row = s:place(row, s:BD_CMD_LAST,    printf('%3d/min', mrate_i))
+      let row = s:place(row, s:BD_CMD_PREV,    printf('%3d/min', mrate_i))
       let row = s:place(row, s:BD_CMD_STROKES, printf('%d', strokes))
       let row = s:place(row, s:BD_CMD_PER_STR,
         \ s:stroke_rate_field(mrate_f, strokes))
