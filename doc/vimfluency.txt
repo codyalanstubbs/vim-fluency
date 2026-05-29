@@ -71,6 +71,14 @@ COMMANDS                                                        *vf-commands*
         T     start a Train session (:Vf) for this pinpoint
         C     open the celeration Chart (:VfChart) for this pinpoint
         B     toggle the Breakdown beneath the pinpoint — see below
+        A     prompt to set the aim for THIS pinpoint. Type a
+              positive integer to store an override (same effect as
+              :VfSetAim), 0 to clear an existing override (same as
+              :VfResetAim), or press Esc to cancel.
+        D     prompt to set the GLOBAL default :Vf duration in
+              seconds. Same semantics as A: positive int stores
+              (:VfSetDuration), 0 clears (:VfResetDuration), Esc
+              cancels.
         q     close the list
     gg / G jump to the first / last pinpoint. C requires logged
     sessions, L requires a lesson, B requires either a multi-command

@@ -680,7 +680,7 @@ function! s:build_list_view(registry, sessions_by_id, expanded, ...) abort
   call add(lines, printf('vim-fluency: %d pinpoint(s) built',
     \ len(a:registry)))
   call add(lines, '')
-  call add(lines, 'Move with j/k, then:  (L)earn  (T)rain  (C)hart  (B)reakdown   ·   q closes')
+  call add(lines, 'Move with j/k, then:  (L)earn  (T)rain  (C)hart  (B)reakdown  set (A)im  (D)uration   ·   q closes')
   call add(lines, 'Status:  ✓ at aim    ▶ climbing    ○ not started')
   call add(lines, 'Sort with s + column letter:  d c p a r s n f   (repeat letter to reverse; s<Space> resets)')
   call add(lines, '')
@@ -845,7 +845,7 @@ function! s:show_list_buffer(view) abort
   silent! execute 'keepalt file vf-list'
   call setline(1, a:view.lines)
   setlocal nomodifiable nomodified
-  let &l:statusline = ' pinpoint list   [L=Learn  T=Train  C=Chart  B=Breakdown  s+col=Sort  q=close]'
+  let &l:statusline = ' pinpoint list   [L=Learn  T=Train  C=Chart  B=Breakdown  A=Aim  D=Duration  s+col=Sort  q=close]'
   let b:vf_summary_tabnr = tabnr
   let b:vf_summary_prev_laststatus = &laststatus
   let b:vf_list_line_to_id = a:view.mapping
@@ -862,6 +862,8 @@ function! s:show_list_buffer(view) abort
   nnoremap <buffer> <silent> T :call vimfluency#list_action('train')<CR>
   nnoremap <buffer> <silent> C :call vimfluency#list_action('chart')<CR>
   nnoremap <buffer> <silent> B :call vimfluency#list_toggle_breakdown()<CR>
+  nnoremap <buffer> <silent> A :call vimfluency#list_set_aim()<CR>
+  nnoremap <buffer> <silent> D :call vimfluency#list_set_duration()<CR>
   nnoremap <buffer> <silent> q :call vimfluency#close_summary()<CR>
 
   " Sort keys: s + column letter. Same letter twice flips direction;
@@ -1077,6 +1079,109 @@ function! vimfluency#list_sort(col) abort
     call cursor(view.pinpoint_rows[cur_idx], 1)
   elseif !empty(view.pinpoint_rows)
     call cursor(view.pinpoint_rows[0], 1)
+  endif
+endfunction
+
+" Rebuild the VfList buffer in place and keep the cursor on the same
+" pinpoint id. Used after :A / :D updates so the user's eye stays on
+" the row they just modified, even if the row moves under the current
+" sort.
+function! s:rebuild_list_buffer_keeping_pinpoint(id) abort
+  let registry = vimfluency#discover_pinpoints()
+  let view = s:build_list_view(registry, s:load_sessions_grouped(),
+    \ b:vf_list_expanded,
+    \ get(b:, 'vf_list_sort_col', ''),
+    \ get(b:, 'vf_list_sort_desc', 0))
+  setlocal modifiable
+  silent! %delete _
+  call setline(1, view.lines)
+  setlocal nomodifiable nomodified
+  let b:vf_list_line_to_id = view.mapping
+  let b:vf_list_pinpoint_rows = view.pinpoint_rows
+  for row in view.pinpoint_rows
+    if get(view.mapping, row, '') ==# a:id
+      call cursor(row, 1)
+      return
+    endif
+  endfor
+  if !empty(view.pinpoint_rows)
+    call cursor(view.pinpoint_rows[0], 1)
+  endif
+endfunction
+
+" A on a pinpoint row → prompt for an aim. Positive int sets the
+" override; 0 (or empty Esc) cancels; if the user types 0 AND there's
+" an existing override, it's cleared (so the same key handles set and
+" reset without separate bindings).
+function! vimfluency#list_set_aim() abort
+  if !exists('b:vf_list_line_to_id') | return | endif
+  let id = get(b:vf_list_line_to_id, line('.'), '')
+  if empty(id)
+    echo 'cursor must be on a pinpoint row'
+    return
+  endif
+  let registry = vimfluency#discover_pinpoints()
+  let meta = get(registry, id, {})
+  let cur_aim = s:effective_aim(id, meta)
+  let aims = get(s:load_settings(), 'aims', {})
+  let is_overridden = has_key(aims, id)
+  let tag = is_overridden ? 'overridden' : 'default'
+  let prompt = printf('aim for %s [current %d/min, %s] (0 = reset, Esc = cancel): ',
+    \ id, cur_aim, tag)
+  let response = input(prompt)
+  redraw
+  if empty(response)
+    echo 'cancelled'
+    return
+  endif
+  if response !~# '^\d\+$'
+    echo 'aim must be a non-negative integer (rate per minute)'
+    return
+  endif
+  let rate = str2nr(response)
+  if rate == 0
+    if is_overridden
+      call vimfluency#reset_aim(id)
+    else
+      echo 'no aim override set for ' . id
+      return
+    endif
+  else
+    call vimfluency#set_aim(id, response)
+  endif
+  call s:rebuild_list_buffer_keeping_pinpoint(id)
+endfunction
+
+" D → prompt for the global default duration. Same set/reset
+" semantics as A: positive int sets, 0 resets when there's an
+" override, Esc cancels. Display doesn't depend on duration so no
+" rebuild needed.
+function! vimfluency#list_set_duration() abort
+  let cur_dur = s:effective_duration()
+  let settings = s:load_settings()
+  let is_overridden = has_key(settings, 'default_duration')
+  let tag = is_overridden ? 'overridden' : 'built-in'
+  let prompt = printf('default duration [current %ds, %s] (0 = reset, Esc = cancel): ',
+    \ cur_dur, tag)
+  let response = input(prompt)
+  redraw
+  if empty(response)
+    echo 'cancelled'
+    return
+  endif
+  if response !~# '^\d\+$'
+    echo 'duration must be a non-negative integer (seconds)'
+    return
+  endif
+  let secs = str2nr(response)
+  if secs == 0
+    if is_overridden
+      call vimfluency#reset_duration()
+    else
+      echo 'no default duration override set'
+    endif
+  else
+    call vimfluency#set_duration(response)
   endif
 endfunction
 
