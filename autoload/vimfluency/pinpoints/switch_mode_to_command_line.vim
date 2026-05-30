@@ -2,10 +2,10 @@
 " enter COMMAND-LINE mode, or return to NORMAL. Parallel-by-design
 " with switch_mode_to_insert / _visual / _replace.
 "
-" From Command-line mode, Ctrl+C cancels and returns to Normal
+" From Command-line mode, Ctrl+[ cancels and returns to Normal
 " (same as <Esc>). Pressing <CR> would EXECUTE whatever's been
 " typed — including an empty command, which just beeps. For the
-" "switch back to Normal" target the canonical exits are Ctrl+C
+" "switch back to Normal" target the canonical exits are Ctrl+[
 " and Esc; the runner's mode() polling treats both identically.
 
 let s:targets = ['n', 'c']
@@ -14,7 +14,7 @@ function! vimfluency#pinpoints#switch_mode_to_command_line#meta() abort
   return {'id': 'switch_mode_to_command_line',
     \ 'name': 'switch mode to command line',
     \ 'aim': 80, 'allowed_keys': '', 'kind': 'mode_switch',
-    \ 'prereqs': [], 'keys': ':/C-c', 'family': 'survival',
+    \ 'prereqs': [], 'keys': ':/C-[', 'family': 'survival',
     \ 'parallel_to': ['switch_mode_to_insert',
     \                 'switch_mode_to_visual',
     \                 'switch_mode_to_replace'],
@@ -49,7 +49,7 @@ function! vimfluency#pinpoints#switch_mode_to_command_line#lesson() abort
     \    'Two keys, two modes:',
     \    '',
     \    '    :          →  COMMAND  (from Normal)',
-    \    '    Ctrl+C     →  NORMAL   (from Command; Esc also works)',
+    \    '    Ctrl+[     →  NORMAL   (from Command; Esc also works)',
     \    '',
     \    'The next four frames practice the round trip.',
     \    '',

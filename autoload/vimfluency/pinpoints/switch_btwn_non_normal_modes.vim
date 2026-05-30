@@ -1,7 +1,7 @@
 " switch_btwn_non_normal_modes — composite-discrimination drill that
 " mixes all four atomic switch_mode_to_X pinpoints. Items target
 " non-Normal modes only; from one non-Normal mode the user reaches
-" another by pressing Ctrl+C (back to Normal) then the new mode's
+" another by pressing Ctrl+[ (back to Normal) then the new mode's
 " entry key — a 2-stroke transition through Normal.
 "
 " Under the slice-01 framework this is a "composite-discrimination
@@ -24,7 +24,7 @@ function! vimfluency#pinpoints#switch_btwn_non_normal_modes#meta() abort
     \             'switch_mode_to_visual',
     \             'switch_mode_to_replace',
     \             'switch_mode_to_command_line'],
-    \ 'keys': 'i/v/R/:/C-c', 'family': 'survival',
+    \ 'keys': 'i/v/R/:/C-[', 'family': 'survival',
     \ 'stroke_counts': {'to_i': 2, 'to_v': 2, 'to_r': 2, 'to_c': 2}}
 endfunction
 
@@ -52,7 +52,7 @@ endfunction
 
 " Lesson teaches the 2-stroke pattern by drilling it. The first try
 " frame is a 1-stroke entry (from Normal); every subsequent try is a
-" real composite transition (Ctrl+C + new key) because the user is
+" real composite transition (Ctrl+[ + new key) because the user is
 " still in the previous target's mode.
 function! vimfluency#pinpoints#switch_btwn_non_normal_modes#lesson() abort
   return [
@@ -60,14 +60,14 @@ function! vimfluency#pinpoints#switch_btwn_non_normal_modes#lesson() abort
     \  'prompt': [
     \    'To switch between non-Normal modes, go through Normal first:',
     \    '',
-    \    '    Ctrl+C  →  back to Normal',
+    \    '    Ctrl+[  →  back to Normal',
     \    '    then the entry key for the new mode  (i / v / R / :)',
     \    '',
-    \    'Two strokes per transition. Esc also works in place of Ctrl+C.',
+    \    'Two strokes per transition. Esc also works in place of Ctrl+[.',
     \    '',
     \    'The try frames below chain through every non-Normal mode.',
     \    'After the first one-stroke entry, each transition is a real',
-    \    'Ctrl+C-then-key composite.',
+    \    'Ctrl+[-then-key composite.',
     \    '',
     \    'Press <Space> to begin.']},
     \ {'kind': 'try', 'lines': [],

@@ -7,15 +7,16 @@
 "
 " Cells:
 "   target = i  → press i  (from Normal)
-"   target = n  → press Ctrl+C  (from Insert; Esc also works)
+"   target = n  → press Ctrl+[  (from Insert; Esc also works)
 "
-" Why Ctrl+C as the canonical "back to Normal" key — and Esc as
-" alternative: Ctrl+C is the more common cross-editor convention
-" for "cancel current action" and works from every vim mode without
-" the InsertLeave-firing semantics that complicate the existing
-" `mode` kind. The runner's polling-based credit treats both
-" identically: both flip mode() to 'n', the timer credits on
-" detecting the transition.
+" Why Ctrl+[ as the canonical "back to Normal" key — and Esc as
+" alternative: Ctrl+[ IS literally Esc. They emit the same byte
+" (0x1B) at the terminal; vim can't tell them apart. The advantage
+" of teaching Ctrl+[ is that it's home-row-friendly (no reach to
+" the Esc key in the top-left corner), and once the learner knows
+" they're the same byte they understand why both work everywhere
+" Esc works. The runner's polling-based credit doesn't care which
+" key the user pressed — it only sees mode() flip to 'n'.
 
 let s:targets = ['n', 'i']
 
@@ -23,7 +24,7 @@ function! vimfluency#pinpoints#switch_mode_to_insert#meta() abort
   return {'id': 'switch_mode_to_insert',
     \ 'name': 'switch mode to insert',
     \ 'aim': 80, 'allowed_keys': '', 'kind': 'mode_switch',
-    \ 'prereqs': [], 'keys': 'i/C-c', 'family': 'survival',
+    \ 'prereqs': [], 'keys': 'i/C-[', 'family': 'survival',
     \ 'stroke_counts': {'to_i': 1, 'to_n': 1}}
 endfunction
 
@@ -58,7 +59,7 @@ function! vimfluency#pinpoints#switch_mode_to_insert#lesson() abort
     \    'Two keys, two modes:',
     \    '',
     \    '    i          →  INSERT  (from Normal)',
-    \    '    Ctrl+C     →  NORMAL  (from Insert; Esc also works)',
+    \    '    Ctrl+[     →  NORMAL  (from Insert; Esc also works)',
     \    '',
     \    'The next four frames practice the round trip.',
     \    '',

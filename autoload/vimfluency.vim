@@ -1352,7 +1352,7 @@ function! s:next_item() abort
   let GenFn = function('vimfluency#pinpoints#' . s:session.module . '#generate')
   let item = {}
   let attempts = 0
-  let cur_mode = s:session.kind ==# 'mode_switch' ? s:mode_canonical(mode(1)) : ''
+  let cur_canon = s:session.kind ==# 'mode_switch' ? s:mode_canonical(mode(1)) : ''
   while attempts < 100
     let item = GenFn()
     let filter_ok = empty(s:session.only_filter)
@@ -1360,7 +1360,7 @@ function! s:next_item() abort
     " mode_switch needs target != current (otherwise the user has
     " nothing to do, and we don't want the same target twice in a row).
     let mode_ok = s:session.kind !=# 'mode_switch'
-      \ || get(item, 'target_mode_canon', '') !=# cur_mode
+      \ || get(item, 'target_mode_canon', '') !=# cur_canon
     if filter_ok && mode_ok
       break
     endif
@@ -2001,13 +2001,16 @@ endfunction
 " the time of credit. Always at least 1. Caveat: this is "optimal given
 " the actual transition," not what the user pressed — they can't
 " register inflated strokes because we don't track each keypress.
+"
+" prev (s:session.mode_switch_prev) MUST be updated unconditionally so
+" the NEXT item reads the right starting mode. Earlier bug: returning
+" 1 for target=='n' WITHOUT updating prev left prev stuck at the
+" prior non-Normal target, so the next non-Normal item saw prev !=
+" 'n' and returned 2 — even though the user was actually in Normal.
 function! s:mode_switch_strokes(target) abort
-  if a:target ==# 'n' | return 1 | endif
-  " current mode at credit time IS the target, but PREVIOUSLY they
-  " were in whatever the prior item's target was. Track that for the
-  " optimal count.
   let prev = get(s:session, 'mode_switch_prev', 'n')
   let s:session.mode_switch_prev = a:target
+  if a:target ==# 'n' | return 1 | endif
   return prev ==# 'n' ? 1 : 2
 endfunction
 
