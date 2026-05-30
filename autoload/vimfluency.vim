@@ -1475,9 +1475,16 @@ function! s:install_autocmds() abort
     return
   endif
   if s:session.kind ==# 'mode_switch'
-    " mode_switch credits via a polling timer on mode() — see
-    " s:start_mode_polling, kicked off from s:next_item. No buffer-
-    " change autocmds needed. Tab still skips from normal mode.
+    " mode_switch credits the instant vim's mode changes. When
+    " ModeChanged is available (8.2+) we hook it for sub-frame
+    " latency; on 8.1 we fall back to s:start_mode_polling's 50ms
+    " timer (kicked off from s:next_item). Tab still skips.
+    if exists('##ModeChanged')
+      augroup VfTrain
+        autocmd!
+        autocmd ModeChanged * call s:check_mode_for_credit()
+      augroup END
+    endif
     nnoremap <buffer> <silent> <Tab> :call <SID>skip()<CR>
     return
   endif
@@ -1903,9 +1910,12 @@ endfunction
 
 " Start (or restart) the polling timer for the current mode_switch
 " item. Stops any existing timer first so multiple items in a row
-" don't accumulate timers.
+" don't accumulate timers. When ModeChanged is available (vim 8.2+),
+" credit fires synchronously via that autocmd — no polling needed,
+" and credit latency drops from ~25-50ms (timer phase) to ~0ms.
 function! s:start_mode_polling() abort
   call s:stop_mode_polling()
+  if exists('##ModeChanged') | return | endif
   let s:session.mode_poll_timer = timer_start(50,
     \ function('s:check_mode_for_credit'), {'repeat': -1})
 endfunction
@@ -1917,7 +1927,10 @@ function! s:stop_mode_polling() abort
   endif
 endfunction
 
-function! s:check_mode_for_credit(timer) abort
+" Variadic so this works as both a timer callback (gets a timer id)
+" and a ModeChanged autocmd handler (gets nothing). The args aren't
+" used either way — we only ever read vim's current mode().
+function! s:check_mode_for_credit(...) abort
   if empty(s:session) | return | endif
   if get(s:session, 'advancing', 0) | return | endif
   let canon = s:mode_canonical(mode(1))
@@ -1938,7 +1951,7 @@ endfunction
 " into the lesson's frame_complete + streak machinery instead of
 " s:credit_item. Also schedules a brief auto-advance so the user
 " doesn't have to <Esc>+Space their way out of every credited frame.
-function! s:check_mode_for_learn_credit(timer) abort
+function! s:check_mode_for_learn_credit(...) abort
   if empty(s:session) | return | endif
   if get(s:session, 'advancing', 0) | return | endif
   if get(s:session, 'frame_complete', 0) | return | endif
@@ -1979,7 +1992,7 @@ function! s:check_mode_for_learn_credit(timer) abort
   " buffer instead of advancing. The Space mapping still works in
   " Normal mode for the impatient.
   call s:stop_learn_auto_advance()
-  let s:session.learn_auto_advance_timer = timer_start(1000,
+  let s:session.learn_auto_advance_timer = timer_start(600,
     \ function('s:learn_mode_switch_auto_advance'))
 endfunction
 
@@ -2681,15 +2694,18 @@ endfunction
 function! s:learn_install_autocmds() abort
   let kind = get(s:session, 'kind', 'motion')
   if kind ==# 'mode_switch'
-    " mode_switch lessons credit via polling mode(1) — same approach
-    " as the training (s:check_mode_for_credit), but the lesson
-    " callback routes credit into frame_complete + streak machinery
-    " instead of items_correct. The auto-advance timer there gets
-    " the user out of post-credit non-Normal modes without forcing
+    " mode_switch lessons credit the instant vim's mode changes.
+    " ModeChanged (8.2+) is sub-frame; 8.1 falls back to a 50ms
+    " polling timer. Both call s:check_mode_for_learn_credit, which
+    " routes credit into frame_complete + streak machinery instead
+    " of items_correct. The auto-advance timer downstream gets the
+    " user out of post-credit non-Normal modes without forcing
     " <Esc>+Space.
     call s:stop_mode_polling()
-    let s:session.mode_poll_timer = timer_start(50,
-      \ function('s:check_mode_for_learn_credit'), {'repeat': -1})
+    if !exists('##ModeChanged')
+      let s:session.mode_poll_timer = timer_start(50,
+        \ function('s:check_mode_for_learn_credit'), {'repeat': -1})
+    endif
   endif
   augroup VfLearn
     autocmd!
@@ -2703,9 +2719,13 @@ function! s:learn_install_autocmds() abort
       autocmd InsertEnter <buffer> call s:learn_on_insert_enter()
       autocmd InsertLeave <buffer> call s:learn_on_insert_leave()
     elseif kind ==# 'mode_switch'
-      " No buffer autocmds — polling owns credit. The augroup still
-      " gets opened so VfLearn cleanup in learn_stop has something to
-      " clear; leaving it empty for this kind is intentional.
+      " ModeChanged (8.2+) gives synchronous credit; the polling
+      " fallback for 8.1 was already started in the kind-dispatch
+      " block above. Either way, the autocmds are scoped to this
+      " augroup so learn_stop tears them down.
+      if exists('##ModeChanged')
+        autocmd ModeChanged * call s:check_mode_for_learn_credit()
+      endif
     elseif kind ==# 'recall'
       " Recall lessons route every printable keystroke into recall_append
       " (mirrors the training). No autocmds needed — handlers fire via the
