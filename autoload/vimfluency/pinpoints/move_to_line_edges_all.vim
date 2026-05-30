@@ -5,7 +5,7 @@ let s:words = ['def', 'class', 'return', 'import', 'from', 'while', 'if',
 
 function! vimfluency#pinpoints#move_to_line_edges_all#meta() abort
   return {'id': 'move_to_line_edges_all', 'name': 'line start/end (0 ^ $ g_)', 'aim': 50,
-    \ 'allowed_keys': '0^$g_', 'prereqs': ['change_current_mode', 'insert_basic'], 'keys': '0/^/$/g_', 'family': 'motion'}
+    \ 'allowed_keys': '0^$g_', 'prereqs': ['switch_mode_to_insert', 'insert_basic'], 'keys': '0/^/$/g_', 'family': 'motion'}
 endfunction
 
 function! s:rand(n) abort

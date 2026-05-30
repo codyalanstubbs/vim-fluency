@@ -19,7 +19,7 @@ function! vimfluency#pinpoints#move_to_line_edges_beginning_end#meta() abort
   " Aim slightly above 1A.2's 50/min — narrower discrimination,
   " no whitespace axis to read. Starting guess.
   return {'id': 'move_to_line_edges_beginning_end', 'name': '0 $', 'aim': 55,
-    \ 'allowed_keys': '0$', 'prereqs': ['change_current_mode', 'insert_basic'],
+    \ 'allowed_keys': '0$', 'prereqs': ['switch_mode_to_insert', 'insert_basic'],
     \ 'narrower_of': 'move_to_line_edges_all', 'keys': '0/$', 'family': 'motion'}
 endfunction
 

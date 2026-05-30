@@ -773,33 +773,59 @@ function! s:test_T0_3d() abort
   call s:test_T0_3_pair('force_quit_ex_vs_normal_zq', 'force_quit_ex_vs_normal_zq', [':q!', 'ZQ'])
 endfunction
 
-" change_current_mode — mode-switch production. Each item declares one
-" of the five canonical targets ∈ {n, i, v, r, c}; expected_motion is
-" 'to_<target>'. Runner-side no-repeat (target != current mode) is
-" enforced in s:next_item, not in the generator, so the generator can
-" produce any target uniformly. Over s:N samples we expect all five
-" targets to appear at least once.
-function! s:test_change_current_mode() abort
-  let GenFn = function('vimfluency#pinpoints#change_current_mode#generate')
-  let valid = ['n', 'i', 'v', 'r', 'c']
+" switch_mode_to_X atomics — each is a 2-cell {Normal, target} pinpoint.
+" Over s:N samples we expect both cells to appear.
+function! s:test_mode_atomic(id, target) abort
+  let GenFn = function('vimfluency#pinpoints#' . a:id . '#generate')
+  let valid = ['n', a:target]
   let seen = {}
   for i in range(s:N)
     let item = GenFn()
-    call Assert(has_key(item, 'target_mode_canon'),
-      \ 'change_current_mode: target_mode_canon set')
     call AssertIn(item.target_mode_canon, valid,
-      \ 'change_current_mode: target in {n,i,v,r,c}')
+      \ a:id . ': target in {n,' . a:target . '}')
     call AssertEq(item.expected_motion, 'to_' . item.target_mode_canon,
-      \ 'change_current_mode: expected_motion = to_<target>')
-    call Assert(item.optimal_motions >= 1,
-      \ 'change_current_mode: optimal_motions ≥ 1')
-    call Assert(has_key(item, 'prompt') && !empty(item.prompt),
-      \ 'change_current_mode: prompt set')
+      \ a:id . ': expected_motion = to_<target>')
+    call AssertEq(item.optimal_motions, 1,
+      \ a:id . ': optimal_motions = 1 (atomic)')
     let seen[item.target_mode_canon] = 1
   endfor
   for m in valid
     call Assert(get(seen, m, 0) == 1,
-      \ 'change_current_mode: target ' . m . ' appeared in samples')
+      \ a:id . ': target ' . m . ' appeared in samples')
+  endfor
+endfunction
+
+function! s:test_switch_mode_to_insert() abort
+  call s:test_mode_atomic('switch_mode_to_insert', 'i')
+endfunction
+function! s:test_switch_mode_to_visual() abort
+  call s:test_mode_atomic('switch_mode_to_visual', 'v')
+endfunction
+function! s:test_switch_mode_to_replace() abort
+  call s:test_mode_atomic('switch_mode_to_replace', 'r')
+endfunction
+function! s:test_switch_mode_to_command_line() abort
+  call s:test_mode_atomic('switch_mode_to_command_line', 'c')
+endfunction
+
+" switch_btwn_non_normal_modes composite — targets non-Normal modes
+" only; optimal_motions is 2 (Ctrl+C + entry key). Over s:N samples
+" all four non-Normal targets should appear and none should be 'n'.
+function! s:test_switch_btwn_non_normal_modes() abort
+  let GenFn = function('vimfluency#pinpoints#switch_btwn_non_normal_modes#generate')
+  let valid = ['i', 'v', 'r', 'c']
+  let seen = {}
+  for i in range(s:N)
+    let item = GenFn()
+    call AssertIn(item.target_mode_canon, valid,
+      \ 'switch_btwn_non_normal_modes: target in {i,v,r,c} (no n)')
+    call AssertEq(item.optimal_motions, 2,
+      \ 'switch_btwn_non_normal_modes: optimal_motions = 2 (2-stroke)')
+    let seen[item.target_mode_canon] = 1
+  endfor
+  for m in valid
+    call Assert(get(seen, m, 0) == 1,
+      \ 'switch_btwn_non_normal_modes: target ' . m . ' appeared')
   endfor
 endfunction
 
@@ -1168,7 +1194,11 @@ call s:test_T0_3b()
 call s:test_T0_3c()
 call s:test_T0_3d()
 call s:test_T0_4()
-call s:test_change_current_mode()
+call s:test_switch_mode_to_insert()
+call s:test_switch_mode_to_visual()
+call s:test_switch_mode_to_replace()
+call s:test_switch_mode_to_command_line()
+call s:test_switch_btwn_non_normal_modes()
 call s:test_3_2a()
 call s:test_3_2b()
 call s:test_1A_3()
