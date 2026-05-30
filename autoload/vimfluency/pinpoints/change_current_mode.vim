@@ -83,20 +83,29 @@ function! s:mode_pretty(canon) abort
     \ 'r': 'REPLACE', 'c': 'COMMAND'}, a:canon, 'NORMAL')
 endfunction
 
-" Lesson: SHOW-ONLY for v1. The mode-entry rule is small enough that
-" rule statements + the meta-rule for non-Normal starts cover it; the
-" training then exercises the production. Try-frame support in the
-" lesson runner for mode_switch is a follow-up (the existing learn
-" runner only knows about insert events; visual/replace/command
-" credit would need the same polling infrastructure replicated in the
-" learn path). For now the learner reads the rules here and
-" practices in :Vf change_current_mode.
+" Lesson: 2 show frames (rules + meta-rule) then 8 try frames that
+" walk the learner through each entry + the <Esc>-back-to-Normal pair.
+" The try-frame sequence is intentional:
+"
+"   3. try i  (start: Normal)  → press i                  (1 stroke)
+"   4. try n  (start: Insert)  → press <Esc>              (1 stroke)
+"   5. try v  (start: Normal)  → press v                  (1 stroke)
+"   6. try n  (start: Visual)  → press <Esc>              (1 stroke)
+"   7. try r  (start: Normal)  → press R                  (1 stroke)
+"   8. try n  (start: Replace) → press <Esc>              (1 stroke)
+"   9. try c  (start: Normal)  → press :                  (1 stroke)
+"  10. try n  (start: Command) → press <Esc> or <CR>      (1 stroke)
+"
+" Every transition is a 1-stroke trip through Normal, which keeps the
+" first encounter with each entry key clean. Two-stroke chains
+" (<Esc>+key between non-Normal modes) get drilled in the test phase
+" and at training time, where the chain is honest.
 function! vimfluency#pinpoints#change_current_mode#lesson() abort
   return [
     \ {'kind': 'show', 'lines': [], 'cursor': [1, 1],
     \  'prompt': [
     \    'Every vim mode has one common entry command.',
-    \    'Memorize this table — the training exercises it:',
+    \    'Memorize this table — youll practice it next:',
     \    '',
     \    '    Normal:   <Esc>   (works from any mode)',
     \    '    Insert:   i       (from Normal)',
@@ -114,10 +123,34 @@ function! vimfluency#pinpoints#change_current_mode#lesson() abort
     \    '  - Anywhere → Normal  = <Esc>     (1 stroke)',
     \    '  - Normal → anything  = the entry key alone   (1 stroke)',
     \    '',
-    \    'In the training, each prompt names a target mode. The',
-    \    'starting mode is whatever the LAST item ended in — so',
-    \    'youll practice real chained transitions.',
+    \    'The try frames below walk you through each entry and back.',
+    \    'After you reach the prompted mode the lesson auto-advances —',
+    \    'no need to press Space.',
     \    '',
-    \    'Press p to start training, or q to close the lesson.']},
+    \    'Press <Space> to begin.']},
+    \ {'kind': 'try', 'lines': [],
+    \  'target_mode_canon': 'i', 'expected_motion': 'to_i', 'optimal_motions': 1,
+    \  'prompt': 'Switch to INSERT mode.'},
+    \ {'kind': 'try', 'lines': [],
+    \  'target_mode_canon': 'n', 'expected_motion': 'to_n', 'optimal_motions': 1,
+    \  'prompt': 'Back to NORMAL mode.'},
+    \ {'kind': 'try', 'lines': [],
+    \  'target_mode_canon': 'v', 'expected_motion': 'to_v', 'optimal_motions': 1,
+    \  'prompt': 'Switch to VISUAL mode.'},
+    \ {'kind': 'try', 'lines': [],
+    \  'target_mode_canon': 'n', 'expected_motion': 'to_n', 'optimal_motions': 1,
+    \  'prompt': 'Back to NORMAL mode.'},
+    \ {'kind': 'try', 'lines': [],
+    \  'target_mode_canon': 'r', 'expected_motion': 'to_r', 'optimal_motions': 1,
+    \  'prompt': 'Switch to REPLACE mode (capital R).'},
+    \ {'kind': 'try', 'lines': [],
+    \  'target_mode_canon': 'n', 'expected_motion': 'to_n', 'optimal_motions': 1,
+    \  'prompt': 'Back to NORMAL mode.'},
+    \ {'kind': 'try', 'lines': [],
+    \  'target_mode_canon': 'c', 'expected_motion': 'to_c', 'optimal_motions': 1,
+    \  'prompt': 'Switch to COMMAND mode.'},
+    \ {'kind': 'try', 'lines': [],
+    \  'target_mode_canon': 'n', 'expected_motion': 'to_n', 'optimal_motions': 1,
+    \  'prompt': 'Back to NORMAL mode.'},
     \ ]
 endfunction

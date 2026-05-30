@@ -1934,6 +1934,69 @@ function! s:check_mode_for_credit(timer) abort
   endif
 endfunction
 
+" Lesson polling: parallel to s:check_mode_for_credit but routes credit
+" into the lesson's frame_complete + streak machinery instead of
+" s:credit_item. Also schedules a brief auto-advance so the user
+" doesn't have to <Esc>+Space their way out of every credited frame.
+function! s:check_mode_for_learn_credit(timer) abort
+  if empty(s:session) | return | endif
+  if get(s:session, 'advancing', 0) | return | endif
+  if get(s:session, 'frame_complete', 0) | return | endif
+
+  let target = ''
+  if s:session.phase ==# 'test'
+    let target = get(get(s:session, 'current_test_item', {}),
+      \ 'target_mode_canon', '')
+  elseif s:session.phase ==# 'setup'
+    if s:session.frame_idx >= len(s:session.frames) | return | endif
+    let frame = s:session.frames[s:session.frame_idx]
+    if frame.kind !=# 'try' | return | endif
+    let target = get(frame, 'target_mode_canon', '')
+  endif
+  if empty(target) | return | endif
+
+  let canon = s:mode_canonical(mode(1))
+  if canon !=# target | return | endif
+
+  let strokes = s:mode_switch_strokes(target)
+  if s:session.phase ==# 'test'
+    let s:session.test_motion_count += strokes
+    let s:session.last_item_motions = strokes
+    let s:session.last_item_optimal = get(s:session.current_test_item,
+      \ 'optimal_motions', 1)
+    if s:session.last_item_motions <= s:session.last_item_optimal
+      let s:session.streak += 1
+    else
+      let s:session.streak = 0
+      let s:session.wrongs += 1
+    endif
+  endif
+  let s:session.frame_complete = 1
+  call s:learn_render_complete()
+  " Auto-advance after a brief pause. Without this, the user would
+  " have to <Esc> back to Normal and press Space — but they may
+  " already be in a non-Normal mode where Space types into the
+  " buffer instead of advancing. The Space mapping still works in
+  " Normal mode for the impatient.
+  call s:stop_learn_auto_advance()
+  let s:session.learn_auto_advance_timer = timer_start(1000,
+    \ function('s:learn_mode_switch_auto_advance'))
+endfunction
+
+function! s:learn_mode_switch_auto_advance(timer) abort
+  if empty(s:session) | return | endif
+  if get(s:session, 'phase', '') ==# 'complete' | return | endif
+  if !get(s:session, 'frame_complete', 0) | return | endif
+  call s:learn_next()
+endfunction
+
+function! s:stop_learn_auto_advance() abort
+  if has_key(s:session, 'learn_auto_advance_timer')
+    call timer_stop(s:session.learn_auto_advance_timer)
+    unlet s:session.learn_auto_advance_timer
+  endif
+endfunction
+
 " Optimal strokes for a mode_switch item based on the CURRENT mode at
 " the time of credit. Always at least 1. Caveat: this is "optimal given
 " the actual transition," not what the user pressed — they can't
@@ -2415,6 +2478,8 @@ function! s:learn_header_line() abort
     else
       if kind ==# 'mode'
         let goal = 'enter insert at the gap, then Esc'
+      elseif kind ==# 'mode_switch'
+        let goal = 'change into the prompted mode'
       elseif kind ==# 'recall'
         let goal = 'type the keystrokes for the prompt'
       else
@@ -2440,6 +2505,8 @@ function! s:learn_header_line() abort
   else
     if kind ==# 'mode'
       let hint = '[enter insert at the gap, then Esc]'
+    elseif kind ==# 'mode_switch'
+      let hint = '[change into the prompted mode]'
     elseif kind ==# 'recall'
       let hint = '[type the keystrokes for the prompt]'
     else
@@ -2463,10 +2530,11 @@ function! s:learn_show_frame() abort
   let s:session.insert_enter_pos = []
   " Recall input-row state. unlet first so show frames don't accept
   " stray keystrokes from a prior try frame; try frames re-set it.
-  silent! unlet s:session.input_row
+  if has_key(s:session, "input_row") | unlet s:session.input_row | endif
   let frame = s:session.frames[s:session.frame_idx]
   let kind = get(s:session, 'kind', 'motion')
   let is_mode = kind ==# 'mode'
+  let is_mode_switch = kind ==# 'mode_switch'
   let is_recall = kind ==# 'recall'
 
   " prompt may be a string or a list of lines — multi-line lets a
@@ -2476,6 +2544,37 @@ function! s:learn_show_frame() abort
     \ ? copy(frame.prompt) : [frame.prompt]
   let base_header = [s:learn_header_line(), ''] + prompt_lines + ['']
 
+  if is_mode_switch
+    " mode_switch lessons: header + prompt + (for try frames) a
+    " "switch to MODE" line that the polling timer will match
+    " against. show frames are just static rule statements with no
+    " target_mode_canon.
+    let body = []
+    if frame.kind ==# 'try'
+      let body = ['    Switch to '
+        \ . s:mode_pretty(get(frame, 'target_mode_canon', 'n')) . ' mode',
+        \ '',
+        \ '    (from a non-Normal mode, press <Esc> first)']
+    endif
+    let s:session.header_offset = len(base_header)
+    setlocal modifiable
+    silent! %delete _
+    call setline(1, base_header + body)
+    " Park the cursor near the top of the prompt; insert/visual entry
+    " keys typed by the user start from here.
+    call cursor(min([len(base_header) + 1, line('$')]), 1)
+    if s:session.target_match_id != -1
+      silent! call matchdelete(s:session.target_match_id)
+      let s:session.target_match_id = -1
+    endif
+    if s:session.deletion_match_id != -1
+      silent! call matchdelete(s:session.deletion_match_id)
+      let s:session.deletion_match_id = -1
+    endif
+    call s:clear_waypoint_matches()
+    let s:session.advancing = 0
+    return
+  endif
   if is_recall
     " Recall lessons render the lesson header line + try-frame's
     " prompt + input area + optional prompt_after (e.g. T0.5's mock
@@ -2578,6 +2677,17 @@ endfunction
 
 function! s:learn_install_autocmds() abort
   let kind = get(s:session, 'kind', 'motion')
+  if kind ==# 'mode_switch'
+    " mode_switch lessons credit via polling mode(1) — same approach
+    " as the training (s:check_mode_for_credit), but the lesson
+    " callback routes credit into frame_complete + streak machinery
+    " instead of items_correct. The auto-advance timer there gets
+    " the user out of post-credit non-Normal modes without forcing
+    " <Esc>+Space.
+    call s:stop_mode_polling()
+    let s:session.mode_poll_timer = timer_start(50,
+      \ function('s:check_mode_for_learn_credit'), {'repeat': -1})
+  endif
   augroup VfLearn
     autocmd!
     if kind ==# 'mode'
@@ -2589,6 +2699,10 @@ function! s:learn_install_autocmds() abort
       " AND InsertEnter for the same keystroke, inflating motion count).
       autocmd InsertEnter <buffer> call s:learn_on_insert_enter()
       autocmd InsertLeave <buffer> call s:learn_on_insert_leave()
+    elseif kind ==# 'mode_switch'
+      " No buffer autocmds — polling owns credit. The augroup still
+      " gets opened so VfLearn cleanup in learn_stop has something to
+      " clear; leaving it empty for this kind is intentional.
     elseif kind ==# 'recall'
       " Recall lessons route every printable keystroke into recall_append
       " (mirrors the training). No autocmds needed — handlers fire via the
@@ -2625,6 +2739,9 @@ endfunction
 function! s:learn_advance_show() abort
   if empty(s:session) || s:session.mode !=# 'learn' || s:session.advancing | return | endif
   if s:session.phase ==# 'complete' | return | endif
+  " Cancel any pending mode_switch auto-advance — the user wants to
+  " advance NOW.
+  call s:stop_learn_auto_advance()
   if s:session.phase ==# 'test'
     if s:session.frame_complete
       call s:learn_next()
@@ -2839,7 +2956,7 @@ function! s:learn_show_complete() abort
   " Recall lessons skipped the q/p overrides during input phases
   " (those letters belong to answer strings); install them now so
   " the completion screen's instructions work.
-  silent! unlet s:session.input_row
+  if has_key(s:session, "input_row") | unlet s:session.input_row | endif
   nnoremap <buffer> <silent> q :call vimfluency#learn_stop()<CR>
   nnoremap <buffer> <silent> p :call <SID>learn_start_train()<CR>
 
@@ -2917,10 +3034,21 @@ function! s:learn_test_next() abort
   let s:session.insert_entered = 0
   let s:session.insert_enter_pos = []
   " Reset recall input-row; we set it below if this is a recall item.
-  silent! unlet s:session.input_row
+  if has_key(s:session, "input_row") | unlet s:session.input_row | endif
 
   let GenFn = function('vimfluency#pinpoints#' . s:session.module . '#generate')
-  let item = GenFn()
+  let kind = get(s:session, 'kind', 'motion')
+  let cur_canon = kind ==# 'mode_switch' ? s:mode_canonical(mode(1)) : ''
+  let item = {}
+  let attempts = 0
+  while attempts < 100
+    let item = GenFn()
+    if kind !=# 'mode_switch'
+      \ || get(item, 'target_mode_canon', '') !=# cur_canon
+      break
+    endif
+    let attempts += 1
+  endwhile
   let s:session.current_test_item = item
   " Initial state for the dedupe guard in s:learn_on_change. Same
   " logic as s:next_item — vim's deferred CursorMoved after the
@@ -2928,8 +3056,32 @@ function! s:learn_test_next() abort
   " presses produce distinct states.
   let s:session.last_event_state = [item.start, copy(item.lines)]
 
-  let kind = get(s:session, 'kind', 'motion')
   let is_mode = kind ==# 'mode'
+
+  if kind ==# 'mode_switch'
+    let prompt_lines = [
+      \ s:learn_header_line(), '',
+      \ '    Switch to '
+      \   . s:mode_pretty(get(item, 'target_mode_canon', 'n')) . ' mode',
+      \ '',
+      \ '    (from a non-Normal mode, press <Esc> first)']
+    let s:session.header_offset = len(prompt_lines)
+    setlocal modifiable
+    silent! %delete _
+    call setline(1, prompt_lines)
+    call cursor(min([len(prompt_lines), line('$')]), 1)
+    if s:session.target_match_id != -1
+      silent! call matchdelete(s:session.target_match_id)
+      let s:session.target_match_id = -1
+    endif
+    if s:session.deletion_match_id != -1
+      silent! call matchdelete(s:session.deletion_match_id)
+      let s:session.deletion_match_id = -1
+    endif
+    call s:clear_waypoint_matches()
+    let s:session.advancing = 0
+    return
+  endif
 
   if kind ==# 'recall'
     " Recall test items: the item's prompt + optional prompt_after
@@ -3015,6 +3167,8 @@ endfunction
 function! vimfluency#learn_stop() abort
   if empty(s:session) | return | endif
   silent! augroup VfLearn | autocmd! | augroup END
+  call s:stop_mode_polling()
+  call s:stop_learn_auto_advance()
   let id = s:session.id
   if has_key(s:session, 'tabnr')
     silent! execute 'tabclose ' . s:session.tabnr
