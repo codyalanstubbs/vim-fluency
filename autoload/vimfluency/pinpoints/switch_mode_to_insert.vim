@@ -20,12 +20,15 @@
 
 let s:targets = ['n', 'i']
 
+" expected_motion labels use the actual keystroke the learner pressed
+" rather than the to_X canonical-target label. Honest display: the
+" summary shows 'i' and 'C-[' instead of 'to_i' and 'to_n'.
 function! vimfluency#pinpoints#switch_mode_to_insert#meta() abort
   return {'id': 'switch_mode_to_insert',
     \ 'name': 'switch mode to insert',
     \ 'aim': 80, 'allowed_keys': '', 'kind': 'mode_switch',
     \ 'prereqs': [], 'keys': 'i/C-[', 'family': 'survival',
-    \ 'stroke_counts': {'to_i': 1, 'to_n': 1}}
+    \ 'stroke_counts': {'i': 1, 'C-[': 1}}
 endfunction
 
 function! s:rand(n) abort
@@ -39,7 +42,7 @@ function! vimfluency#pinpoints#switch_mode_to_insert#generate() abort
     \ 'start': [1, 1],
     \ 'target': [1, 1],
     \ 'target_mode_canon': target,
-    \ 'expected_motion': 'to_' . target,
+    \ 'expected_motion': target ==# 'i' ? 'i' : 'C-[',
     \ 'optimal_motions': 1,
     \ 'prompt': 'Switch to ' . s:pretty(target) . ' mode',
     \ }
@@ -65,16 +68,16 @@ function! vimfluency#pinpoints#switch_mode_to_insert#lesson() abort
     \    '',
     \    'Press <Space> to begin.']},
     \ {'kind': 'try', 'lines': [],
-    \  'target_mode_canon': 'i', 'expected_motion': 'to_i', 'optimal_motions': 1,
+    \  'target_mode_canon': 'i', 'expected_motion': 'i', 'optimal_motions': 1,
     \  'prompt': 'Switch to INSERT mode.'},
     \ {'kind': 'try', 'lines': [],
-    \  'target_mode_canon': 'n', 'expected_motion': 'to_n', 'optimal_motions': 1,
+    \  'target_mode_canon': 'n', 'expected_motion': 'C-[', 'optimal_motions': 1,
     \  'prompt': 'Back to NORMAL mode.'},
     \ {'kind': 'try', 'lines': [],
-    \  'target_mode_canon': 'i', 'expected_motion': 'to_i', 'optimal_motions': 1,
+    \  'target_mode_canon': 'i', 'expected_motion': 'i', 'optimal_motions': 1,
     \  'prompt': 'Switch to INSERT again.'},
     \ {'kind': 'try', 'lines': [],
-    \  'target_mode_canon': 'n', 'expected_motion': 'to_n', 'optimal_motions': 1,
+    \  'target_mode_canon': 'n', 'expected_motion': 'C-[', 'optimal_motions': 1,
     \  'prompt': 'Back to NORMAL.'},
     \ ]
 endfunction

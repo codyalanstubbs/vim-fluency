@@ -1311,7 +1311,16 @@ function! vimfluency#start(...) abort
     \ 'deletion_match_id': -1,
     \ 'waypoint_match_ids': [],
     \ 'prev_laststatus': &laststatus,
+    \ 'prev_ttimeoutlen': &ttimeoutlen,
     \ }
+  " ttimeoutlen is what gates how long vim waits after Esc / Ctrl+[
+  " to see if a function-key sequence is starting. Default is 100ms
+  " (newer vim) or -1=timeoutlen=1000ms (older). That delay is what
+  " makes the to-Normal transition feel laggy in mode_switch — the
+  " ModeChanged event can't fire until vim commits to interpreting
+  " the byte as Esc. Drop it to 10ms during the session and restore
+  " in vimfluency#stop.
+  set ttimeoutlen=10
 
   call s:setup_window()
   call s:next_item()
@@ -2248,6 +2257,7 @@ function! vimfluency#stop(reason) abort
 
   " Render into the (still-open) training buffer; user dismisses explicitly.
   let prev_laststatus = s:session.prev_laststatus
+  let prev_ttimeoutlen = get(s:session, 'prev_ttimeoutlen', &ttimeoutlen)
   let tabnr = s:session.tabnr
   let target_id = s:session.target_match_id
   let deletion_id = s:session.deletion_match_id
@@ -2271,9 +2281,14 @@ function! vimfluency#stop(reason) abort
     call setline(1, lines)
     setlocal nomodifiable nomodified
     silent! execute 'keepalt file vf-summary-' . record.pinpoint_id
+    " Force back to Normal so q/L/C bindings fire regardless of which
+    " mode the user was in when the timer expired. <C-\><C-n> is vim's
+    " universal "to Normal from anywhere" sequence.
+    silent! call feedkeys("\<C-\>\<C-n>", 'n')
     let &l:statusline = ' session ended  [C=Chart  L=List  q=close]'
     let b:vf_summary_tabnr = tabnr
     let b:vf_summary_prev_laststatus = prev_laststatus
+    let b:vf_summary_prev_ttimeoutlen = prev_ttimeoutlen
     " Remember which pinpoint this summary is for so C can open the
     " right chart. L just opens :VfList — no pinpoint context needed.
     let b:vf_summary_pinpoint_id = record.pinpoint_id
@@ -2286,6 +2301,7 @@ function! vimfluency#stop(reason) abort
     " training window/tab is gone — fall back to echoing
     silent! execute 'tabclose ' . tabnr
     let &laststatus = prev_laststatus
+    let &ttimeoutlen = prev_ttimeoutlen
     for line in lines
       echo line
     endfor
@@ -2296,8 +2312,10 @@ function! vimfluency#close_summary() abort
   if exists('b:vf_summary_tabnr')
     let tabnr = b:vf_summary_tabnr
     let prev_ls = b:vf_summary_prev_laststatus
+    let prev_ttl = get(b:, 'vf_summary_prev_ttimeoutlen', &ttimeoutlen)
     silent! execute 'tabclose ' . tabnr
     let &laststatus = prev_ls
+    let &ttimeoutlen = prev_ttl
   endif
 endfunction
 
@@ -2447,11 +2465,17 @@ function! vimfluency#learn(...) abort
     \ 'last_item_optimal': 0,
     \ 'current_test_item': {},
     \ 'prev_laststatus': &laststatus,
+    \ 'prev_ttimeoutlen': &ttimeoutlen,
     \ 'target_match_id': -1,
     \ 'deletion_match_id': -1,
     \ 'waypoint_match_ids': [],
     \ 'advancing': 0,
     \ }
+  " See vimfluency#start: drop ttimeoutlen so Esc / Ctrl+[ commit
+  " quickly. Restored in vimfluency#learn_stop. Without this the
+  " mode_switch lesson's to-Normal try frames feel laggy compared
+  " to to-Insert / to-Visual / to-Cmd transitions.
+  set ttimeoutlen=10
 
   call s:learn_setup_window()
   call s:learn_show_frame()
@@ -2976,6 +3000,12 @@ function! s:learn_show_complete() abort
     let s:session.deletion_match_id = -1
   endif
   call s:clear_waypoint_matches()
+  " Force back to Normal so q/p fire as Normal-mode mappings. The
+  " mode_switch lessons end with the learner in whatever mode satisfied
+  " the final test item (Insert/Visual/Replace/Cmd) — without this,
+  " pressing q or p just inserts text instead of firing the mapping.
+  " <C-\><C-n> is vim's universal "to Normal from anywhere" sequence.
+  silent! call feedkeys("\<C-\>\<C-n>", 'n')
   " Recall lessons skipped the q/p overrides during input phases
   " (those letters belong to answer strings); install them now so
   " the completion screen's instructions work.
@@ -3193,9 +3223,11 @@ function! vimfluency#learn_stop() abort
   call s:stop_mode_polling()
   call s:stop_learn_auto_advance()
   let id = s:session.id
+  let prev_ttl = get(s:session, 'prev_ttimeoutlen', &ttimeoutlen)
   if has_key(s:session, 'tabnr')
     silent! execute 'tabclose ' . s:session.tabnr
   endif
+  let &ttimeoutlen = prev_ttl
   let s:session = {}
   echo 'lesson ended for ' . id . ' — try :Vf ' . id
 endfunction

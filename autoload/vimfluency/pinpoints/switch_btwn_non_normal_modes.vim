@@ -25,12 +25,18 @@ function! vimfluency#pinpoints#switch_btwn_non_normal_modes#meta() abort
     \             'switch_mode_to_replace',
     \             'switch_mode_to_command_line'],
     \ 'keys': 'i/v/R/:/C-[', 'family': 'survival',
-    \ 'stroke_counts': {'to_i': 2, 'to_v': 2, 'to_r': 2, 'to_c': 2}}
+    \ 'stroke_counts': {'i': 2, 'v': 2, 'R': 2, ':': 2}}
 endfunction
 
 function! s:rand(n) abort
   return rand() % a:n
 endfunction
+
+" Composite motion is labeled by the entry key for the new mode.
+" The Ctrl+[ portion is attributed to the *prior* item's exit; we
+" report the visible keystroke that ended this item ('i', 'v', 'R',
+" ':') so the summary shows per-entry-key rates.
+let s:entry_key = {'i': 'i', 'v': 'v', 'r': 'R', 'c': ':'}
 
 function! vimfluency#pinpoints#switch_btwn_non_normal_modes#generate() abort
   let target = s:non_normal[s:rand(len(s:non_normal))]
@@ -39,7 +45,7 @@ function! vimfluency#pinpoints#switch_btwn_non_normal_modes#generate() abort
     \ 'start': [1, 1],
     \ 'target': [1, 1],
     \ 'target_mode_canon': target,
-    \ 'expected_motion': 'to_' . target,
+    \ 'expected_motion': s:entry_key[target],
     \ 'optimal_motions': 2,
     \ 'prompt': 'Switch to ' . s:pretty(target) . ' mode',
     \ }
@@ -71,22 +77,22 @@ function! vimfluency#pinpoints#switch_btwn_non_normal_modes#lesson() abort
     \    '',
     \    'Press <Space> to begin.']},
     \ {'kind': 'try', 'lines': [],
-    \  'target_mode_canon': 'i', 'expected_motion': 'to_i', 'optimal_motions': 1,
+    \  'target_mode_canon': 'i', 'expected_motion': 'i', 'optimal_motions': 1,
     \  'prompt': 'Switch to INSERT mode.'},
     \ {'kind': 'try', 'lines': [],
-    \  'target_mode_canon': 'v', 'expected_motion': 'to_v', 'optimal_motions': 2,
+    \  'target_mode_canon': 'v', 'expected_motion': 'v', 'optimal_motions': 2,
     \  'prompt': 'Switch to VISUAL mode.'},
     \ {'kind': 'try', 'lines': [],
-    \  'target_mode_canon': 'r', 'expected_motion': 'to_r', 'optimal_motions': 2,
+    \  'target_mode_canon': 'r', 'expected_motion': 'R', 'optimal_motions': 2,
     \  'prompt': 'Switch to REPLACE mode.'},
     \ {'kind': 'try', 'lines': [],
-    \  'target_mode_canon': 'c', 'expected_motion': 'to_c', 'optimal_motions': 2,
+    \  'target_mode_canon': 'c', 'expected_motion': ':', 'optimal_motions': 2,
     \  'prompt': 'Switch to COMMAND mode.'},
     \ {'kind': 'try', 'lines': [],
-    \  'target_mode_canon': 'i', 'expected_motion': 'to_i', 'optimal_motions': 2,
+    \  'target_mode_canon': 'i', 'expected_motion': 'i', 'optimal_motions': 2,
     \  'prompt': 'Back to INSERT.'},
     \ {'kind': 'try', 'lines': [],
-    \  'target_mode_canon': 'v', 'expected_motion': 'to_v', 'optimal_motions': 2,
+    \  'target_mode_canon': 'v', 'expected_motion': 'v', 'optimal_motions': 2,
     \  'prompt': 'Now VISUAL.'},
     \ ]
 endfunction

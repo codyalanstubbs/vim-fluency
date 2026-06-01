@@ -15,7 +15,7 @@ function! vimfluency#pinpoints#switch_mode_to_visual#meta() abort
     \ 'parallel_to': ['switch_mode_to_insert',
     \                 'switch_mode_to_replace',
     \                 'switch_mode_to_command_line'],
-    \ 'stroke_counts': {'to_v': 1, 'to_n': 1}}
+    \ 'stroke_counts': {'v': 1, 'C-[': 1}}
 endfunction
 
 function! s:rand(n) abort
@@ -29,7 +29,7 @@ function! vimfluency#pinpoints#switch_mode_to_visual#generate() abort
     \ 'start': [1, 1],
     \ 'target': [1, 1],
     \ 'target_mode_canon': target,
-    \ 'expected_motion': 'to_' . target,
+    \ 'expected_motion': target ==# 'v' ? 'v' : 'C-[',
     \ 'optimal_motions': 1,
     \ 'prompt': 'Switch to ' . s:pretty(target) . ' mode',
     \ }
@@ -52,16 +52,16 @@ function! vimfluency#pinpoints#switch_mode_to_visual#lesson() abort
     \    '',
     \    'Press <Space> to begin.']},
     \ {'kind': 'try', 'lines': [],
-    \  'target_mode_canon': 'v', 'expected_motion': 'to_v', 'optimal_motions': 1,
+    \  'target_mode_canon': 'v', 'expected_motion': 'v', 'optimal_motions': 1,
     \  'prompt': 'Switch to VISUAL mode.'},
     \ {'kind': 'try', 'lines': [],
-    \  'target_mode_canon': 'n', 'expected_motion': 'to_n', 'optimal_motions': 1,
+    \  'target_mode_canon': 'n', 'expected_motion': 'C-[', 'optimal_motions': 1,
     \  'prompt': 'Back to NORMAL mode.'},
     \ {'kind': 'try', 'lines': [],
-    \  'target_mode_canon': 'v', 'expected_motion': 'to_v', 'optimal_motions': 1,
+    \  'target_mode_canon': 'v', 'expected_motion': 'v', 'optimal_motions': 1,
     \  'prompt': 'Switch to VISUAL again.'},
     \ {'kind': 'try', 'lines': [],
-    \  'target_mode_canon': 'n', 'expected_motion': 'to_n', 'optimal_motions': 1,
+    \  'target_mode_canon': 'n', 'expected_motion': 'C-[', 'optimal_motions': 1,
     \  'prompt': 'Back to NORMAL.'},
     \ ]
 endfunction
