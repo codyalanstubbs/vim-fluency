@@ -30,7 +30,15 @@ COMMANDS                                                        *vf-commands*
     Open an interactive flat table of installed pinpoints. A column
     header row names the columns; each row then lists, left to right:
         ▶/✓/○         status icon (legend in the banner above the
-                      table: ✓ at aim, ▶ climbing, ○ not started)
+                      table: ✓ at aim, ▶ climbing, ○ not started).
+                      The rule for ✓ is stricter than "the last
+                      session was at aim": it requires the LAST
+                      THREE non-zero-rate sessions to ALL be at-or-
+                      above aim. One good run is performance; three
+                      in a row is the Precision Teaching definition
+                      of demonstrated stability. So a row can show
+                      last_rate well above aim and still display ▶
+                      until the trend holds.
         drill         the pinpoint id (what you'd type after :Vf)
         commands      the keystrokes that produce this behavior,
                       space-separated
