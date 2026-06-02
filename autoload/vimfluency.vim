@@ -1293,6 +1293,7 @@ function! vimfluency#start(...) abort
     \ 'aim': s:effective_aim(info.id, info),
     \ 'module': info.module,
     \ 'kind': get(info, 'kind', 'motion'),
+    \ 'credit_on_text_typed': get(info, 'credit_on_text_typed', 0),
     \ 'duration': duration,
     \ 'only_filter': only_filter,
     \ 'started_at': reltime(),
@@ -1522,13 +1523,24 @@ function! s:install_autocmds() abort
       " Mode kind tracks the round trip through insert mode.
       " InsertEnter records WHERE insert was entered so we can
       " disambiguate i/a/I/A/o/O by column. We deliberately do NOT
-      " hook TextChangedI: vim fires it as part of o/O's line-insert
-      " sequence, which would inflate the motion count by 1 for those
-      " keys (3 instead of optimal 2). The matcher rejects any wrong
-      " buffer state on InsertLeave, so typing-then-undo paths still
-      " penalize via failed credits.
+      " hook TextChangedI by default: vim fires it as part of o/O's
+      " line-insert sequence, which would inflate the motion count
+      " by 1 for those keys (3 instead of optimal 2). The matcher
+      " rejects any wrong buffer state on InsertLeave, so typing-
+      " then-undo paths still penalize via failed credits.
       autocmd InsertEnter <buffer> call s:on_insert_enter()
       autocmd InsertLeave <buffer> call s:on_insert_leave()
+      " Opt-in: when the pinpoint declares credit_on_text_typed,
+      " the training credits the moment the buffer matches
+      " target_lines_after_type (the post-typing target). The
+      " learner doesn't have to press Esc — the leave-mode
+      " keystroke is drilled separately in switch_mode_to_insert.
+      " Each typed char fires TextChangedI so motion counting stays
+      " honest. The o/O caveat above doesn't apply here because no
+      " current credit_on_text_typed pinpoint uses o/O.
+      if get(s:session, 'credit_on_text_typed', 0)
+        autocmd TextChangedI <buffer> call s:on_text_changed_i()
+      endif
     else
       autocmd CursorMoved,CursorMovedI,TextChanged,TextChangedI <buffer>
         \ call s:on_change()
@@ -2172,12 +2184,21 @@ function! s:on_insert_leave() abort
   if empty(s:session) || s:session.advancing | return | endif
   if win_getid() != s:session.you_win | return | endif
   if !get(s:session, 'insert_entered', 0) | return | endif
+  let s:session.current_item_motions += 1
+  " For credit_on_text_typed pinpoints, credit is exclusively the
+  " TextChangedI handler's job — pressing Esc without typing the
+  " expected payload is a wrong attempt. Reset for retry; the
+  " motion increment above already billed the leave.
+  if get(s:session, 'credit_on_text_typed', 0)
+    let s:session.insert_entered = 0
+    let s:session.insert_enter_pos = []
+    return
+  endif
   let item = s:session.current_item
   let header_offset = s:session.header_offset
   let cur_pos = [line('.') - header_offset, col('.')]
   let cur_lines = getline(header_offset + 1, '$')
   let target_lines = get(item, 'target_lines', item.lines)
-  let s:session.current_item_motions += 1
 
   let entered_correct = s:session.insert_enter_pos
     \ == [item.enter_at_row, item.enter_at_col]
@@ -2192,6 +2213,54 @@ function! s:on_insert_leave() abort
     let s:session.insert_entered = 0
     let s:session.insert_enter_pos = []
   endif
+endfunction
+
+" Training TextChangedI handler — fires after every keystroke while
+" in insert mode for pinpoints with credit_on_text_typed set. Mirrors
+" s:learn_on_text_changed_i, but routes credit through s:credit_item.
+" Per-char motion counting keeps the rate honest: a clean i+foo run
+" = 1 (InsertEnter) + 3 (TextChangedI per char) = 4 strokes.
+function! s:on_text_changed_i() abort
+  if empty(s:session) || s:session.advancing | return | endif
+  if win_getid() != s:session.you_win | return | endif
+  if !get(s:session, 'insert_entered', 0) | return | endif
+  let item = s:session.current_item
+  let target = get(item, 'target_lines_after_type',
+    \ get(item, 'target_lines', []))
+  if empty(target) | return | endif
+
+  let s:session.current_item_motions += 1
+  let header_offset = s:session.header_offset
+  let cur_lines = getline(header_offset + 1, '$')
+  if cur_lines !=# target | return | endif
+  " Cheat-defense: the InsertEnter column must match what the
+  " expected entry key produces.
+  if has_key(item, 'enter_at_row') && has_key(item, 'enter_at_col')
+    if s:session.insert_enter_pos != [item.enter_at_row, item.enter_at_col]
+      return
+    endif
+  endif
+
+  call s:credit_item()
+  " Drop the learner back to Normal so the next item renders cleanly.
+  " 'i' flag inserts Esc at the *start* of the typeahead buffer, so it
+  " preempts any chars the learner over-typed in their reaction window.
+  call feedkeys("\<Esc>", 'ni')
+  " credit_item already rendered the new item and placed the cursor
+  " at item.start, but that cursor() call ran while we were still in
+  " insert mode. Vim's post-Esc shift then moves the cursor 1 left
+  " (because in Normal the cursor sits ON a char rather than between
+  " them), so the learner sees the next item with the cursor in the
+  " wrong column. Re-position via a 0-timer that fires AFTER the
+  " queued Esc has been processed.
+  call timer_start(0, function('s:repos_cursor_post_esc'))
+endfunction
+
+function! s:repos_cursor_post_esc(...) abort
+  if empty(s:session) | return | endif
+  let item = get(s:session, 'current_item', {})
+  if !has_key(item, 'start') | return | endif
+  call cursor(s:session.header_offset + item.start[0], item.start[1])
 endfunction
 
 function! s:skip() abort
@@ -2533,6 +2602,7 @@ function! vimfluency#learn(...) abort
     \ 'name': info.name,
     \ 'module': info.module,
     \ 'kind': get(info, 'kind', 'motion'),
+    \ 'credit_on_text_typed': get(info, 'credit_on_text_typed', 0),
     \ 'frames': frames,
     \ 'frame_idx': 0,
     \ 'frame_complete': 0,
@@ -2846,11 +2916,17 @@ function! s:learn_install_autocmds() abort
       " Mode-kind lessons track the round trip through insert mode,
       " same as the training: InsertEnter records the entry col so we
       " can disambiguate i/a/I/A, InsertLeave is when we evaluate.
-      " We deliberately do NOT hook TextChangedI — see s:install_autocmds
-      " in the training path for why (o/O's line-insert fires TextChangedI
-      " AND InsertEnter for the same keystroke, inflating motion count).
       autocmd InsertEnter <buffer> call s:learn_on_insert_enter()
       autocmd InsertLeave <buffer> call s:learn_on_insert_leave()
+      " Opt-in fast path for pinpoints that drill the entry key by
+      " having the learner TYPE a known short text (e.g. 'foo') and
+      " advance the moment the buffer matches target_lines_after_type.
+      " No Esc needed — mode-leave has its own dedicated pinpoint
+      " (switch_mode_to_insert), so we don't bill the learner twice
+      " for it here. Mirrors s:install_autocmds in the training path.
+      if get(s:session, 'credit_on_text_typed', 0)
+        autocmd TextChangedI <buffer> call s:learn_on_text_changed_i()
+      endif
     elseif kind ==# 'mode_switch'
       " ModeChanged (8.2+) gives synchronous credit; the polling
       " fallback for 8.1 was already started in the kind-dispatch
@@ -2993,11 +3069,85 @@ function! s:learn_on_insert_enter() abort
   endif
 endfunction
 
+" Lesson TextChangedI handler — fires after every keystroke while in
+" insert mode. Credits the moment the buffer matches the item's
+" target_lines (the expected post-typing state). The learner doesn't
+" have to press Esc; the existing InsertLeave will see frame_complete=1
+" and no-op when our feedkeys <Esc> below lands. mode-leave fluency is
+" out of scope for this lesson — the switch_mode_to_insert pinpoint
+" drills that separately.
+function! s:learn_on_text_changed_i() abort
+  if empty(s:session) || s:session.mode !=# 'learn' || s:session.advancing | return | endif
+  if win_getid() != s:session.you_win | return | endif
+  if s:session.phase ==# 'complete' || s:session.frame_complete | return | endif
+  if !get(s:session, 'insert_entered', 0) | return | endif
+
+  let item = {}
+  if s:session.phase ==# 'test'
+    let item = s:session.current_test_item
+  else
+    if s:session.frame_idx >= len(s:session.frames) | return | endif
+    let frame = s:session.frames[s:session.frame_idx]
+    if frame.kind !=# 'try' | return | endif
+    let item = frame
+  endif
+  " Prefer target_lines_after_type when present — that's the explicit
+  " post-typing target. Fall back to target_lines for items that
+  " don't distinguish (the original mode-kind item shape).
+  let target = get(item, 'target_lines_after_type',
+    \ get(item, 'target_lines', []))
+  if empty(target) | return | endif
+
+  let header_offset = s:session.header_offset
+  let cur_lines = getline(header_offset + 1, '$')
+  if cur_lines !=# target | return | endif
+  " Cheat-defense: also require the InsertEnter col to match what the
+  " expected entry key produces. Without this a learner could use a
+  " different key to reach the same buffer state.
+  if has_key(item, 'enter_at_row') && has_key(item, 'enter_at_col')
+    if s:session.insert_enter_pos != [item.enter_at_row, item.enter_at_col]
+      return
+    endif
+  endif
+
+  let s:session.frame_complete = 1
+  if s:session.phase ==# 'test'
+    let s:session.last_item_motions = s:session.test_motion_count
+    let s:session.last_item_optimal = get(item, 'optimal_motions', 1)
+    if s:session.last_item_motions <= s:session.last_item_optimal
+      let s:session.streak += 1
+      let s:session.wrongs = 0
+    else
+      let s:session.streak = 0
+      let s:session.wrongs += 1
+    endif
+  endif
+  call s:learn_render_complete()
+  " Drop the user back to Normal so the next frame renders cleanly.
+  " 'i' inserts Esc at the start of the typeahead buffer so it
+  " preempts any chars the learner over-typed in their reaction
+  " window; frame_complete=1 makes the InsertLeave a no-op.
+  call feedkeys("\<Esc>", 'ni')
+  call s:stop_learn_auto_advance()
+  let s:session.learn_auto_advance_timer = timer_start(600,
+    \ function('s:learn_mode_switch_auto_advance'))
+endfunction
+
 function! s:learn_on_insert_leave() abort
   if empty(s:session) || s:session.mode !=# 'learn' || s:session.advancing | return | endif
   if win_getid() != s:session.you_win | return | endif
   if s:session.phase ==# 'complete' || s:session.frame_complete | return | endif
   if !get(s:session, 'insert_entered', 0) | return | endif
+  " For credit_on_text_typed pinpoints, credit comes from
+  " TextChangedI exclusively — a bare Esc just resets state.
+  if get(s:session, 'credit_on_text_typed', 0)
+    if s:session.phase ==# 'test'
+      let s:session.test_motion_count += 1
+    endif
+    let s:session.insert_entered = 0
+    let s:session.insert_enter_pos = []
+    return
+  endif
 
   " Pull the item-shaped target from setup-phase frame or test-phase item.
   let item = {}

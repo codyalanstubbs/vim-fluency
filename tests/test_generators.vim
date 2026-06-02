@@ -873,10 +873,21 @@ function! s:test_T0_1() abort
     call s:assert_mode_common('insert_basic', item)
     call AssertIn(item.expected_motion, valid,
       \ 'T0.1: expected_motion in {i, a, I, A}')
-    call AssertEq(item.optimal_motions, 2,
-      \ 'T0.1: optimal_motions == 2 (key + Esc)')
+    call AssertEq(item.optimal_motions, 4,
+      \ 'T0.1: optimal_motions == 4 (entry key + 3 chars of "foo")')
     call AssertEq(item.target_lines, item.lines,
-      \ 'T0.1: target_lines == lines (no buffer change)')
+      \ 'T0.1: target_lines == lines (the post-Esc fallback target; '
+      \ . 'pre-typing buffer state)')
+    " The lesson's TextChangedI path matches against
+    " target_lines_after_type — the buffer state after the learner
+    " has typed the test string ('foo') at the insertion column.
+    call Assert(has_key(item, 'target_lines_after_type'),
+      \ 'T0.1: target_lines_after_type present (lesson credit target)')
+    let _line = item.lines[0]
+    let _ec = item.enter_at_col
+    let _expected = strpart(_line, 0, _ec - 1) . 'foo' . strpart(_line, _ec - 1)
+    call AssertEq(item.target_lines_after_type, [_expected],
+      \ 'T0.1: target_lines_after_type == lines with "foo" inserted at enter_at_col')
     " Disambiguation requirements per key:
     let line = item.lines[0]
     let sc = item.start[1]

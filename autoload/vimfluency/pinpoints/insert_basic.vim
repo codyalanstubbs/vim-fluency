@@ -67,17 +67,30 @@ let s:lines_endable = [
   \ 'save buffer',
   \ ]
 
+" The learner types this fixed test string after each entry key so
+" the runner can credit on a buffer match rather than on Esc.
+" Esc/Ctrl-[ get their own pinpoint via switch_mode_to_insert; this
+" one focuses on the entry-key discrimination (where each key lands
+" the cursor for insertion).
+let s:INSERT_TEXT = 'foo'
+
 " Single shared prompt — the visual cue (▶◀ + green range) carries the
 " discriminative content; the prose just frames the task.
-let s:PROMPT = 'Enter insert mode at the marked gap, then press Esc.'
+let s:PROMPT = printf('Enter insert mode at the marked gap, then type %s.', s:INSERT_TEXT)
 
 function! vimfluency#pinpoints#insert_basic#meta() abort
-  " Catalog aim 50/min. Insert-entry is purely motor (single key +
-  " Esc) once the discrimination is automatic. Starting guess.
-  return {'id': 'insert_basic', 'name': 'enter / leave insert mode',
-    \ 'aim': 50, 'allowed_keys': 'iaIA<Esc>', 'kind': 'mode',
+  " Catalog aim 50/min. Insert-entry is the i/a/I/A discrimination
+  " plus a short typed payload — 4 strokes per item (entry key + 'foo').
+  "
+  " credit_on_text_typed — both training and lesson advance the
+  " moment the buffer matches the post-insertion target (the
+  " learner pressed the right entry key AND typed the expected
+  " text in the right spot). No Esc round-trip; mode-leave fluency
+  " is measured separately in switch_mode_to_insert.
+  return {'id': 'insert_basic', 'name': 'enter insert mode',
+    \ 'aim': 50, 'allowed_keys': 'iaIAfo', 'kind': 'mode',
     \ 'prereqs': ['switch_mode_to_insert'], 'keys': 'i/a/I/A',
-    \ 'family': 'survival'}
+    \ 'family': 'survival', 'credit_on_text_typed': 1}
 endfunction
 
 " DI sequence: three short show frames introduce the ▶◀ cue, then
@@ -92,10 +105,31 @@ endfunction
 " Prompts are lists of short lines (≤ ~60 chars each) so the lesson
 " buffer stays readable at any zoom — the runner splices each line
 " into its own row of the header.
+
+" Insert s:INSERT_TEXT at the given 1-based column (the column at
+" which typed chars appear in insert mode). Returns the post-typing
+" line. Used by both the lesson and the generator to compute the
+" target_lines_after_type field.
+function! s:typed_at(line, col) abort
+  return strpart(a:line, 0, a:col - 1) . s:INSERT_TEXT . strpart(a:line, a:col - 1)
+endfunction
+
 function! vimfluency#pinpoints#insert_basic#lesson() abort
   let inline = 'the quick brown fox'
   let indented = '    return value'
   let short = 'print hello'
+  let t = s:INSERT_TEXT
+  " Pre-compute each frame's post-typing line. target_lines stays at
+  " the original (used by InsertLeave's post-Esc verification, which
+  " is the fallback path); target_lines_after_type is what the
+  " TextChangedI handler matches against to credit mid-insert.
+  let i1_typed = s:typed_at(inline, 5)
+  let a1_typed = s:typed_at(inline, 6)
+  let I_typed  = s:typed_at(indented, 5)
+  let A_typed  = s:typed_at(short, 12)
+  let i2_typed = s:typed_at(inline, 11)
+  let a2_typed = s:typed_at(inline, 12)
+
   return [
     \ {'kind': 'show', 'lines': [], 'cursor': [1, 1],
     \  'prompt': [
@@ -104,64 +138,58 @@ function! vimfluency#pinpoints#insert_basic#lesson() abort
     \    '    i, a, I, A.',
     \    'Each opens the cursor in a different spot.',
     \    '',
-    \    'Press <Space> to continue.']},
-    \ {'kind': 'show', 'lines': [], 'cursor': [1, 1],
-    \  'prompt': [
-    \    'To LEAVE insert mode: press Esc OR Ctrl-C.',
-    \    'Both produce the same result here — the runner accepts either.',
-    \    'Ctrl-C is often preferred: Esc is a long reach from home row,',
-    \    'so it costs you a finger stretch on every exit.',
-    \    'Use whichever feels faster.',
+    \    printf('In every try frame you''ll type the same word: %s.', t),
+    \    'As soon as it appears in the right spot, the lesson advances.',
+    \    'You won''t need to press Esc — that''s a separate lesson.',
     \    '',
     \    'Press <Space> to continue.']},
     \ {'kind': 'try', 'lines': [inline], 'start': [1, 5], 'target': [1, 4],
     \  'enter_at_row': 1, 'enter_at_col': 5,
-    \  'target_lines': [inline], 'expected_motion': 'i', 'optimal_motions': 2,
-    \  'hide_target': 1,
+    \  'target_lines': [inline], 'target_lines_after_type': [i1_typed],
+    \  'expected_motion': 'i', 'optimal_motions': 4, 'hide_target': 1,
     \  'prompt': [
-    \    'In this lesson, each frame will prompt you to enter insert mode and leave it.',
-    \    'Press i to enter, then Esc (or Ctrl-C) to leave.']},
-    \ {'kind': 'show', 'lines': [inline], 'cursor': [1, 1],
-    \  'enter_at_row': 1, 'enter_at_col': 5,
-    \  'prompt': [
-    \    'Nice. In the next frames you''ll learn WHERE each key opens insert.',
-    \    'A ▶◀ above the buffer will mark the spot you should enter at.',
-    \    'It points at the gap between two chars — that''s the insert position.',
-    \    'Use the key that lands the cursor in the right spot relative to ▶◀.',
+    \    'A ▶◀ above the buffer will mark the spot to enter at.',
+    \    'It points at the gap between two chars — the insert position.',
     \    '',
-    \    'Press <Space> to continue.']},
+    \    printf('Press i, then type %s.', t)]},
     \ {'kind': 'try', 'lines': [inline], 'start': [1, 5], 'target': [1, 4],
     \  'enter_at_row': 1, 'enter_at_col': 5,
-    \  'target_lines': [inline], 'expected_motion': 'i', 'optimal_motions': 2,
+    \  'target_lines': [inline], 'target_lines_after_type': [i1_typed],
+    \  'expected_motion': 'i', 'optimal_motions': 4,
     \  'prompt': [
     \    'i opens insert BEFORE the cursor — your cursor sits under ◀.',
-    \    'Press i then Esc.']},
+    \    printf('Press i, then type %s.', t)]},
     \ {'kind': 'try', 'lines': [inline], 'start': [1, 5], 'target': [1, 5],
     \  'enter_at_row': 1, 'enter_at_col': 6,
-    \  'target_lines': [inline], 'expected_motion': 'a', 'optimal_motions': 2,
+    \  'target_lines': [inline], 'target_lines_after_type': [a1_typed],
+    \  'expected_motion': 'a', 'optimal_motions': 4,
     \  'prompt': [
     \    'a opens insert AFTER the cursor — your cursor sits under ▶.',
-    \    'Press a then Esc.']},
+    \    printf('Press a, then type %s.', t)]},
     \ {'kind': 'try', 'lines': [indented], 'start': [1, 12], 'target': [1, 4],
     \  'enter_at_row': 1, 'enter_at_col': 5,
-    \  'target_lines': [indented], 'expected_motion': 'I', 'optimal_motions': 2,
+    \  'target_lines': [indented], 'target_lines_after_type': [I_typed],
+    \  'expected_motion': 'I', 'optimal_motions': 4,
     \  'prompt': [
     \    'I jumps to the first non-blank char — the gap is at the indent edge.',
-    \    'Press I then Esc.']},
+    \    printf('Press I, then type %s.', t)]},
     \ {'kind': 'try', 'lines': [short], 'start': [1, 4], 'target': [1, 11],
     \  'enter_at_row': 1, 'enter_at_col': 12,
-    \  'target_lines': [short], 'expected_motion': 'A', 'optimal_motions': 2,
+    \  'target_lines': [short], 'target_lines_after_type': [A_typed],
+    \  'expected_motion': 'A', 'optimal_motions': 4,
     \  'prompt': [
     \    'A jumps to the END of the line — the gap sits past the last char.',
-    \    'Press A then Esc.']},
+    \    printf('Press A, then type %s.', t)]},
     \ {'kind': 'try', 'lines': [inline], 'start': [1, 11], 'target': [1, 10],
     \  'enter_at_row': 1, 'enter_at_col': 11,
-    \  'target_lines': [inline], 'expected_motion': 'i', 'optimal_motions': 2,
-    \  'prompt': 'i again — cursor on the right of ▶◀.'},
+    \  'target_lines': [inline], 'target_lines_after_type': [i2_typed],
+    \  'expected_motion': 'i', 'optimal_motions': 4,
+    \  'prompt': printf('i again — cursor on the right of ▶◀. Type %s.', t)},
     \ {'kind': 'try', 'lines': [inline], 'start': [1, 11], 'target': [1, 11],
     \  'enter_at_row': 1, 'enter_at_col': 12,
-    \  'target_lines': [inline], 'expected_motion': 'a', 'optimal_motions': 2,
-    \  'prompt': 'a again — cursor on the left of ▶◀.'},
+    \  'target_lines': [inline], 'target_lines_after_type': [a2_typed],
+    \  'expected_motion': 'a', 'optimal_motions': 4,
+    \  'prompt': printf('a again — cursor on the left of ▶◀. Type %s.', t)},
     \ ]
 endfunction
 
@@ -186,9 +214,10 @@ function! vimfluency#pinpoints#insert_basic#generate() abort
       \ 'enter_at_row': 1,
       \ 'enter_at_col': c,
       \ 'target_lines': [line],
+      \ 'target_lines_after_type': [s:typed_at(line, c)],
       \ 'target': [1, c - 1],
       \ 'expected_motion': 'i',
-      \ 'optimal_motions': 2,
+      \ 'optimal_motions': 4,
       \ 'prompt': s:PROMPT,
       \ }
   elseif key ==# 'a'
@@ -201,9 +230,10 @@ function! vimfluency#pinpoints#insert_basic#generate() abort
       \ 'enter_at_row': 1,
       \ 'enter_at_col': c + 1,
       \ 'target_lines': [line],
+      \ 'target_lines_after_type': [s:typed_at(line, c + 1)],
       \ 'target': [1, c],
       \ 'expected_motion': 'a',
-      \ 'optimal_motions': 2,
+      \ 'optimal_motions': 4,
       \ 'prompt': s:PROMPT,
       \ }
   elseif key ==# 'I'
@@ -220,9 +250,10 @@ function! vimfluency#pinpoints#insert_basic#generate() abort
       \ 'enter_at_row': 1,
       \ 'enter_at_col': fnb,
       \ 'target_lines': [line],
+      \ 'target_lines_after_type': [s:typed_at(line, fnb)],
       \ 'target': [1, fnb - 1],
       \ 'expected_motion': 'I',
-      \ 'optimal_motions': 2,
+      \ 'optimal_motions': 4,
       \ 'prompt': s:PROMPT,
       \ }
   else  " A
@@ -236,9 +267,10 @@ function! vimfluency#pinpoints#insert_basic#generate() abort
       \ 'enter_at_row': 1,
       \ 'enter_at_col': l + 1,
       \ 'target_lines': [line],
+      \ 'target_lines_after_type': [s:typed_at(line, l + 1)],
       \ 'target': [1, l],
       \ 'expected_motion': 'A',
-      \ 'optimal_motions': 2,
+      \ 'optimal_motions': 4,
       \ 'prompt': s:PROMPT,
       \ }
   endif
