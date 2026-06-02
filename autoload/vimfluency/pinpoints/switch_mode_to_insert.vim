@@ -3,7 +3,7 @@
 " change_current_mode pinpoint with a tight 2-cell drill per the
 " slice-01 exhaustive-hierarchy framework — each atomic mode-pair
 " gets its own pinpoint. Between-non-Normal transitions live in
-" switch_btwn_non_normal_modes (composite).
+" switch_btwn_many_modes (composite).
 "
 " Cells:
 "   target = i  → press i  (from Normal)

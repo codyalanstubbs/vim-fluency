@@ -40,7 +40,7 @@ is the source of truth for *what's actually shipped*.
 | `switch_mode_to_visual` | 2-cell: enter VISUAL (`v`) or return to Normal (`Ctrl+[` / `Esc`) | Mode | 80 | — |
 | `switch_mode_to_replace` | 2-cell: enter REPLACE (`R`, capital) or return to Normal (`Ctrl+[` / `Esc`) | Mode | 80 | — |
 | `switch_mode_to_command_line` | 2-cell: enter COMMAND (`:`) or return to Normal (`Ctrl+[` / `Esc`) | Mode | 80 | — |
-| `switch_btwn_non_normal_modes` | Composite: 2-stroke transitions between non-Normal modes (`Ctrl+[` + entry key) | Mode | 40 | `switch_mode_to_insert`, `switch_mode_to_visual`, `switch_mode_to_replace`, `switch_mode_to_command_line` |
+| `switch_btwn_many_modes` | Composite: strict alternation between Normal and the four non-Normal modes; each item is one stroke (entry key or `Ctrl+[`) | Mode | 70 | `switch_mode_to_insert`, `switch_mode_to_visual`, `switch_mode_to_replace`, `switch_mode_to_command_line` |
 | `insert_basic` | Positional insert entry (`i`, `a`, `I`, `A`) — type a short payload at the marked gap | Mode | 50 | `switch_mode_to_insert` |
 | `open_line_above_below` | Open new line (`o`, `O`) | Mode | 40 | `insert_basic` |
 | `save_vs_quit` | Discriminate `:w` vs `:q` | Disc | 40 | — |

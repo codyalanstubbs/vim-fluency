@@ -9,7 +9,7 @@ let s:expected = [
   \ {'id': 'switch_mode_to_visual', 'prereqs': []},
   \ {'id': 'switch_mode_to_replace', 'prereqs': []},
   \ {'id': 'switch_mode_to_command_line', 'prereqs': []},
-  \ {'id': 'switch_btwn_non_normal_modes',
+  \ {'id': 'switch_btwn_many_modes',
   \   'prereqs': ['switch_mode_to_insert', 'switch_mode_to_visual',
   \               'switch_mode_to_replace', 'switch_mode_to_command_line']},
   \ {'id': 'insert_basic', 'prereqs': ['switch_mode_to_insert']},

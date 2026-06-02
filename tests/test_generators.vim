@@ -811,28 +811,43 @@ function! s:test_switch_mode_to_command_line() abort
   call s:test_mode_atomic('switch_mode_to_command_line', 'c', ':')
 endfunction
 
-" switch_btwn_non_normal_modes composite — targets non-Normal modes
-" only; optimal_motions is 2 (Ctrl+[ + entry key). expected_motion is
-" the entry key for the new mode. Over s:N samples all four non-Normal
-" targets should appear and none should be 'n'.
-function! s:test_switch_btwn_non_normal_modes() abort
-  let GenFn = function('vimfluency#pinpoints#switch_btwn_non_normal_modes#generate')
-  let valid = ['i', 'v', 'r', 'c']
-  let entry = {'i': 'i', 'v': 'v', 'r': 'R', 'c': ':'}
+" switch_btwn_many_modes composite — strict alternation between
+" Normal and non-Normal. From Normal the generator picks any of
+" {i,v,r,c}; from any non-Normal it picks 'n'. Every item is 1
+" stroke. The pinpoint exposes the optional current-mode arg so we
+" can test both branches without contorting the test harness.
+function! s:test_switch_btwn_many_modes() abort
+  let GenFn = function('vimfluency#pinpoints#switch_btwn_many_modes#generate')
+  let non_normal = ['i', 'v', 'r', 'c']
+  let expected = {'n': 'C-[', 'i': 'i', 'v': 'v', 'r': 'R', 'c': ':'}
+
+  " From Normal: should always pick a non-Normal target, and over s:N
+  " samples all four non-Normal targets should appear.
   let seen = {}
   for i in range(s:N)
-    let item = GenFn()
-    call AssertIn(item.target_mode_canon, valid,
-      \ 'switch_btwn_non_normal_modes: target in {i,v,r,c} (no n)')
-    call AssertEq(item.expected_motion, entry[item.target_mode_canon],
-      \ 'switch_btwn_non_normal_modes: expected_motion = entry key')
-    call AssertEq(item.optimal_motions, 2,
-      \ 'switch_btwn_non_normal_modes: optimal_motions = 2 (2-stroke)')
+    let item = GenFn('n')
+    call AssertIn(item.target_mode_canon, non_normal,
+      \ 'switch_btwn_many_modes[from n]: target in {i,v,r,c}')
+    call AssertEq(item.expected_motion, expected[item.target_mode_canon],
+      \ 'switch_btwn_many_modes[from n]: expected_motion = entry key')
+    call AssertEq(item.optimal_motions, 1,
+      \ 'switch_btwn_many_modes[from n]: optimal_motions = 1')
     let seen[item.target_mode_canon] = 1
   endfor
-  for m in valid
+  for m in non_normal
     call Assert(get(seen, m, 0) == 1,
-      \ 'switch_btwn_non_normal_modes: target ' . m . ' appeared')
+      \ 'switch_btwn_many_modes[from n]: target ' . m . ' appeared')
+  endfor
+
+  " From any non-Normal: target must be 'n', expected_motion 'C-['.
+  for cur in non_normal
+    let item = GenFn(cur)
+    call AssertEq(item.target_mode_canon, 'n',
+      \ 'switch_btwn_many_modes[from ' . cur . ']: target = n')
+    call AssertEq(item.expected_motion, 'C-[',
+      \ 'switch_btwn_many_modes[from ' . cur . ']: expected_motion = C-[')
+    call AssertEq(item.optimal_motions, 1,
+      \ 'switch_btwn_many_modes[from ' . cur . ']: optimal_motions = 1')
   endfor
 endfunction
 
@@ -1216,7 +1231,7 @@ call s:test_switch_mode_to_insert()
 call s:test_switch_mode_to_visual()
 call s:test_switch_mode_to_replace()
 call s:test_switch_mode_to_command_line()
-call s:test_switch_btwn_non_normal_modes()
+call s:test_switch_btwn_many_modes()
 call s:test_3_2a()
 call s:test_3_2b()
 call s:test_1A_3()
