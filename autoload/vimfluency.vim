@@ -1921,8 +1921,18 @@ function! s:render_mode_switch_item(item) abort
     \ ]
   let s:session.header_offset = 0
   setlocal modifiable
-  silent! %delete _
+  " Overwrite in place rather than %delete + setline. The handler is
+  " called from ModeChanged while the user is in the just-entered
+  " mode (v / i / R / c). %delete invalidates Visual mode's selection
+  " range and kicks vim back to Normal — which fires *another*
+  " ModeChanged that credits the next (n-target) item too, advancing
+  " to item 3 (another v-target) on a single 'v' keystroke. The user
+  " sees an identical-looking screen and concludes 'nothing happened'.
+  " setline keeps mode state intact across all four non-Normal modes.
   call setline(1, lines)
+  if line('$') > len(lines)
+    silent! execute (len(lines) + 1) . ',$delete _'
+  endif
   call cursor(2, 1)
   if s:session.target_match_id != -1
     silent! call matchdelete(s:session.target_match_id)
@@ -1933,7 +1943,13 @@ function! s:render_mode_switch_item(item) abort
     let s:session.deletion_match_id = -1
   endif
   call s:clear_waypoint_matches()
-  redrawstatus
+  " Full :redraw, not :redrawstatus. The mode_switch path can call
+  " into here from a CmdlineEnter autocmd (':' pressed → credit → next
+  " item → this renderer), and vim won't repaint the buffer area
+  " while cmdline is open without an explicit redraw. Without it,
+  " the user sees the prior item's prompt frozen behind the cmdline,
+  " has no signal that pressing : worked, and feels stuck.
+  redraw
 endfunction
 
 " Start (or restart) the polling timer for the current mode_switch
@@ -2665,8 +2681,19 @@ function! s:learn_show_frame() abort
     endif
     let s:session.header_offset = len(base_header)
     setlocal modifiable
-    silent! %delete _
-    call setline(1, base_header + body)
+    " Overwrite in place. %delete would invalidate Visual mode's
+    " selection range if the user is still in visual when we re-render
+    " (auto-advance timer fires while they're sitting in 'v' after a
+    " just-credited v-frame). That invalidation kicks vim to Normal,
+    " which then makes the auto-credit-on-render below fire for the
+    " *next* (n-target) frame too — the user sees the v-frame credit
+    " then immediately a "skip" through Normal. Same root cause as
+    " s:render_mode_switch_item in the training path.
+    let new_lines = base_header + body
+    call setline(1, new_lines)
+    if line('$') > len(new_lines)
+      silent! execute (len(new_lines) + 1) . ',$delete _'
+    endif
     " Park the cursor near the top of the prompt; insert/visual entry
     " keys typed by the user start from here.
     call cursor(min([len(base_header) + 1, line('$')]), 1)
@@ -3207,8 +3234,16 @@ function! s:learn_test_next() abort
       \ '    (from a non-Normal mode, press <Esc> first)']
     let s:session.header_offset = len(prompt_lines)
     setlocal modifiable
-    silent! %delete _
+    " Overwrite in place — see s:learn_show_frame and
+    " s:render_mode_switch_item. %delete here would kick the user out
+    " of Visual mode mid-test (they just credited a v-item and are
+    " still in 'v' when the next test item renders), making the next
+    " n-item look already-satisfied even though the user hasn't done
+    " anything yet.
     call setline(1, prompt_lines)
+    if line('$') > len(prompt_lines)
+      silent! execute (len(prompt_lines) + 1) . ',$delete _'
+    endif
     call cursor(min([len(prompt_lines), line('$')]), 1)
     if s:session.target_match_id != -1
       silent! call matchdelete(s:session.target_match_id)
