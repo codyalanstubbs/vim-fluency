@@ -1408,6 +1408,11 @@ function! s:next_item() abort
     call s:render_mode_switch_item(item)
     call s:start_mode_polling()
     let s:session.advancing = 0
+    " Defensive synchronous re-check: covers the case where the
+    " user is already in this item's target mode at render time and
+    " no ModeChanged will fire. Routine path is a no-op (mode at
+    " next_item time != next target by the no-repeat constraint).
+    call s:check_mode_for_credit()
     return
   endif
 
@@ -1488,12 +1493,26 @@ function! s:install_autocmds() abort
     " ModeChanged is available (8.2+) we hook it for sub-frame
     " latency; on 8.1 we fall back to s:start_mode_polling's 50ms
     " timer (kicked off from s:next_item). Tab still skips.
-    if exists('##ModeChanged')
-      augroup VfTrain
-        autocmd!
+    "
+    " CmdlineEnter is the only hook that fires while a target='c'
+    " item is satisfiable — once the user is in cmdline mode,
+    " timer/ModeChanged callbacks don't run until cmdline closes.
+    " The handler credits synchronously and leaves the user in
+    " cmdline so their Ctrl+[ keystroke fires the next item's
+    " c:n credit honestly.
+    "
+    " The buffer-local cnoremap maps <CR> to <C-c> for the whole
+    " session, so any text the user types in cmdline can't execute
+    " as an ex command against the training buffer. Cleaned up
+    " when the training buffer is wiped.
+    augroup VfTrain
+      autocmd!
+      if exists('##ModeChanged')
         autocmd ModeChanged * call s:check_mode_for_credit()
-      augroup END
-    endif
+      endif
+      autocmd CmdlineEnter : call s:on_cmdline_enter_train()
+    augroup END
+    cnoremap <buffer> <CR> <C-c>
     nnoremap <buffer> <silent> <Tab> :call <SID>skip()<CR>
     return
   endif
@@ -1939,6 +1958,25 @@ endfunction
 " Variadic so this works as both a timer callback (gets a timer id)
 " and a ModeChanged autocmd handler (gets nothing). The args aren't
 " used either way — we only ever read vim's current mode().
+" CmdlineEnter handler — see s:install_autocmds. The instant the user
+" presses ':' we credit the c-target item and LEAVE THE USER IN
+" CMDLINE. They press Ctrl+[/<Esc>/<C-c> themselves to leave; that
+" keystroke fires a c:n ModeChanged which credits the next item
+" (always target='n' under the no-repeat constraint, since current
+" mode is 'c' at next-item time). Net: user presses ':' then
+" Ctrl+[, gets two honest credits, drills both keystrokes —
+" exactly the pedagogy the pinpoint demands. The cnoremap that
+" defangs <CR> in cmdline is session-wide (installed once in
+" s:install_autocmds), not per-press.
+function! s:on_cmdline_enter_train() abort
+  if empty(s:session) | return | endif
+  if get(s:session, 'advancing', 0) | return | endif
+  let target = get(s:session.current_item, 'target_mode_canon', '')
+  if target !=# 'c' | return | endif
+  let s:session.current_item_motions = s:mode_switch_strokes('c')
+  call s:credit_item()
+endfunction
+
 function! s:check_mode_for_credit(...) abort
   if empty(s:session) | return | endif
   if get(s:session, 'advancing', 0) | return | endif
@@ -1954,6 +1992,35 @@ function! s:check_mode_for_credit(...) abort
     let s:session.current_item_motions = s:mode_switch_strokes(target)
     call s:credit_item()
   endif
+endfunction
+
+" Lesson CmdlineEnter handler — mirror of s:on_cmdline_enter_train,
+" but routes into the lesson's frame_complete machinery. The session-
+" wide cmap installed in s:learn_install_autocmds defangs <CR> so the
+" user can stay in cmdline safely. They press Ctrl+[ themselves to
+" leave; the c:n ModeChanged fires while frame_complete=1 (returns
+" early), and the auto-advance timer that this credit schedules
+" eventually renders the next (n-target) frame — where the auto-
+" credit-on-render check in s:learn_show_frame fires because the
+" user is already in Normal.
+function! s:on_cmdline_enter_learn() abort
+  if empty(s:session) | return | endif
+  if get(s:session, 'advancing', 0) | return | endif
+  if get(s:session, 'frame_complete', 0) | return | endif
+
+  let target = ''
+  if s:session.phase ==# 'test'
+    let target = get(get(s:session, 'current_test_item', {}),
+      \ 'target_mode_canon', '')
+  elseif s:session.phase ==# 'setup'
+    if s:session.frame_idx >= len(s:session.frames) | return | endif
+    let frame = s:session.frames[s:session.frame_idx]
+    if frame.kind !=# 'try' | return | endif
+    let target = get(frame, 'target_mode_canon', '')
+  endif
+  if target !=# 'c' | return | endif
+
+  call s:check_mode_for_learn_credit()
 endfunction
 
 " Lesson polling: parallel to s:check_mode_for_credit but routes credit
@@ -2613,6 +2680,17 @@ function! s:learn_show_frame() abort
     endif
     call s:clear_waypoint_matches()
     let s:session.advancing = 0
+    " Re-check mode in case the user is already in the target mode
+    " without further input. The motivating case: the previous frame
+    " was target='c', the user pressed Ctrl+[ inside cmdline to leave,
+    " landing in Normal. The c:n ModeChanged fired then, but the
+    " current frame was still the c-frame (frame_complete blocked
+    " re-credit). After advancing to this n-frame, mode is already 'n'
+    " — no further ModeChanged will fire, so we'd be stuck without
+    " this synchronous check.
+    if frame.kind ==# 'try'
+      call s:check_mode_for_learn_credit()
+    endif
     return
   endif
   if is_recall
@@ -2730,6 +2808,10 @@ function! s:learn_install_autocmds() abort
       let s:session.mode_poll_timer = timer_start(50,
         \ function('s:check_mode_for_learn_credit'), {'repeat': -1})
     endif
+    " Defang <CR> in cmdline mode so any text the user types after ':'
+    " can't execute as an ex command against the lesson buffer. See
+    " s:on_cmdline_enter_learn for the full cmdline flow.
+    cnoremap <buffer> <CR> <C-c>
   endif
   augroup VfLearn
     autocmd!
@@ -2747,9 +2829,14 @@ function! s:learn_install_autocmds() abort
       " fallback for 8.1 was already started in the kind-dispatch
       " block above. Either way, the autocmds are scoped to this
       " augroup so learn_stop tears them down.
+      "
+      " CmdlineEnter is the only hook that lands while target='c'
+      " is satisfiable — see s:install_autocmds for the full story.
+      " Without this, hitting ':' freezes the lesson in cmdline mode.
       if exists('##ModeChanged')
         autocmd ModeChanged * call s:check_mode_for_learn_credit()
       endif
+      autocmd CmdlineEnter : call s:on_cmdline_enter_learn()
     elseif kind ==# 'recall'
       " Recall lessons route every printable keystroke into recall_append
       " (mirrors the training). No autocmds needed — handlers fire via the
