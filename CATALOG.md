@@ -46,9 +46,9 @@ is the source of truth for *what's actually shipped*.
 | `insert_before_after_char_start_end_line` | 4-way composite over `i`, `a`, `I`, `A` — type a short payload at the marked gap | Mode | 50 | `insert_before_after_char`, `insert_start_end_line` |
 | `insert_line_above_below` | Open new line (`o`, `O`) — type a short payload on the new line | Mode | 40 | — |
 | `save_vs_quit` | Discriminate `:w` vs `:q` | Disc | 40 | — |
-| `save_quit_vs_force_quit` | Discriminate `:wq` vs `:q!` | Disc | 35 | `save_vs_quit` |
-| `save_quit_ex_vs_normal_zz` | Discriminate `:wq` vs `ZZ` (Ex vs normal-mode) | Disc | 35 | `save_quit_vs_force_quit` |
-| `force_quit_ex_vs_normal_zq` | Discriminate `:q!` vs `ZQ` (Ex vs normal-mode) | Disc | 35 | `save_quit_vs_force_quit` |
+| `save_quit_vs_force_quit` | Discriminate `:wq` vs `:q!` | Disc | 35 | — |
+| `save_quit_ex_vs_normal_zz` | Discriminate `:wq` vs `ZZ` (Ex vs normal-mode) | Disc | 35 | — |
+| `force_quit_ex_vs_normal_zq` | Discriminate `:q!` vs `ZQ` (Ex vs normal-mode) | Disc | 35 | — |
 | `undo_redo` | Undo / redo (`u`, `Ctrl-r`) | S→K | 50 | — |
 
 ## Motion family
@@ -57,14 +57,14 @@ Cursor-only behaviors. No buffer change.
 
 | id (slug) | Behavior | Format | Aim | Prereqs |
 |---|---|---|---|---|
-| `move_single_char_up_down_left_right` | `hjkl` (4-direction) | S→K | 60 | `switch_mode_to_insert`, `insert_before_after_char_start_end_line` |
-| `move_single_char_left_right` | `h l` (narrower horizontal sibling of hjkl) | S→K | 60 | `switch_mode_to_insert`, `insert_before_after_char_start_end_line` |
-| `move_single_char_up_down` | `j k` (narrower vertical sibling of hjkl) | S→K | 60 | `switch_mode_to_insert`, `insert_before_after_char_start_end_line` |
+| `move_single_char_up_down_left_right` | `hjkl` (4-direction) | S→K | 60 | `move_single_char_left_right`, `move_single_char_up_down` |
+| `move_single_char_left_right` | `h l` (narrower horizontal sibling of hjkl) | S→K | 60 | — |
+| `move_single_char_up_down` | `j k` (narrower vertical sibling of hjkl) | S→K | 60 | — |
 | `move_to_line_edges_all` | Line start / first-non-blank / end (`0`, `^`, `$`, `g_`) | S→K | 50 | `move_to_line_edges_beginning_end`, `move_to_line_edges_non_white_space` |
 | `move_to_line_edges_beginning_end` | 2-cell: `0` (line start) vs `$` (line end). No whitespace axis. | S→K | 55 | — |
 | `move_to_line_edges_non_white_space` | 2-cell: `^` (first non-blank) vs `g_` (last non-blank). Whitespace-edge sibling. | S→K | 55 | — |
-| `move_to_word_start_forward_backward` | `w b` | S→K | 45 | `move_single_char_up_down_left_right` |
-| `move_to_word_end_forward_backward` | `e ge` | S→K | 40 | `move_single_char_up_down_left_right` |
+| `move_to_word_start_forward_backward` | `w b` | S→K | 45 | — |
+| `move_to_word_end_forward_backward` | `e ge` | S→K | 40 | — |
 | `move_to_char_forward_backward` | `f{c} F{c}` | S→K | 50 | `move_single_char_up_down_left_right` |
 | `move_till_char_forward_backward` | `t{c} T{c}` | S→K | 45 | `move_to_char_forward_backward` |
 | `move_repeat_last_find_forward_backward` | Repeat last find (`;`, `,`) | S→K | 40 | `move_to_char_forward_backward`, `move_till_char_forward_backward` |

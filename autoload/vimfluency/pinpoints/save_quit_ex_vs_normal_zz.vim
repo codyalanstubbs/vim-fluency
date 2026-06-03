@@ -16,7 +16,7 @@ let s:items = [
 function! vimfluency#pinpoints#save_quit_ex_vs_normal_zz#meta() abort
   return {'id': 'save_quit_ex_vs_normal_zz', 'name': 'discriminate :wq vs ZZ',
     \ 'aim': 35, 'allowed_keys': ':wqZ', 'kind': 'recall',
-    \ 'prereqs': ['save_quit_vs_force_quit'], 'keys': ':wq/ZZ', 'family': 'survival'}
+    \ 'prereqs': [], 'keys': ':wq/ZZ', 'family': 'survival'}
 endfunction
 
 function! s:rand(n) abort

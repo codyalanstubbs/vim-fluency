@@ -26,7 +26,7 @@ function! vimfluency#pinpoints#move_to_word_end_forward_backward#meta() abort
   " theoretical max rate on the backward half of the discrimination.
   " Starting guess; revise once the data accumulates.
   return {'id': 'move_to_word_end_forward_backward', 'name': 'e ge', 'aim': 40,
-    \ 'allowed_keys': 'eg', 'prereqs': ['move_single_char_up_down_left_right'],
+    \ 'allowed_keys': 'eg', 'prereqs': [],
     \ 'parallel_to': ['move_to_word_start_forward_backward'], 'keys': 'e/ge', 'family': 'motion'}
 endfunction
 
