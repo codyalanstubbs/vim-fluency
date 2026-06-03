@@ -19,8 +19,10 @@ function! vimfluency#pinpoints#move_to_line_edges_beginning_end#meta() abort
   " Aim slightly above 1A.2's 50/min — narrower discrimination,
   " no whitespace axis to read. Starting guess.
   return {'id': 'move_to_line_edges_beginning_end', 'name': '0 $', 'aim': 55,
-    \ 'allowed_keys': '0$', 'prereqs': ['switch_mode_to_insert', 'insert_before_after_char_start_end_line'],
-    \ 'narrower_of': 'move_to_line_edges_all', 'keys': '0/$', 'family': 'motion'}
+    \ 'allowed_keys': '0$', 'prereqs': [],
+    \ 'narrower_of': 'move_to_line_edges_all',
+    \ 'parallel_to': ['move_to_line_edges_non_white_space'],
+    \ 'keys': '0/$', 'family': 'motion'}
 endfunction
 
 function! vimfluency#pinpoints#move_to_line_edges_beginning_end#lesson() abort

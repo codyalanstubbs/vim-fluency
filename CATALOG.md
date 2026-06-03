@@ -60,8 +60,9 @@ Cursor-only behaviors. No buffer change.
 | `move_single_char_up_down_left_right` | `hjkl` (4-direction) | S→K | 60 | `switch_mode_to_insert`, `insert_before_after_char_start_end_line` |
 | `move_single_char_left_right` | `h l` (narrower horizontal sibling of hjkl) | S→K | 60 | `switch_mode_to_insert`, `insert_before_after_char_start_end_line` |
 | `move_single_char_up_down` | `j k` (narrower vertical sibling of hjkl) | S→K | 60 | `switch_mode_to_insert`, `insert_before_after_char_start_end_line` |
-| `move_to_line_edges_all` | Line start / first-non-blank / end (`0`, `^`, `$`, `g_`) | S→K | 50 | `switch_mode_to_insert`, `insert_before_after_char_start_end_line` |
-| `move_to_line_edges_beginning_end` | `0 $` (narrower line-edge sibling; no whitespace axis) | S→K | 55 | `switch_mode_to_insert`, `insert_before_after_char_start_end_line` |
+| `move_to_line_edges_all` | Line start / first-non-blank / end (`0`, `^`, `$`, `g_`) | S→K | 50 | `move_to_line_edges_beginning_end`, `move_to_line_edges_non_white_space` |
+| `move_to_line_edges_beginning_end` | 2-cell: `0` (line start) vs `$` (line end). No whitespace axis. | S→K | 55 | — |
+| `move_to_line_edges_non_white_space` | 2-cell: `^` (first non-blank) vs `g_` (last non-blank). Whitespace-edge sibling. | S→K | 55 | — |
 | `move_to_word_start_forward_backward` | `w b` | S→K | 45 | `move_single_char_up_down_left_right` |
 | `move_to_word_end_forward_backward` | `e ge` | S→K | 40 | `move_single_char_up_down_left_right` |
 | `move_to_char_forward_backward` | `f{c} F{c}` | S→K | 50 | `move_single_char_up_down_left_right` |

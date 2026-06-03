@@ -1226,6 +1226,46 @@ function! s:test_1A_5() abort
   endfor
 endfunction
 
+" move_to_line_edges_non_white_space — ^ vs g_. Line has BOTH
+" leading and trailing whitespace so neither motion collapses to its
+" 0/$ sibling. Cursor sits strictly between first_nonblank and
+" last_nonblank so neither motion is a no-op.
+function! s:test_move_to_line_edges_non_white_space() abort
+  let GenFn = function('vimfluency#pinpoints#move_to_line_edges_non_white_space#generate')
+  let valid = ['^', 'g_']
+  let seen = {}
+  for i in range(s:N)
+    let item = GenFn()
+    call s:assert_common('move_to_line_edges_non_white_space', item)
+    call AssertIn(item.expected_motion, valid,
+      \ 'move_to_line_edges_non_white_space: expected_motion in {^, g_}')
+    call AssertEq(item.optimal_motions, 1,
+      \ 'move_to_line_edges_non_white_space: optimal_motions == 1')
+    let line = item.lines[0]
+    let llen = len(line)
+    let stripped_left = substitute(line, '^\s\+', '', '')
+    let stripped_right = substitute(line, '\s\+$', '', '')
+    let fnb = llen - len(stripped_left) + 1
+    let lnb = len(stripped_right)
+    call Assert(fnb > 1,
+      \ 'move_to_line_edges_non_white_space: line has leading whitespace (fnb > 1)')
+    call Assert(lnb < llen,
+      \ 'move_to_line_edges_non_white_space: line has trailing whitespace (lnb < llen)')
+    if item.expected_motion ==# '^'
+      call AssertEq(item.target[1], fnb,
+        \ 'move_to_line_edges_non_white_space[^]: target == first_nonblank')
+    else
+      call AssertEq(item.target[1], lnb,
+        \ 'move_to_line_edges_non_white_space[g_]: target == last_nonblank')
+    endif
+    let seen[item.expected_motion] = 1
+  endfor
+  for k in valid
+    call Assert(get(seen, k, 0) == 1,
+      \ 'move_to_line_edges_non_white_space: ' . k . ' appeared in samples')
+  endfor
+endfunction
+
 " 4.3: d0 vs d$. Editing-kind; single-line buffer; cursor in interior.
 " Deletion range covers [1, cursor-1] for d0 or [cursor, llen] for d$.
 " target_lines is the surviving slice; cursor ends at col 1 (d0) or
@@ -1371,6 +1411,7 @@ call s:test_switch_btwn_many_modes()
 call s:test_3_2a()
 call s:test_3_2b()
 call s:test_1A_3()
+call s:test_move_to_line_edges_non_white_space()
 call s:test_1A_4()
 call s:test_1A_5()
 call s:test_4_3()
