@@ -224,14 +224,14 @@ endfunction
 " shiftwidths in the picked direction. Both motions and both step
 " counts appear over many samples.
 function! s:test_2_2() abort
-  let GenFn = function('vimfluency#pinpoints#discriminate_indent_vs_dedent#generate')
+  let GenFn = function('vimfluency#pinpoints#indent_vs_dedent#generate')
   let SW = 4
   let valid = ['>>', '<<']
   let seen = {}
   let step_counts = {}
   for i in range(s:N)
     let item = GenFn()
-    call s:assert_common('discriminate_indent_vs_dedent', item)
+    call s:assert_common('indent_vs_dedent', item)
     call AssertIn(item.expected_motion, valid,
       \ '2.2: expected_motion in {>>, <<}')
     call AssertIn(item.optimal_motions, [1, 2],

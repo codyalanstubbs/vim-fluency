@@ -1,4 +1,4 @@
-" discriminate_indent_vs_dedent — Discriminate >> vs <<. Indent vs dedent the cursor's line.
+" indent_vs_dedent — Discriminate >> vs <<. Indent vs dedent the cursor's line.
 " Real direction discrimination on the indentation axis. Both
 " doubled-key operators, both produce visible buffer changes (whole
 " line shifts left or right by one shiftwidth), neither enters
@@ -29,12 +29,12 @@
 let s:words = ['alpha', 'beta', 'gamma', 'delta', 'epsilon',
   \ 'zeta', 'eta', 'theta', 'iota', 'kappa']
 
-function! vimfluency#pinpoints#discriminate_indent_vs_dedent#meta() abort
+function! vimfluency#pinpoints#indent_vs_dedent#meta() abort
   " Disc-band aim, matching 1C.4 and 2.1. Read-and-pick costs more
   " than pure motor; revise on data.
-  return {'id': 'discriminate_indent_vs_dedent', 'name': 'discriminate >> vs <<',
+  return {'id': 'indent_vs_dedent', 'name': '>> vs <<',
     \ 'aim': 35, 'allowed_keys': '><', 'kind': 'editing',
-    \ 'prereqs': ['switch_mode_to_insert', 'insert_before_after_char_start_end_line'], 'keys': '>>/<<', 'family': 'indent'}
+    \ 'prereqs': [], 'keys': '>>/<<', 'family': 'indent'}
 endfunction
 
 function! s:rand(n) abort
@@ -50,7 +50,7 @@ function! s:make_line() abort
   return join(words, ' ')
 endfunction
 
-function! vimfluency#pinpoints#discriminate_indent_vs_dedent#generate() abort
+function! vimfluency#pinpoints#indent_vs_dedent#generate() abort
   let SW = 4
   let text = s:make_line()
   let pick_indent = s:rand(2) == 0  " true → >>, false → <<
@@ -95,7 +95,7 @@ function! vimfluency#pinpoints#discriminate_indent_vs_dedent#generate() abort
     \ }
 endfunction
 
-function! vimfluency#pinpoints#discriminate_indent_vs_dedent#lesson() abort
+function! vimfluency#pinpoints#indent_vs_dedent#lesson() abort
   " Try frames in both directions plus a 2-shiftwidth case so the
   " learner sees a multi-press item before facing one cold in the
   " test phase. Closes with a rule-statement show frame.

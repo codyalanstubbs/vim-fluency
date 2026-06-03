@@ -43,7 +43,7 @@ let s:expected = [
   \               'move_till_char_forward_backward',
   \               'move_to_till_forward', 'move_to_till_backward']},
   \ {'id': 'delete_char_vs_line', 'prereqs': []},
-  \ {'id': 'discriminate_indent_vs_dedent',  'prereqs': ['switch_mode_to_insert', 'insert_before_after_char_start_end_line']},
+  \ {'id': 'indent_vs_dedent', 'prereqs': []},
   \ {'id': 'recall_inner_quote_pair', 'prereqs': ['switch_mode_to_insert', 'insert_before_after_char_start_end_line']},
   \ {'id': 'recall_inner_quote_triple', 'prereqs': ['recall_inner_quote_pair']},
   \ {'id': 'delete_to_word_start_forward_backward', 'prereqs': ['move_to_word_start_forward_backward']},

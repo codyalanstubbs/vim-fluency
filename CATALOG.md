@@ -91,7 +91,7 @@ broader drills) are designed but not yet built — see
 
 | id (slug) | Behavior | Format | Aim | Prereqs |
 |---|---|---|---|---|
-| `discriminate_indent_vs_dedent` | `>>` vs `<<` | Disc | 35 | `switch_mode_to_insert`, `insert_before_after_char_start_end_line` |
+| `indent_vs_dedent` | `>>` vs `<<` | Disc | 35 | — |
 
 ## Text-object recall (legacy)
 
