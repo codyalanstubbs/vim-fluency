@@ -150,7 +150,7 @@ COMMANDS                                                        *vf-commands*
 
 :VfSetAim {id} {rate}                                          *:VfSetAim*
     Store a personal aim override for pinpoint {id} (rate per minute).
-        :VfSetAim insert_basic 75
+        :VfSetAim insert_before_after_char_start_end_line 75
     The override persists across vim restarts in
     $XDG_DATA_HOME/vimfluency/settings.json and is used everywhere the
     aim matters: :VfList rows show the effective value (with a trailing

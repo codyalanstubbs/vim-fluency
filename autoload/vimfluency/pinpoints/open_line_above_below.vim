@@ -41,7 +41,7 @@ let s:words = [
 let s:MARK = '⏵'
 let s:NO_MARK = ' '
 
-" Same fixed test string as insert_basic — the learner types this
+" Same fixed test string as insert_before_after_char_start_end_line — the learner types this
 " into the freshly opened line so the runner can credit on a buffer
 " match rather than on the leave-mode keystroke. Esc/Ctrl-[ get
 " their own pinpoint via switch_mode_to_insert; this one focuses on
@@ -49,14 +49,14 @@ let s:NO_MARK = ' '
 let s:INSERT_TEXT = 'foo'
 
 function! vimfluency#pinpoints#open_line_above_below#meta() abort
-  " Catalog aim 40/min. Same shape as insert_basic post-redesign:
+  " Catalog aim 40/min. Same shape as insert_before_after_char_start_end_line post-redesign:
   " each item is 4 strokes (the o or O opener plus the 3 chars of
   " 'foo'). The buffer change makes the cue (and any failure)
-  " visible — slightly below insert_basic's aim because the eye
+  " visible — slightly below insert_before_after_char_start_end_line's aim because the eye
   " has to verify TWO rows for the direction cue.
   return {'id': 'open_line_above_below', 'name': 'open new line (o / O)',
     \ 'aim': 40, 'allowed_keys': 'oOfo', 'kind': 'mode',
-    \ 'prereqs': ['insert_basic'], 'keys': 'o/O', 'family': 'survival',
+    \ 'prereqs': ['insert_before_after_char_start_end_line'], 'keys': 'o/O', 'family': 'survival',
     \ 'credit_on_text_typed': 1}
 endfunction
 

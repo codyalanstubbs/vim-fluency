@@ -1,5 +1,8 @@
-" insert_basic — Enter/leave insert mode. The four canonical insert-entry keys
-" plus the closing Esc:  i  a  I  A.
+" insert_before_after_char_start_end_line — composite drill over all
+" four positional insert-entry keys (i / a / I / A). Mixes the two
+" atomic discriminations from insert_before_after_char (i vs a) and
+" insert_start_end_line (I vs A) into a single 4-way cell so the
+" learner has to distinguish across both axes at once.
 "
 " Training shape: mode kind. The conceptual target is a GAP between two
 " cells (insertion points are between chars, not on them), so the
@@ -78,18 +81,21 @@ let s:INSERT_TEXT = 'foo'
 " discriminative content; the prose just frames the task.
 let s:PROMPT = printf('Enter insert mode at the marked gap, then type %s.', s:INSERT_TEXT)
 
-function! vimfluency#pinpoints#insert_basic#meta() abort
-  " Catalog aim 50/min. Insert-entry is the i/a/I/A discrimination
-  " plus a short typed payload — 4 strokes per item (entry key + 'foo').
+function! vimfluency#pinpoints#insert_before_after_char_start_end_line#meta() abort
+  " Catalog aim 50/min — slightly below either atomic's 60/min
+  " because the 4-way decision (which axis × which side) adds
+  " discrimination load. 4 strokes per item (entry key + 'foo').
   "
   " credit_on_text_typed — both training and lesson advance the
   " moment the buffer matches the post-insertion target (the
   " learner pressed the right entry key AND typed the expected
   " text in the right spot). No Esc round-trip; mode-leave fluency
   " is measured separately in switch_mode_to_insert.
-  return {'id': 'insert_basic', 'name': 'enter insert mode',
+  return {'id': 'insert_before_after_char_start_end_line',
+    \ 'name': 'enter insert mode (i / a / I / A)',
     \ 'aim': 50, 'allowed_keys': 'iaIAfo', 'kind': 'mode',
-    \ 'prereqs': ['switch_mode_to_insert'], 'keys': 'i/a/I/A',
+    \ 'prereqs': ['insert_before_after_char', 'insert_start_end_line'],
+    \ 'keys': 'i/a/I/A',
     \ 'family': 'survival', 'credit_on_text_typed': 1}
 endfunction
 
@@ -114,7 +120,7 @@ function! s:typed_at(line, col) abort
   return strpart(a:line, 0, a:col - 1) . s:INSERT_TEXT . strpart(a:line, a:col - 1)
 endfunction
 
-function! vimfluency#pinpoints#insert_basic#lesson() abort
+function! vimfluency#pinpoints#insert_before_after_char_start_end_line#lesson() abort
   let inline = 'the quick brown fox'
   let indented = '    return value'
   let short = 'print hello'
@@ -202,7 +208,7 @@ function! s:first_nonblank_col(line) abort
   return m + 1
 endfunction
 
-function! vimfluency#pinpoints#insert_basic#generate() abort
+function! vimfluency#pinpoints#insert_before_after_char_start_end_line#generate() abort
   let key = ['i', 'a', 'I', 'A'][s:rand(4)]
   if key ==# 'i'
     let line = s:lines_inline[s:rand(len(s:lines_inline))]

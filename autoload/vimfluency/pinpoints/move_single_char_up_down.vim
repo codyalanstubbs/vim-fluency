@@ -16,7 +16,7 @@ let s:chars = ['a','b','c','d','e','f','g','h','i','j','k','m','n','p',
 
 function! vimfluency#pinpoints#move_single_char_up_down#meta() abort
   return {'id': 'move_single_char_up_down', 'name': 'j k', 'aim': 60,
-    \ 'allowed_keys': 'jk', 'prereqs': ['switch_mode_to_insert', 'insert_basic'],
+    \ 'allowed_keys': 'jk', 'prereqs': ['switch_mode_to_insert', 'insert_before_after_char_start_end_line'],
     \ 'narrower_of': 'move_single_char_up_down_left_right', 'parallel_to': ['move_single_char_left_right'], 'keys': 'j/k', 'family': 'motion'}
 endfunction
 

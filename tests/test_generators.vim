@@ -877,15 +877,91 @@ function! s:assert_mode_common(id, item) abort
     \ prefix . 'enter_at_col in [1, len+1] of its target_line')
 endfunction
 
+" insert_before_after_char — 2-cell atomic over {i, a}. Each item
+" is 4 strokes (entry key + 'foo'); enter_at_col tracks i/a's
+" cursor-vs-insertion-point offset (i = cursor col, a = cursor+1).
+function! s:test_insert_before_after_char() abort
+  let GenFn = function('vimfluency#pinpoints#insert_before_after_char#generate')
+  let valid = ['i', 'a']
+  let seen = {}
+  for i in range(s:N)
+    let item = GenFn()
+    call s:assert_mode_common('insert_before_after_char', item)
+    call AssertIn(item.expected_motion, valid,
+      \ 'insert_before_after_char: expected_motion in {i, a}')
+    call AssertEq(item.optimal_motions, 4,
+      \ 'insert_before_after_char: optimal_motions == 4')
+    call AssertEq(item.target_lines, item.lines,
+      \ 'insert_before_after_char: target_lines == lines (pre-typing)')
+    call Assert(has_key(item, 'target_lines_after_type'),
+      \ 'insert_before_after_char: target_lines_after_type present')
+    let line = item.lines[0]
+    let sc = item.start[1]
+    if item.expected_motion ==# 'i'
+      call AssertEq(item.enter_at_col, sc,
+        \ 'insert_before_after_char[i]: enter_at_col == start_col')
+      call Assert(sc > 1,
+        \ 'insert_before_after_char[i]: start_col > 1')
+    else
+      call AssertEq(item.enter_at_col, sc + 1,
+        \ 'insert_before_after_char[a]: enter_at_col == start_col + 1')
+      call Assert(sc < len(line),
+        \ 'insert_before_after_char[a]: start_col < line_end')
+    endif
+    let seen[item.expected_motion] = 1
+  endfor
+  for k in valid
+    call Assert(get(seen, k, 0) == 1,
+      \ 'insert_before_after_char: ' . k . ' appeared in samples')
+  endfor
+endfunction
+
+" insert_start_end_line — 2-cell atomic over {I, A}. Both keys
+" IGNORE the cursor column and jump to a line edge (first-non-blank
+" for I, end-of-line+1 for A) before opening insert.
+function! s:test_insert_start_end_line() abort
+  let GenFn = function('vimfluency#pinpoints#insert_start_end_line#generate')
+  let valid = ['I', 'A']
+  let seen = {}
+  for i in range(s:N)
+    let item = GenFn()
+    call s:assert_mode_common('insert_start_end_line', item)
+    call AssertIn(item.expected_motion, valid,
+      \ 'insert_start_end_line: expected_motion in {I, A}')
+    call AssertEq(item.optimal_motions, 4,
+      \ 'insert_start_end_line: optimal_motions == 4')
+    call AssertEq(item.target_lines, item.lines,
+      \ 'insert_start_end_line: target_lines == lines (pre-typing)')
+    call Assert(has_key(item, 'target_lines_after_type'),
+      \ 'insert_start_end_line: target_lines_after_type present')
+    let line = item.lines[0]
+    if item.expected_motion ==# 'I'
+      let fnb = match(line, '\S') + 1
+      call AssertEq(item.enter_at_col, fnb,
+        \ 'insert_start_end_line[I]: enter_at_col == first_nonblank')
+      call Assert(fnb > 1,
+        \ 'insert_start_end_line[I]: line has leading whitespace')
+    else
+      call AssertEq(item.enter_at_col, len(line) + 1,
+        \ 'insert_start_end_line[A]: enter_at_col == line_len + 1')
+    endif
+    let seen[item.expected_motion] = 1
+  endfor
+  for k in valid
+    call Assert(get(seen, k, 0) == 1,
+      \ 'insert_start_end_line: ' . k . ' appeared in samples')
+  endfor
+endfunction
+
 " T0.1 — enter / leave insert mode. Four keys, all optimal 2.
 " target_lines must equal lines (no buffer change for i/a/I/A).
 function! s:test_T0_1() abort
-  let GenFn = function('vimfluency#pinpoints#insert_basic#generate')
+  let GenFn = function('vimfluency#pinpoints#insert_before_after_char_start_end_line#generate')
   let valid = ['i', 'a', 'I', 'A']
   let seen = {}
   for i in range(s:N)
     let item = GenFn()
-    call s:assert_mode_common('insert_basic', item)
+    call s:assert_mode_common('insert_before_after_char_start_end_line', item)
     call AssertIn(item.expected_motion, valid,
       \ 'T0.1: expected_motion in {i, a, I, A}')
     call AssertEq(item.optimal_motions, 4,
@@ -1233,6 +1309,8 @@ call s:test_1C_4()
 call s:test_2_1()
 call s:test_2_2()
 call s:test_4_1()
+call s:test_insert_before_after_char()
+call s:test_insert_start_end_line()
 call s:test_T0_1()
 call s:test_T0_2()
 call s:test_T0_3a()

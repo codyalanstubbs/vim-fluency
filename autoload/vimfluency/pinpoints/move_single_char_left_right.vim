@@ -23,7 +23,7 @@ function! vimfluency#pinpoints#move_single_char_left_right#meta() abort
   " plateaued — keep the aim honest rather than inflated. Starting
   " guess, revise on data.
   return {'id': 'move_single_char_left_right', 'name': 'h l', 'aim': 60,
-    \ 'allowed_keys': 'hl', 'prereqs': ['switch_mode_to_insert', 'insert_basic'],
+    \ 'allowed_keys': 'hl', 'prereqs': ['switch_mode_to_insert', 'insert_before_after_char_start_end_line'],
     \ 'narrower_of': 'move_single_char_up_down_left_right', 'parallel_to': ['move_single_char_up_down'], 'keys': 'h/l', 'family': 'motion'}
 endfunction
 
