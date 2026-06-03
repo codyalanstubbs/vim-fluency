@@ -1,4 +1,4 @@
-" discriminate_delete_char_vs_line — Discriminate x vs dd. Single-char delete vs linewise delete,
+" delete_char_vs_line — Discriminate x vs dd. Single-char delete vs linewise delete,
 " both immediate-action (no motion partner). The minimal pair is on
 " the amount-to-delete axis: one character vs an entire line. Both
 " are foundational delete operations; the discrimination is the
@@ -50,14 +50,14 @@
 let s:words = ['alpha', 'beta', 'gamma', 'delta', 'epsilon',
   \ 'zeta', 'eta', 'theta', 'iota', 'kappa']
 
-function! vimfluency#pinpoints#discriminate_delete_char_vs_line#meta() abort
+function! vimfluency#pinpoints#delete_char_vs_line#meta() abort
   " Discrimination training sessions carry a cognitive cost beyond fluency
   " training sessions (read the highlight, navigate, pick the operator), so
   " the aim is set lower than 1A.1's hjkl drill. Starting guess;
   " revise on data. Same band as 1C.4 and 2.2 disc training sessions.
-  return {'id': 'discriminate_delete_char_vs_line', 'name': 'discriminate x vs dd',
+  return {'id': 'delete_char_vs_line', 'name': 'x vs dd',
     \ 'aim': 35, 'allowed_keys': 'xdjk', 'kind': 'editing',
-    \ 'prereqs': ['switch_mode_to_insert', 'insert_before_after_char_start_end_line'], 'keys': 'x/dd', 'family': 'delete'}
+    \ 'prereqs': [], 'keys': 'x/dd', 'family': 'delete'}
 endfunction
 
 function! s:rand(n) abort
@@ -82,7 +82,7 @@ function! s:make_distinct_lines() abort
   return [a, b]
 endfunction
 
-function! vimfluency#pinpoints#discriminate_delete_char_vs_line#generate() abort
+function! vimfluency#pinpoints#delete_char_vs_line#generate() abort
   let lines = s:make_distinct_lines()
   let cursor_line = 1 + s:rand(2)        " 1 or 2 — where cursor starts
   let target_line = cursor_line == 1 ? 2 : 1
@@ -128,7 +128,7 @@ function! vimfluency#pinpoints#discriminate_delete_char_vs_line#generate() abort
   endif
 endfunction
 
-function! vimfluency#pinpoints#discriminate_delete_char_vs_line#lesson() abort
+function! vimfluency#pinpoints#delete_char_vs_line#lesson() abort
   " Each operator gets its own try frame so the learner performs
   " the navigation + deletion sequence and watches the buffer
   " change. The closing show frame names the discrimination rule

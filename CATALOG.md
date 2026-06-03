@@ -81,8 +81,8 @@ broader drills) are designed but not yet built — see
 
 | id (slug) | Behavior | Format | Aim | Prereqs |
 |---|---|---|---|---|
-| `discriminate_delete_char_vs_line` | `x` vs `dd` (navigate then operate) | Disc | 35 | `switch_mode_to_insert`, `insert_before_after_char_start_end_line` |
-| `delete_to_word_start_forward_backward` | `dw db` (delete to word start, both directions) | Disc | 60 | `discriminate_delete_char_vs_line`, `move_to_word_start_forward_backward` |
+| `delete_char_vs_line` | `x` vs `dd` (navigate then operate) | Disc | 35 | — |
+| `delete_to_word_start_forward_backward` | `dw db` (delete to word start, both directions) | Disc | 60 | `move_to_word_start_forward_backward` |
 | `delete_to_line_edges_beginning_end` | `d0 d$` (delete to line edge, both directions) | Disc | 35 | `move_to_line_edges_beginning_end` |
 | `delete_single_char_left_right` | `dl dh` (delete one char via motion) | Disc | 40 | `move_single_char_left_right` |
 | `delete_two_lines_down_up` | `dj dk` (linewise, two-line extent) | Disc | 30 | `move_single_char_up_down` |

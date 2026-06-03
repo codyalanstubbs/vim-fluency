@@ -148,13 +148,13 @@ endfunction
 " j or k to navigate, then the operator. Both motions appear over
 " many samples and both navigation directions are exercised.
 function! s:test_2_1() abort
-  let GenFn = function('vimfluency#pinpoints#discriminate_delete_char_vs_line#generate')
+  let GenFn = function('vimfluency#pinpoints#delete_char_vs_line#generate')
   let valid = ['x', 'dd']
   let seen = {}
   let nav_dirs = {}
   for i in range(s:N)
     let item = GenFn()
-    call s:assert_common('discriminate_delete_char_vs_line', item)
+    call s:assert_common('delete_char_vs_line', item)
     call AssertIn(item.expected_motion, valid,
       \ '2.1: expected_motion in {x, dd}')
     call AssertEq(item.optimal_motions, 2,
