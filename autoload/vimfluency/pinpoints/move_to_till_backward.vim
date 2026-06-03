@@ -18,7 +18,8 @@ function! vimfluency#pinpoints#move_to_till_backward#meta() abort
     \ 'name': 'find char backward (F / T)',
     \ 'aim': 50, 'allowed_keys': 'FT',
     \ 'prereqs': [], 'keys': 'F/T', 'family': 'motion',
-    \ 'parallel_to': ['move_to_till_forward']}
+    \ 'parallel_to': ['move_to_till_forward'],
+    \ 'test_sequence': ['F', 'T']}
 endfunction
 
 function! s:rand(n) abort

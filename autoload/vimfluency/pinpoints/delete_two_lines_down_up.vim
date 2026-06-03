@@ -22,7 +22,8 @@ let s:words = ['alpha', 'beta', 'gamma', 'delta', 'epsilon',
 function! vimfluency#pinpoints#delete_two_lines_down_up#meta() abort
   return {'id': 'delete_two_lines_down_up', 'name': 'dj dk', 'aim': 30,
     \ 'allowed_keys': 'djk', 'kind': 'editing',
-    \ 'prereqs': ['move_single_char_up_down'], 'keys': 'dj/dk', 'family': 'delete'}
+    \ 'prereqs': ['move_single_char_up_down'], 'keys': 'dj/dk', 'family': 'delete',
+    \ 'test_sequence': ['dj', 'dk']}
 endfunction
 
 function! s:rand(n) abort

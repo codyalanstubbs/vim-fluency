@@ -34,7 +34,8 @@ function! vimfluency#pinpoints#move_to_line_edges_non_white_space#meta() abort
     \ 'aim': 55, 'allowed_keys': '^g_', 'prereqs': [],
     \ 'narrower_of': 'move_to_line_edges_all',
     \ 'parallel_to': ['move_to_line_edges_beginning_end'],
-    \ 'keys': '^/g_', 'family': 'motion'}
+    \ 'keys': '^/g_', 'family': 'motion',
+    \ 'test_sequence': ['^', 'g_']}
 endfunction
 
 function! vimfluency#pinpoints#move_to_line_edges_non_white_space#lesson() abort

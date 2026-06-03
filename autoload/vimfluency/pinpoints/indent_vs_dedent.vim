@@ -34,7 +34,8 @@ function! vimfluency#pinpoints#indent_vs_dedent#meta() abort
   " than pure motor; revise on data.
   return {'id': 'indent_vs_dedent', 'name': '>> vs <<',
     \ 'aim': 35, 'allowed_keys': '><', 'kind': 'editing',
-    \ 'prereqs': [], 'keys': '>>/<<', 'family': 'indent'}
+    \ 'prereqs': [], 'keys': '>>/<<', 'family': 'indent',
+    \ 'test_sequence': ['>>', '<<']}
 endfunction
 
 function! s:rand(n) abort

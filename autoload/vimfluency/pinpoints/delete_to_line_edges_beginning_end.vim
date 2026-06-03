@@ -28,7 +28,8 @@ function! vimfluency#pinpoints#delete_to_line_edges_beginning_end#meta() abort
   return {'id': 'delete_to_line_edges_beginning_end', 'name': 'd0 d$', 'aim': 35,
     \ 'allowed_keys': 'd0$', 'kind': 'editing',
     \ 'prereqs': ['move_to_line_edges_beginning_end'],
-    \ 'parallel_to': ['delete_to_word_start_forward_backward', 'delete_single_char_left_right'], 'keys': 'd0/d$', 'family': 'delete'}
+    \ 'parallel_to': ['delete_to_word_start_forward_backward', 'delete_single_char_left_right'], 'keys': 'd0/d$', 'family': 'delete',
+    \ 'test_sequence': ['d0', 'd$']}
 endfunction
 
 function! s:rand(n) abort

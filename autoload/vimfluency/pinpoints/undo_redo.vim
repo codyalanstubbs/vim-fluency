@@ -48,7 +48,8 @@ function! vimfluency#pinpoints#undo_redo#meta() abort
   " or redo. Starting guess.
   return {'id': 'undo_redo', 'name': 'undo / redo',
     \ 'aim': 50, 'allowed_keys': 'u<C-r>', 'kind': 'editing',
-    \ 'prereqs': [], 'keys': 'u/C-r', 'family': 'survival'}
+    \ 'prereqs': [], 'keys': 'u/C-r', 'family': 'survival',
+    \ 'test_sequence': ['u', '<C-r>']}
 endfunction
 
 function! s:rand(n) abort

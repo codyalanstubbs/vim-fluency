@@ -57,7 +57,8 @@ function! vimfluency#pinpoints#delete_char_vs_line#meta() abort
   " revise on data. Same band as 1C.4 and 2.2 disc training sessions.
   return {'id': 'delete_char_vs_line', 'name': 'x vs dd',
     \ 'aim': 35, 'allowed_keys': 'xdjk', 'kind': 'editing',
-    \ 'prereqs': [], 'keys': 'x/dd', 'family': 'delete'}
+    \ 'prereqs': [], 'keys': 'x/dd', 'family': 'delete',
+    \ 'test_sequence': ['x', 'dd']}
 endfunction
 
 function! s:rand(n) abort

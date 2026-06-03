@@ -16,7 +16,8 @@ function! vimfluency#pinpoints#move_single_char_up_down_left_right#meta() abort
   return {'id': 'move_single_char_up_down_left_right', 'name': 'hjkl', 'aim': 60,
     \ 'allowed_keys': 'hjkl',
     \ 'prereqs': ['move_single_char_left_right', 'move_single_char_up_down'],
-    \ 'keys': 'h/j/k/l', 'family': 'motion'}
+    \ 'keys': 'h/j/k/l', 'family': 'motion',
+    \ 'test_sequence': ['h', 'j', 'k', 'l']}
 endfunction
 
 function! vimfluency#pinpoints#move_single_char_up_down_left_right#lesson() abort

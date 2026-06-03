@@ -24,7 +24,8 @@ let s:DELIMS = ['"', "'", '`']
 function! vimfluency#pinpoints#recall_inner_quote_triple#meta() abort
   return {'id': 'recall_inner_quote_triple', 'name': 'inner quote — add i`',
     \ 'aim': 35, 'allowed_keys': 'i"' . "'" . '`', 'kind': 'recall',
-    \ 'prereqs': ['recall_inner_quote_pair'], 'keys': "i\"/i'/i`", 'family': 'text-object-recall'}
+    \ 'prereqs': ['recall_inner_quote_pair'], 'keys': "i\"/i'/i`", 'family': 'text-object-recall',
+    \ 'test_sequence': ['i"', "i'", 'i`']}
 endfunction
 
 function! s:rand(n) abort

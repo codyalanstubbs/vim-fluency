@@ -59,7 +59,8 @@ function! vimfluency#pinpoints#insert_line_above_below#meta() abort
     \ 'name': 'insert new line above / below (o / O)',
     \ 'aim': 40, 'allowed_keys': 'oOfo', 'kind': 'mode',
     \ 'prereqs': [], 'keys': 'o/O', 'family': 'survival',
-    \ 'credit_on_text_typed': 1}
+    \ 'credit_on_text_typed': 1,
+    \ 'test_sequence': ['o', 'O']}
 endfunction
 
 function! s:rand(n) abort

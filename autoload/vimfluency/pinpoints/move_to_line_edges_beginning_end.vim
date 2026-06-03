@@ -22,7 +22,8 @@ function! vimfluency#pinpoints#move_to_line_edges_beginning_end#meta() abort
     \ 'allowed_keys': '0$', 'prereqs': [],
     \ 'narrower_of': 'move_to_line_edges_all',
     \ 'parallel_to': ['move_to_line_edges_non_white_space'],
-    \ 'keys': '0/$', 'family': 'motion'}
+    \ 'keys': '0/$', 'family': 'motion',
+    \ 'test_sequence': ['0', '$']}
 endfunction
 
 function! vimfluency#pinpoints#move_to_line_edges_beginning_end#lesson() abort

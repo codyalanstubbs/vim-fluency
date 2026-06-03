@@ -44,7 +44,8 @@ function! vimfluency#pinpoints#switch_btwn_many_modes#meta() abort
     \             'switch_mode_to_replace',
     \             'switch_mode_to_command_line'],
     \ 'keys': 'i/v/R/:/C-[', 'family': 'survival',
-    \ 'stroke_counts': {'i': 1, 'v': 1, 'R': 1, ':': 1, 'C-[': 1}}
+    \ 'stroke_counts': {'i': 1, 'v': 1, 'R': 1, ':': 1, 'C-[': 1},
+    \ 'test_sequence': ['i', 'C-[', 'v', 'C-[', 'R', 'C-[', ':', 'C-[']}
 endfunction
 
 function! s:rand(n) abort

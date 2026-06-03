@@ -2624,8 +2624,14 @@ function! vimfluency#learn(...) abort
     \ 'frame_complete': 0,
     \ 'phase': 'setup',
     \ 'streak': 0,
-    \ 'required_streak': 3,
-    \ 'max_test_items': 20,
+    \ 'test_sequence': get(info, 'test_sequence', []),
+    \ 'test_seq_idx': 0,
+    \ 'required_streak':
+    \   empty(get(info, 'test_sequence', []))
+    \     ? 3 : 3 * len(get(info, 'test_sequence', [])),
+    \ 'max_test_items':
+    \   empty(get(info, 'test_sequence', []))
+    \     ? 20 : max([20, 5 * len(get(info, 'test_sequence', []))]),
     \ 'max_wrongs': 3,
     \ 'test_items_seen': 0,
     \ 'wrongs': 0,
@@ -3350,15 +3356,17 @@ function! s:learn_restart(reason) abort
   let s:session.streak = 0
   let s:session.wrongs = 0
   let s:session.test_items_seen = 0
+  let s:session.test_seq_idx = 0
   let s:session.test_motion_count = 0
   let s:session.frame_complete = 0
   let s:session.last_item_motions = 0
   let s:session.last_item_optimal = 0
   let s:session.current_test_item = {}
   call s:learn_show_frame()
+  let target = s:session.required_streak
   if a:reason ==# 'cap'
-    echo printf('lesson %s: hit %d-item test cap without 3-in-a-row — restarting from the top.',
-      \ id, cap)
+    echo printf('lesson %s: hit %d-item test cap without %d-in-a-row — restarting from the top.',
+      \ id, cap, target)
   elseif a:reason ==# 'wrongs'
     echo printf('lesson %s: 3 wrong in a row — restarting from the top.', id)
   endif
@@ -3382,12 +3390,27 @@ function! s:learn_test_next() abort
   let GenFn = function('vimfluency#pinpoints#' . s:session.module . '#generate')
   let kind = get(s:session, 'kind', 'motion')
   let cur_canon = kind ==# 'mode_switch' ? s:mode_canonical(mode(1)) : ''
+  " test_sequence (declared in meta) drives the test phase through a
+  " deterministic cycle of expected_motion values. We re-roll the
+  " generator until it returns an item matching the next sequence
+  " slot, advancing test_seq_idx after each pick. Falls back to the
+  " original random behavior when no sequence is declared.
+  let target_motion = ''
+  if !empty(get(s:session, 'test_sequence', []))
+    let seq = s:session.test_sequence
+    let idx = get(s:session, 'test_seq_idx', 0)
+    let target_motion = seq[idx % len(seq)]
+    let s:session.test_seq_idx = idx + 1
+  endif
   let item = {}
   let attempts = 0
   while attempts < 100
     let item = GenFn()
-    if kind !=# 'mode_switch'
+    let mode_ok = kind !=# 'mode_switch'
       \ || get(item, 'target_mode_canon', '') !=# cur_canon
+    let motion_ok = empty(target_motion)
+      \ || get(item, 'expected_motion', '') ==# target_motion
+    if mode_ok && motion_ok
       break
     endif
     let attempts += 1

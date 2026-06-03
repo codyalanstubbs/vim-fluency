@@ -36,7 +36,8 @@ function! vimfluency#pinpoints#insert_before_after_char#meta() abort
     \ 'aim': 60, 'allowed_keys': 'iafo', 'kind': 'mode',
     \ 'prereqs': [], 'keys': 'i/a', 'family': 'survival',
     \ 'parallel_to': ['insert_start_end_line'],
-    \ 'credit_on_text_typed': 1}
+    \ 'credit_on_text_typed': 1,
+    \ 'test_sequence': ['i', 'a']}
 endfunction
 
 function! s:rand(n) abort

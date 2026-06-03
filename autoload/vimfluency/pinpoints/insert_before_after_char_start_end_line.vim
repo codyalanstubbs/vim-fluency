@@ -96,7 +96,8 @@ function! vimfluency#pinpoints#insert_before_after_char_start_end_line#meta() ab
     \ 'aim': 50, 'allowed_keys': 'iaIAfo', 'kind': 'mode',
     \ 'prereqs': ['insert_before_after_char', 'insert_start_end_line'],
     \ 'keys': 'i/a/I/A',
-    \ 'family': 'survival', 'credit_on_text_typed': 1}
+    \ 'family': 'survival', 'credit_on_text_typed': 1,
+    \ 'test_sequence': ['i', 'a', 'I', 'A']}
 endfunction
 
 " DI sequence: three short show frames introduce the ▶◀ cue, then

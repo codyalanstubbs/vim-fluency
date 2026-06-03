@@ -21,7 +21,8 @@ function! vimfluency#pinpoints#save_vs_quit#meta() abort
   " original T0.3 baseline. Starting guess.
   return {'id': 'save_vs_quit', 'name': 'discriminate :w vs :q',
     \ 'aim': 40, 'allowed_keys': ':wq', 'kind': 'recall',
-    \ 'prereqs': [], 'keys': ':w/:q', 'family': 'survival'}
+    \ 'prereqs': [], 'keys': ':w/:q', 'family': 'survival',
+    \ 'test_sequence': [':w', ':q']}
 endfunction
 
 function! s:rand(n) abort

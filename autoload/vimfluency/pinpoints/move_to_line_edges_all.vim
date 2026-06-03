@@ -8,7 +8,8 @@ function! vimfluency#pinpoints#move_to_line_edges_all#meta() abort
     \ 'allowed_keys': '0^$g_',
     \ 'prereqs': ['move_to_line_edges_beginning_end',
     \             'move_to_line_edges_non_white_space'],
-    \ 'keys': '0/^/$/g_', 'family': 'motion'}
+    \ 'keys': '0/^/$/g_', 'family': 'motion',
+    \ 'test_sequence': ['0', '^', '$', 'g_']}
 endfunction
 
 function! s:rand(n) abort

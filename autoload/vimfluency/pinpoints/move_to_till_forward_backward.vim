@@ -19,7 +19,8 @@ function! vimfluency#pinpoints#move_to_till_forward_backward#meta() abort
     \             'move_till_char_forward_backward',
     \             'move_to_till_forward',
     \             'move_to_till_backward'],
-    \ 'keys': 'f/F/t/T', 'family': 'motion'}
+    \ 'keys': 'f/F/t/T', 'family': 'motion',
+    \ 'test_sequence': ['f', 't', 'F', 'T']}
 endfunction
 
 function! vimfluency#pinpoints#move_to_till_forward_backward#lesson() abort

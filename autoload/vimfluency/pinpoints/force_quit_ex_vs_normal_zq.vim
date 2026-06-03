@@ -13,7 +13,8 @@ let s:items = [
 function! vimfluency#pinpoints#force_quit_ex_vs_normal_zq#meta() abort
   return {'id': 'force_quit_ex_vs_normal_zq', 'name': 'discriminate :q! vs ZQ',
     \ 'aim': 35, 'allowed_keys': ':q!ZQ', 'kind': 'recall',
-    \ 'prereqs': [], 'keys': ':q!/ZQ', 'family': 'survival'}
+    \ 'prereqs': [], 'keys': ':q!/ZQ', 'family': 'survival',
+    \ 'test_sequence': [':q!', 'ZQ']}
 endfunction
 
 function! s:rand(n) abort

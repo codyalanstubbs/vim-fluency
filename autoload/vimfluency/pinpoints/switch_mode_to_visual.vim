@@ -15,7 +15,8 @@ function! vimfluency#pinpoints#switch_mode_to_visual#meta() abort
     \ 'parallel_to': ['switch_mode_to_insert',
     \                 'switch_mode_to_replace',
     \                 'switch_mode_to_command_line'],
-    \ 'stroke_counts': {'v': 1, 'C-[': 1}}
+    \ 'stroke_counts': {'v': 1, 'C-[': 1},
+    \ 'test_sequence': ['v', 'C-[']}
 endfunction
 
 function! s:rand(n) abort

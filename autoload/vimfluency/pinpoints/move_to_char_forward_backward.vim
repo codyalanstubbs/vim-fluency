@@ -38,7 +38,8 @@ let s:WORDS = ['return', 'import', 'while', 'range', 'class', 'value',
 function! vimfluency#pinpoints#move_to_char_forward_backward#meta() abort
   return {'id': 'move_to_char_forward_backward', 'name': 'find char (f F)',
     \ 'aim': 50, 'allowed_keys': 'fF', 'prereqs': ['move_single_char_up_down_left_right'],
-    \ 'parallel_to': ['move_till_char_forward_backward'], 'keys': 'f/F', 'family': 'motion'}
+    \ 'parallel_to': ['move_till_char_forward_backward'], 'keys': 'f/F', 'family': 'motion',
+    \ 'test_sequence': ['f', 'F']}
 endfunction
 
 function! vimfluency#pinpoints#move_to_char_forward_backward#lesson() abort

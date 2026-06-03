@@ -28,7 +28,8 @@ function! vimfluency#pinpoints#switch_mode_to_insert#meta() abort
     \ 'name': 'switch mode to insert',
     \ 'aim': 80, 'allowed_keys': '', 'kind': 'mode_switch',
     \ 'prereqs': [], 'keys': 'i/C-[', 'family': 'survival',
-    \ 'stroke_counts': {'i': 1, 'C-[': 1}}
+    \ 'stroke_counts': {'i': 1, 'C-[': 1},
+    \ 'test_sequence': ['i', 'C-[']}
 endfunction
 
 function! s:rand(n) abort
