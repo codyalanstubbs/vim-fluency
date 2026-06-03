@@ -947,11 +947,14 @@ function! s:test_T0_1() abort
   endfor
 endfunction
 
-" T0.2 — open new line. Two keys, optimal 2. The pre-press buffer has
-" two adjacent rows marked with '⏵' (the bracket rows around the gap)
-" and the rest of the rows prefixed with a space for column alignment.
-" The cursor sits on one bracket row; the post-press buffer has a new
-" blank line inserted between the two brackets.
+" T0.2 — open new line. Two keys, optimal 4 (the o/O opener plus the
+" 3 chars of 'foo' typed onto the new line under the new credit-on-
+" text-typed flow). The pre-press buffer has two adjacent rows
+" marked with '⏵' (the bracket rows around the gap) and the rest of
+" the rows prefixed with a space for column alignment. The cursor
+" sits on one bracket row; target_lines is the post-press buffer
+" with a new BLANK line between the brackets (pre-typing target);
+" target_lines_after_type is the same buffer with 'foo' on that line.
 function! s:test_T0_2() abort
   let GenFn = function('vimfluency#pinpoints#open_line_above_below#generate')
   let valid = ['o', 'O']
@@ -962,10 +965,20 @@ function! s:test_T0_2() abort
     call s:assert_mode_common('open_line_above_below', item)
     call AssertIn(item.expected_motion, valid,
       \ 'T0.2: expected_motion in {o, O}')
-    call AssertEq(item.optimal_motions, 2,
-      \ 'T0.2: optimal_motions == 2')
+    call AssertEq(item.optimal_motions, 4,
+      \ 'T0.2: optimal_motions == 4 (o/O + 3 chars of "foo")')
     call AssertEq(len(item.target_lines), len(item.lines) + 1,
       \ 'T0.2: target_lines has one more line than lines (the new blank)')
+    " target_lines_after_type matches target_lines with 'foo' on the
+    " new line instead of blank — the credit_on_text_typed handler
+    " matches against this.
+    call Assert(has_key(item, 'target_lines_after_type'),
+      \ 'T0.2: target_lines_after_type present')
+    let blank_row_idx = index(item.target_lines, '')
+    let _expected_typed = copy(item.target_lines)
+    let _expected_typed[blank_row_idx] = 'foo'
+    call AssertEq(item.target_lines_after_type, _expected_typed,
+      \ 'T0.2: target_lines_after_type == target_lines with "foo" on the new line')
 
     " Find the two bracket rows (those prefixed with the ⏵ mark).
     let bracket_rows = []

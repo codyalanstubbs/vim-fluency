@@ -2173,6 +2173,11 @@ function! s:on_insert_enter() abort
   let s:session.insert_entered = 1
   let s:session.insert_enter_pos = [line('.') - header_offset, col('.')]
   let s:session.current_item_motions += 1
+  " Arm a one-shot guard for the credit_on_text_typed TextChangedI
+  " handler. o/O fire both InsertEnter AND a TextChangedI for the
+  " line they auto-insert; without the guard that TextChangedI
+  " would be counted as a stroke and credited against optimal.
+  let s:session.first_text_change_pending = 1
 endfunction
 
 " InsertLeave fires the match check. Success = entered insert at the
@@ -2229,9 +2234,20 @@ function! s:on_text_changed_i() abort
     \ get(item, 'target_lines', []))
   if empty(target) | return | endif
 
-  let s:session.current_item_motions += 1
   let header_offset = s:session.header_offset
   let cur_lines = getline(header_offset + 1, '$')
+  " Guard: the FIRST TextChangedI after InsertEnter may be vim's
+  " line-insert from a line-opening entry key (o/O), not a user-
+  " typed char. Detect via cur_lines matching the pre-typing target
+  " (item.target_lines, which o/O generators set to lines+blank).
+  " For i/a/I/A items target_lines == lines and the buffer post-
+  " first-typed-char never matches, so the guard is a no-op.
+  let pending = get(s:session, 'first_text_change_pending', 0)
+  let s:session.first_text_change_pending = 0
+  if pending && cur_lines ==# get(item, 'target_lines', [])
+    return
+  endif
+  let s:session.current_item_motions += 1
   if cur_lines !=# target | return | endif
   " Cheat-defense: the InsertEnter column must match what the
   " expected entry key produces.
@@ -3067,6 +3083,8 @@ function! s:learn_on_insert_enter() abort
   if s:session.phase ==# 'test'
     let s:session.test_motion_count += 1
   endif
+  " Same one-shot guard as the training path (s:on_insert_enter).
+  let s:session.first_text_change_pending = 1
 endfunction
 
 " Lesson TextChangedI handler — fires after every keystroke while in
@@ -3100,6 +3118,14 @@ function! s:learn_on_text_changed_i() abort
 
   let header_offset = s:session.header_offset
   let cur_lines = getline(header_offset + 1, '$')
+  " Same guard as the training path: skip the post-entry-key line-
+  " insert TextChangedI (from o/O), which would otherwise pad
+  " test_motion_count by 1 and trip the streak threshold.
+  let pending = get(s:session, 'first_text_change_pending', 0)
+  let s:session.first_text_change_pending = 0
+  if pending && cur_lines ==# get(item, 'target_lines', [])
+    return
+  endif
   if cur_lines !=# target | return | endif
   " Cheat-defense: also require the InsertEnter col to match what the
   " expected entry key produces. Without this a learner could use a
