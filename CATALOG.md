@@ -104,7 +104,7 @@ post-pivot spec.
 
 | id (slug) | Behavior | Format | Aim | Prereqs |
 |---|---|---|---|---|
-| `recall_inner_quote_pair` | Recall `i"` vs `i'` from buffer cue | Recall | 40 | `switch_mode_to_insert`, `insert_before_after_char_start_end_line` |
+| `recall_inner_quote_pair` | Recall `i"` vs `i'` from buffer cue | Recall | 40 | — |
 | `recall_inner_quote_triple` | Adds `` i` `` (backtick) | Recall | 35 | `recall_inner_quote_pair` |
 
 ## Forward-looking work
