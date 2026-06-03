@@ -584,12 +584,12 @@ endfunction
 " motions appear over N samples and every item passes a baseline
 " structural check.
 function! s:test_1C_4() abort
-  let GenFn = function('vimfluency#pinpoints#discriminate_find_vs_till#generate')
+  let GenFn = function('vimfluency#pinpoints#move_to_till_forward_backward#generate')
   let valid = ['f', 'F', 't', 'T']
   let seen = {}
   for i in range(s:N)
     let item = GenFn()
-    call s:assert_common('discriminate_find_vs_till', item)
+    call s:assert_common('move_to_till_forward_backward', item)
     call AssertIn(item.expected_motion, valid,
       \ '1C.4: expected_motion in {f, F, t, T}')
     call AssertEq(item.optimal_motions, 1,
@@ -599,6 +599,49 @@ function! s:test_1C_4() abort
   for m in valid
     call Assert(get(seen, m, 0) == 1,
       \ '1C.4: ' . m . ' appeared in samples')
+  endfor
+endfunction
+
+" move_to_till_forward — 2-cell atomic over {f, t}. The generator
+" re-rolls the by-find/till underlying generators until a forward
+" item lands, so every item should have expected_motion in {f, t}.
+function! s:test_move_to_till_forward() abort
+  let GenFn = function('vimfluency#pinpoints#move_to_till_forward#generate')
+  let valid = ['f', 't']
+  let seen = {}
+  for i in range(s:N)
+    let item = GenFn()
+    call s:assert_common('move_to_till_forward', item)
+    call AssertIn(item.expected_motion, valid,
+      \ 'move_to_till_forward: expected_motion in {f, t}')
+    call AssertEq(item.optimal_motions, 1,
+      \ 'move_to_till_forward: optimal_motions == 1')
+    let seen[item.expected_motion] = 1
+  endfor
+  for m in valid
+    call Assert(get(seen, m, 0) == 1,
+      \ 'move_to_till_forward: ' . m . ' appeared in samples')
+  endfor
+endfunction
+
+" move_to_till_backward — 2-cell atomic over {F, T}. Mirror of
+" move_to_till_forward, filtered to the backward direction.
+function! s:test_move_to_till_backward() abort
+  let GenFn = function('vimfluency#pinpoints#move_to_till_backward#generate')
+  let valid = ['F', 'T']
+  let seen = {}
+  for i in range(s:N)
+    let item = GenFn()
+    call s:assert_common('move_to_till_backward', item)
+    call AssertIn(item.expected_motion, valid,
+      \ 'move_to_till_backward: expected_motion in {F, T}')
+    call AssertEq(item.optimal_motions, 1,
+      \ 'move_to_till_backward: optimal_motions == 1')
+    let seen[item.expected_motion] = 1
+  endfor
+  for m in valid
+    call Assert(get(seen, m, 0) == 1,
+      \ 'move_to_till_backward: ' . m . ' appeared in samples')
   endfor
 endfunction
 
@@ -1306,6 +1349,8 @@ call s:test_1C_1()
 call s:test_1C_2()
 call s:test_1C_3()
 call s:test_1C_4()
+call s:test_move_to_till_forward()
+call s:test_move_to_till_backward()
 call s:test_2_1()
 call s:test_2_2()
 call s:test_4_1()
