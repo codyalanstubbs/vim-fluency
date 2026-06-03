@@ -16,7 +16,7 @@ let s:expected = [
   \ {'id': 'insert_start_end_line', 'prereqs': []},
   \ {'id': 'insert_before_after_char_start_end_line',
   \   'prereqs': ['insert_before_after_char', 'insert_start_end_line']},
-  \ {'id': 'open_line_above_below', 'prereqs': ['insert_before_after_char_start_end_line']},
+  \ {'id': 'insert_line_above_below', 'prereqs': []},
   \ {'id': 'save_vs_quit', 'prereqs': []},
   \ {'id': 'save_quit_vs_force_quit', 'prereqs': ['save_vs_quit']},
   \ {'id': 'save_quit_ex_vs_normal_zz', 'prereqs': ['save_quit_vs_force_quit']},

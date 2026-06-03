@@ -1032,13 +1032,13 @@ endfunction
 " with a new BLANK line between the brackets (pre-typing target);
 " target_lines_after_type is the same buffer with 'foo' on that line.
 function! s:test_T0_2() abort
-  let GenFn = function('vimfluency#pinpoints#open_line_above_below#generate')
+  let GenFn = function('vimfluency#pinpoints#insert_line_above_below#generate')
   let valid = ['o', 'O']
   let mark = '⏵'
   let seen = {}
   for i in range(s:N)
     let item = GenFn()
-    call s:assert_mode_common('open_line_above_below', item)
+    call s:assert_mode_common('insert_line_above_below', item)
     call AssertIn(item.expected_motion, valid,
       \ 'T0.2: expected_motion in {o, O}')
     call AssertEq(item.optimal_motions, 4,

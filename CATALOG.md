@@ -44,7 +44,7 @@ is the source of truth for *what's actually shipped*.
 | `insert_before_after_char` | 2-cell: `i` (insert before cursor) vs `a` (append after cursor) — type a short payload at the marked gap | Mode | 60 | — |
 | `insert_start_end_line` | 2-cell: `I` (insert at first non-blank) vs `A` (append at end of line) — type a short payload at the marked gap | Mode | 60 | — |
 | `insert_before_after_char_start_end_line` | 4-way composite over `i`, `a`, `I`, `A` — type a short payload at the marked gap | Mode | 50 | `insert_before_after_char`, `insert_start_end_line` |
-| `open_line_above_below` | Open new line (`o`, `O`) — type a short payload on the new line | Mode | 40 | `insert_before_after_char_start_end_line` |
+| `insert_line_above_below` | Open new line (`o`, `O`) — type a short payload on the new line | Mode | 40 | — |
 | `save_vs_quit` | Discriminate `:w` vs `:q` | Disc | 40 | — |
 | `save_quit_vs_force_quit` | Discriminate `:wq` vs `:q!` | Disc | 35 | `save_vs_quit` |
 | `save_quit_ex_vs_normal_zz` | Discriminate `:wq` vs `ZZ` (Ex vs normal-mode) | Disc | 35 | `save_quit_vs_force_quit` |

@@ -1,5 +1,7 @@
-" open_line_above_below — Open new line. The two openers: o (below) and O (above),
-" plus the closing Esc.
+" insert_line_above_below — Open a new line and insert text on it.
+" Two openers: o (below) and O (above). The learner types 'foo' on
+" the freshly opened line; the runner credits on a buffer match,
+" so no Esc is required.
 "
 " Training shape: mode kind. The conceptual target is a gap between two
 " ROWS. We cue it by marking the two rows that bracket the gap with
@@ -20,12 +22,12 @@
 "   - The indicators are part of the content rows, so they shift
 "     coherently with the row through any edit — no need to think
 "     about how a decoration row drifts post-press.
-"   - The two markers mirror T0.1's '▶◀' seam cue: both indicators
-"     converge on the gap, just rotated 90°. Two rows of '⏵' bracket
-"     a horizontal seam the same way two arrows brackets a vertical
-"     one.
+"   - The two markers mirror the insert_before_after_char '▶◀' seam
+"     cue: both indicators converge on the gap, just rotated 90°.
+"     Two rows of '⏵' bracket a horizontal seam the same way two
+"     arrows brackets a vertical one.
 "
-" Cheat-defense at the runner level (mirrors T0.1):
+" Cheat-defense at the runner level (mirrors the insert atomics):
 "   - InsertEnter row + final target_lines + post-Esc cursor must all
 "     match. Pressing the wrong key from the canonical start row
 "     produces a different post-press buffer.
@@ -48,15 +50,15 @@ let s:NO_MARK = ' '
 " the o/O direction discrimination.
 let s:INSERT_TEXT = 'foo'
 
-function! vimfluency#pinpoints#open_line_above_below#meta() abort
-  " Catalog aim 40/min. Same shape as insert_before_after_char_start_end_line post-redesign:
-  " each item is 4 strokes (the o or O opener plus the 3 chars of
-  " 'foo'). The buffer change makes the cue (and any failure)
-  " visible — slightly below insert_before_after_char_start_end_line's aim because the eye
-  " has to verify TWO rows for the direction cue.
-  return {'id': 'open_line_above_below', 'name': 'open new line (o / O)',
+function! vimfluency#pinpoints#insert_line_above_below#meta() abort
+  " Catalog aim 40/min. Each item is 4 strokes (the o or O opener
+  " plus the 3 chars of 'foo'). Slightly below the insert atomics'
+  " 60/min because the eye has to verify TWO rows for the direction
+  " cue rather than a single column.
+  return {'id': 'insert_line_above_below',
+    \ 'name': 'insert new line above / below (o / O)',
     \ 'aim': 40, 'allowed_keys': 'oOfo', 'kind': 'mode',
-    \ 'prereqs': ['insert_before_after_char_start_end_line'], 'keys': 'o/O', 'family': 'survival',
+    \ 'prereqs': [], 'keys': 'o/O', 'family': 'survival',
     \ 'credit_on_text_typed': 1}
 endfunction
 
@@ -89,7 +91,7 @@ function! s:build_lines(words, upper) abort
   return lines
 endfunction
 
-function! vimfluency#pinpoints#open_line_above_below#generate() abort
+function! vimfluency#pinpoints#insert_line_above_below#generate() abort
   let n_words = 4
   let words = s:pick_distinct(n_words, s:words)
   " upper bracket row (1-indexed) in [1, n_words - 1]; lower bracket
@@ -126,10 +128,9 @@ function! vimfluency#pinpoints#open_line_above_below#generate() abort
     \ }
 endfunction
 
-" DI sequence: T0.1 is a prereq, so the learner already knows insert
-" mode and Esc/Ctrl-C. T0.2's lesson focuses on the new concepts —
-" the bracketed-gap indicator and the o/O direction rule.
-function! vimfluency#pinpoints#open_line_above_below#lesson() abort
+" DI sequence: lesson focuses on the new concepts unique to this
+" pinpoint — the bracketed-gap indicator and the o/O direction rule.
+function! vimfluency#pinpoints#insert_line_above_below#lesson() abort
   let demo = [' alpha', '⏵beta', '⏵gamma', ' delta']
   let target = [' alpha', '⏵beta', '', '⏵gamma', ' delta']
   let target_typed = [' alpha', '⏵beta', s:INSERT_TEXT, '⏵gamma', ' delta']
