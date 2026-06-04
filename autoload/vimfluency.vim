@@ -3846,20 +3846,23 @@ endfunction
 " :VfDashboard — multi-panel view with hover-reactive context panels
 "
 " Layout (top to bottom, fixed for now; could grow toggles later):
-"   top section     ~11 rows   chart + last-session for hovered drill
-"   table header    1 row      column headers (sticky)
-"   table data      flex       scrollable list, cursor lives here
-"   bottom section  ~9 rows    learner-profile aggregates
+"   profile         ~9 rows    learner-profile aggregates
+"   hover           ~11 rows   chart + last-session for hovered drill
+"   table           flex       column header (row 1) + data (rows 2+);
+"                              cursor lives here, j/k snap to data rows
+"
+" The column header is the first line of the table buffer rather
+" than its own window — keeps it visually butted up against the
+" data with no separator-statusline strip between them.
 "
 " Buffers in the tab:
-"   vf-dashboard-table          (interactive — cursor + key bindings)
-"   vf-dashboard-table-header   (1-row sticky column header)
-"   vf-dashboard-top            (hovered-drill panels, refreshed on CursorMoved)
-"   vf-dashboard-bottom         (learner-profile aggregates, rendered once)
+"   vf-dashboard-profile  (learner-profile aggregates, rendered once)
+"   vf-dashboard-hover    (hovered-drill panels, refreshed on CursorMoved)
+"   vf-dashboard-table    (interactive — cursor + key bindings)
 " ─────────────────────────────────────────────────────────────────
 
-let s:DASHBOARD_TOP_HEIGHT = 11
-let s:DASHBOARD_BOTTOM_HEIGHT = 9
+let s:DASHBOARD_PROFILE_HEIGHT = 9
+let s:DASHBOARD_HOVER_HEIGHT = 11
 
 function! vimfluency#dashboard() abort
   let registry = vimfluency#discover_pinpoints()
@@ -3875,21 +3878,30 @@ function! s:show_dashboard(registry, sessions) abort
   let split = s:split_view(view)
   let cols = &columns
 
+  " Prepend the column-header row (last line of split.header_lines)
+  " to the data lines so the table buffer renders both. All row-keyed
+  " mappings shift down by 1 to account for the new header row.
+  let table_lines = [split.header_lines[-1]] + split.data_lines
+  let mapping = {}
+  for [k, id] in items(split.mapping)
+    let mapping[str2nr(k) + 1] = id
+  endfor
+  let pinpoint_rows = map(copy(split.pinpoint_rows), 'v:val + 1')
+
   tabnew
   let tabnr = tabpagenr()
 
-  " --- Window 1 (initial, will become the table data window) ---
+  " --- Window 1 (initial, will become the table window at the bottom) ---
   silent! execute 'keepalt file vf-dashboard-table'
   setlocal buftype=nofile bufhidden=wipe noswapfile nobuflisted
   setlocal nonumber norelativenumber nowrap signcolumn=no
   setlocal cursorline modifiable
   silent! %delete _
-  call setline(1, split.data_lines)
+  call setline(1, table_lines)
   setlocal nomodifiable nomodified
   let table_winid = win_getid()
-  let table_bufnr = bufnr('%')
-  let b:vf_list_line_to_id    = split.mapping
-  let b:vf_list_pinpoint_rows = split.pinpoint_rows
+  let b:vf_list_line_to_id    = mapping
+  let b:vf_list_pinpoint_rows = pinpoint_rows
   let b:vf_list_expanded = {}
   let b:vf_list_sort_col = ''
   let b:vf_list_sort_desc = 0
@@ -3898,60 +3910,40 @@ function! s:show_dashboard(registry, sessions) abort
   let &l:statusline = ' Vim Fluency dashboard   [L=Learn  T=Train  C=Chart  q=close]'
   set laststatus=2
 
-  " --- Window 2: top section ---
+  " --- Window 2: profile aggregates at the very top ---
   topleft new
-  execute 'resize ' . s:DASHBOARD_TOP_HEIGHT
+  execute 'resize ' . s:DASHBOARD_PROFILE_HEIGHT
   setlocal buftype=nofile bufhidden=wipe noswapfile nobuflisted
   setlocal nonumber norelativenumber nowrap signcolumn=no
   setlocal winfixheight nocursorline
-  silent! execute 'keepalt file vf-dashboard-top'
-  let top_bufnr = bufnr('%')
+  silent! execute 'keepalt file vf-dashboard-profile'
+  let profile_bufnr = bufnr('%')
   let &l:statusline = ' '
 
-  " --- Window 3: bottom section ---
+  " --- Window 3: hovered-drill panels between profile and table ---
+  " From the table window, `aboveleft new` opens a window above it
+  " (between profile and table) with a fresh buffer.
   call win_gotoid(table_winid)
-  botright new
-  execute 'resize ' . s:DASHBOARD_BOTTOM_HEIGHT
+  aboveleft new
+  execute 'resize ' . s:DASHBOARD_HOVER_HEIGHT
   setlocal buftype=nofile bufhidden=wipe noswapfile nobuflisted
   setlocal nonumber norelativenumber nowrap signcolumn=no
   setlocal winfixheight nocursorline
-  silent! execute 'keepalt file vf-dashboard-bottom'
-  let bottom_bufnr = bufnr('%')
+  silent! execute 'keepalt file vf-dashboard-hover'
+  let hover_bufnr = bufnr('%')
   let &l:statusline = ' '
 
-  " --- Window 4: 1-row sticky column header above the table data ---
-  " (`new`, not `split` — split reuses the current buffer, which
-  " would mean the column-header setline wipes our table data.)
+  " Return to the table window — that's where the cursor lives.
   call win_gotoid(table_winid)
-  aboveleft 1new
-  resize 1
-  setlocal buftype=nofile bufhidden=wipe noswapfile nobuflisted
-  setlocal nonumber norelativenumber nowrap signcolumn=no
-  setlocal winfixheight nocursorline
-  silent! execute 'keepalt file vf-dashboard-table-header'
-  setlocal modifiable
-  silent! %delete _
-  " The last line of split.header_lines is the actual column-header row
-  " (the lines before it are banner + sort hints — too tall for the
-  " dashboard's compressed header strip).
-  call setline(1, [split.header_lines[-1]])
-  setlocal nomodifiable nomodified
-  let &l:statusline = ' '
+  let b:vf_dashboard_hover_bufnr = hover_bufnr
+  let b:vf_dashboard_profile_bufnr = profile_bufnr
 
-  " Return to the table data window — that's where the cursor lives.
-  call win_gotoid(table_winid)
-  " Stash the panel buffer numbers on the table buffer so the
-  " CursorMoved handler can find them without walking windows.
-  let b:vf_dashboard_top_bufnr = top_bufnr
-  let b:vf_dashboard_bottom_bufnr = bottom_bufnr
-
-  let first_line = empty(split.pinpoint_rows) ? 1 : split.pinpoint_rows[0]
+  let first_line = empty(pinpoint_rows) ? 2 : pinpoint_rows[0]
   call cursor(first_line, 1)
   let b:vf_dashboard_last_row = first_line
 
-  " Initial render of both side panels.
-  call s:dashboard_render_top(split.mapping, first_line, a:registry, a:sessions, cols)
-  call s:dashboard_render_bottom(a:registry, a:sessions, cols)
+  call s:dashboard_render_hover(mapping, first_line, a:registry, a:sessions, cols)
+  call s:dashboard_render_profile(a:registry, a:sessions, cols)
 
   augroup VfDashboard
     autocmd!
@@ -3959,9 +3951,9 @@ function! s:show_dashboard(registry, sessions) abort
     autocmd BufWipeout <buffer> silent! call s:dashboard_cleanup()
   augroup END
 
-  " Key bindings on the table data window. Reuses the existing
-  " :VfList action callbacks since they read the same b:vf_list_*
-  " variables we set up above.
+  " Key bindings on the table window. Reuses the existing :VfList
+  " action callbacks since they read the same b:vf_list_* variables
+  " we set above.
   nnoremap <buffer> <silent> L :call vimfluency#list_action('learn')<CR>
   nnoremap <buffer> <silent> T :call vimfluency#list_action('train')<CR>
   nnoremap <buffer> <silent> C :call vimfluency#list_action('chart')<CR>
@@ -3975,7 +3967,7 @@ function! s:show_dashboard(registry, sessions) abort
 endfunction
 
 function! s:dashboard_on_cursor_moved() abort
-  if !exists('b:vf_dashboard_top_bufnr') | return | endif
+  if !exists('b:vf_dashboard_hover_bufnr') | return | endif
   let row = line('.')
   if row == get(b:, 'vf_dashboard_last_row', -1) | return | endif
   let b:vf_dashboard_last_row = row
@@ -3983,11 +3975,11 @@ function! s:dashboard_on_cursor_moved() abort
   " training, not while the dashboard is open, so this is cheap.
   let registry = vimfluency#discover_pinpoints()
   let sessions = s:load_sessions_grouped()
-  call s:dashboard_render_top(b:vf_list_line_to_id, row, registry, sessions, &columns)
+  call s:dashboard_render_hover(b:vf_list_line_to_id, row, registry, sessions, &columns)
 endfunction
 
 function! s:dashboard_cleanup() abort
-  for name in ['vf-dashboard-top', 'vf-dashboard-bottom', 'vf-dashboard-table-header']
+  for name in ['vf-dashboard-hover', 'vf-dashboard-profile']
     let b = bufnr(name)
     if b > 0 | silent! execute 'bwipeout! ' . b | endif
   endfor
@@ -3996,7 +3988,7 @@ endfunction
 
 " Render the top panel buffer: dashboard banner + hovered-drill
 " chart on the left, last-session summary on the right.
-function! s:dashboard_render_top(mapping, row, registry, sessions, cols) abort
+function! s:dashboard_render_hover(mapping, row, registry, sessions, cols) abort
   let id = get(a:mapping, a:row, '')
   let total_sessions = 0
   for s in values(a:sessions) | let total_sessions += len(s) | endfor
@@ -4010,7 +4002,7 @@ function! s:dashboard_render_top(mapping, row, registry, sessions, cols) abort
   let inner_w = a:cols - 2  " 1-col padding each side
   let chart_w = (inner_w - 3) / 2
   let summary_w = inner_w - 3 - chart_w
-  let chart_h = s:DASHBOARD_TOP_HEIGHT - 3  " 1 banner, 1 blank, 1 bottom blank
+  let chart_h = s:DASHBOARD_HOVER_HEIGHT - 3  " 1 banner, 1 blank, 1 bottom blank
 
   let chart_lines = s:dashboard_chart_panel(id, a:registry, a:sessions, chart_w, chart_h)
   let summary_lines = s:dashboard_summary_panel(id, a:registry, a:sessions, summary_w, chart_h)
@@ -4025,7 +4017,7 @@ function! s:dashboard_render_top(mapping, row, registry, sessions, cols) abort
     call add(lines, s:pad_right(l, a:cols))
   endfor
 
-  call s:dashboard_write_buffer(get(b:, 'vf_dashboard_top_bufnr', -1), lines)
+  call s:dashboard_write_buffer(get(b:, 'vf_dashboard_hover_bufnr', -1), lines)
 endfunction
 
 function! s:dashboard_chart_panel(id, registry, sessions, w, h) abort
@@ -4155,7 +4147,7 @@ function! s:dashboard_summary_panel(id, registry, sessions, w, h) abort
 endfunction
 
 " Render the bottom panel buffer: learner-profile aggregates.
-function! s:dashboard_render_bottom(registry, sessions, cols) abort
+function! s:dashboard_render_profile(registry, sessions, cols) abort
   let aim_overrides = get(s:load_settings(), 'aims', {})
   let at_aim = 0 | let climbing = 0 | let not_started = 0
   let total_pinpoints = len(a:registry)
@@ -4213,7 +4205,7 @@ function! s:dashboard_render_bottom(registry, sessions, cols) abort
   call add(panels, s:dashboard_slowest_panel(slowest, pw))
   call add(panels, s:dashboard_daily_panel(by_day, days_back, today_count, streak, pw))
 
-  let height = s:DASHBOARD_BOTTOM_HEIGHT - 2
+  let height = s:DASHBOARD_PROFILE_HEIGHT - 2
   for p in panels
     while len(p) < height | call add(p, '') | endwhile
   endfor
@@ -4230,7 +4222,7 @@ function! s:dashboard_render_bottom(registry, sessions, cols) abort
   call add(lines, printf(' TOTAL TIME TRAINED: %s   ·   SESSIONS LOGGED: %d',
     \ s:format_duration(total_elapsed), session_count))
 
-  call s:dashboard_write_buffer(get(b:, 'vf_dashboard_bottom_bufnr', -1), lines)
+  call s:dashboard_write_buffer(get(b:, 'vf_dashboard_profile_bufnr', -1), lines)
 endfunction
 
 function! s:dashboard_aim_panel(at, climbing, not_started, total, total_seconds, w) abort
