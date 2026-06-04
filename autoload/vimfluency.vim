@@ -4059,11 +4059,13 @@ function! s:dashboard_chart_panel(id, registry, sessions, w, h) abort
   " that pops in and out as the cursor moves between trained /
   " untrained drills.
   "
-  " Bounds are FIXED at the Standard Celeration Chart's 1..1000
-  " (log_bot=0, log_top=3) per Precision Teaching convention —
-  " every chart, every pinpoint, every visit reads on the same
-  " y-axis so the visual slope of one drill is directly comparable
-  " to any other.
+  " Bounds are FIXED for cross-chart comparability per Precision
+  " Teaching's celeration-chart philosophy. The range is 1..~316
+  " (log_bot=0, log_top=2.5), trimmed from the textbook 1..1000
+  " because no realistic training rate hits 1000/min — the upper
+  " half-decade of an unbounded SCC is wasted space here. Decade
+  " labels still land cleanly at 100, 10, 1; the top of the chart
+  " is the 10^2.5 boundary.
   "
   " Axes use box-drawing characters: │ for the y-axis line, ─ for
   " the x-axis line, └ at their meeting corner. Tick marks point
@@ -4074,11 +4076,15 @@ function! s:dashboard_chart_panel(id, registry, sessions, w, h) abort
   let plot_h = max([a:h - 5, 3])
   let recent = len(usable) <= plot_w ? usable : usable[-plot_w :]
   let log_bot = 0.0
-  let log_top = 3.0
+  let log_top = 2.5
 
   let aim_row = eff_aim > 0 ? s:dashboard_log_y(eff_aim, plot_h, log_bot, log_top) : -1
+  " Iterate from the highest decade boundary that fits below log_top
+  " down through every integer log10 step in range. Without floor()
+  " here, a non-integer log_top (e.g. 2.5) produces labels at the
+  " half-decades (316, 32, 3) instead of the round powers of 10.
   let label_rows = {}
-  let lg = log_top
+  let lg = floor(log_top)
   while lg >= log_bot
     call s:add_label_rows(label_rows, plot_h, log_bot, log_top, float2nr(pow(10.0, lg) + 0.5))
     let lg -= 1.0
@@ -4338,16 +4344,20 @@ function! s:dashboard_daily_chart_panel(by_day, days_back, today_count, streak, 
     call add(counts, get(a:by_day, day, 0))
   endfor
 
-  " Same fixed Standard Celeration Chart bounds as the hovered-drill
-  " chart (1..1000). The unit here is sessions-per-day rather than
-  " rate/min, but the SCC philosophy is one y-axis everywhere — a
-  " day with 30 sessions reads at the same vertical position
-  " regardless of which chart you're looking at.
+  " Same fixed bounds as the hovered-drill chart (1..~316). The
+  " unit here is sessions-per-day rather than rate/min, but the
+  " SCC philosophy is one y-axis everywhere — a day with 30
+  " sessions reads at the same vertical position regardless of
+  " which chart you're looking at.
   let log_bot = 0.0
-  let log_top = 3.0
+  let log_top = 2.5
 
+  " Iterate from the highest decade boundary that fits below log_top
+  " down through every integer log10 step in range. Without floor()
+  " here, a non-integer log_top (e.g. 2.5) produces labels at the
+  " half-decades (316, 32, 3) instead of the round powers of 10.
   let label_rows = {}
-  let lg = log_top
+  let lg = floor(log_top)
   while lg >= log_bot
     call s:add_label_rows(label_rows, plot_h, log_bot, log_top, float2nr(pow(10.0, lg) + 0.5))
     let lg -= 1.0
