@@ -3861,8 +3861,8 @@ endfunction
 "   vf-dashboard-table    (interactive — cursor + key bindings)
 " ─────────────────────────────────────────────────────────────────
 
-let s:DASHBOARD_PROFILE_HEIGHT = 9
-let s:DASHBOARD_HOVER_HEIGHT = 11
+let s:DASHBOARD_PROFILE_HEIGHT = 8
+let s:DASHBOARD_HOVER_HEIGHT = 15
 
 function! vimfluency#dashboard() abort
   let registry = vimfluency#discover_pinpoints()
@@ -3986,23 +3986,18 @@ function! s:dashboard_cleanup() abort
   silent! autocmd! VfDashboard
 endfunction
 
-" Render the top panel buffer: dashboard banner + hovered-drill
-" chart on the left, last-session summary on the right.
+" Render the hover panel buffer: chart on the left, last-session
+" summary on the right. The dashboard banner sits in the profile
+" panel above, so this buffer starts directly with the panels.
 function! s:dashboard_render_hover(mapping, row, registry, sessions, cols) abort
   let id = get(a:mapping, a:row, '')
-  let total_sessions = 0
-  for s in values(a:sessions) | let total_sessions += len(s) | endfor
-
-  let banner_prefix = printf(' Vim Fluency ─── Path: General  │  %d sessions logged ',
-    \ total_sessions)
-  let banner = s:pad_right('─' . banner_prefix, a:cols)
 
   " Split the inner area horizontally into chart (left) and summary
   " (right). Leave a 3-col gap between panels for visual breathing room.
   let inner_w = a:cols - 2  " 1-col padding each side
   let chart_w = (inner_w - 3) / 2
   let summary_w = inner_w - 3 - chart_w
-  let chart_h = s:DASHBOARD_HOVER_HEIGHT - 3  " 1 banner, 1 blank, 1 bottom blank
+  let chart_h = s:DASHBOARD_HOVER_HEIGHT - 1  " 1 trailing blank below
 
   let chart_lines = s:dashboard_chart_panel(id, a:registry, a:sessions, chart_w, chart_h)
   let summary_lines = s:dashboard_summary_panel(id, a:registry, a:sessions, summary_w, chart_h)
@@ -4011,7 +4006,7 @@ function! s:dashboard_render_hover(mapping, row, registry, sessions, cols) abort
   while len(chart_lines) < chart_h | call add(chart_lines, '') | endwhile
   while len(summary_lines) < chart_h | call add(summary_lines, '') | endwhile
 
-  let lines = [banner, '']
+  let lines = []
   for i in range(chart_h)
     let l = ' ' . s:pad_right(chart_lines[i], chart_w) . '   ' . s:pad_right(summary_lines[i], summary_w)
     call add(lines, s:pad_right(l, a:cols))
@@ -4052,25 +4047,50 @@ function! s:dashboard_chart_panel(id, registry, sessions, w, h) abort
     return lines
   endif
 
-  " Plot area: a compact sparkline of recent rates. h - 4 rows for plot
-  " (1 for top border, 1 for stats, 1 for axis label, 1 for bottom).
+  " Plot area uses log10 mapping (celeration convention — equal
+  " vertical distances == equal ratio changes). Bounds adapt to the
+  " observed rate range plus aim with a half-decade of padding above
+  " and below so the data isn't smashed against the borders.
   let plot_h = max([a:h - 4, 3])
-  let plot_w = a:w - 4  " left/right padding (1+1) + inside border (1+1)
+  let label_w = 5
+  let plot_w = a:w - 4 - label_w
   " vim slicing returns [] when start is more-negative than the list
   " length (no clamping), so take the whole list when there's fewer
   " sessions than the plot is wide.
   let recent = len(usable) <= plot_w ? usable : usable[-plot_w :]
   let rates = map(copy(recent), 'v:val.frequency_per_min')
-  let rmax = max([max(rates), eff_aim]) * 1.05
-  let rmin = 0.0
-  let aim_row = plot_h - 1 - float2nr(eff_aim / rmax * (plot_h - 1) + 0.5)
+  let high = max([max(rates), eff_aim * 1.0]) * 2.0
+  let low = max([min(rates) * 0.5, 1.0])
+  let log_bot = floor(log10(low))
+  let log_top = ceil(log10(high))
+  if log_top - log_bot < 1 | let log_top = log_bot + 1 | endif
+
+  let aim_row = s:dashboard_log_y(eff_aim, plot_h, log_bot, log_top)
+  let label_rows = {}
+  " Decade labels at every integer log10 step within the bounds, plus
+  " a half-decade row when the span is just one decade.
+  let ref_rates = []
+  let lg = log_top
+  while lg >= log_bot
+    call add(ref_rates, float2nr(pow(10.0, lg) + 0.5))
+    let lg -= 1.0
+  endwhile
+  for ref_rate in ref_rates
+    let row = s:dashboard_log_y(ref_rate * 1.0, plot_h, log_bot, log_top)
+    if row >= 0 && row < plot_h && !has_key(label_rows, row)
+      let label_rows[row] = ref_rate
+    endif
+  endfor
 
   for r in range(plot_h)
+    let label = has_key(label_rows, r)
+      \ ? printf('%' . (label_w - 1) . 'd ', label_rows[r])
+      \ : repeat(' ', label_w)
     let row_chars = []
     for c in range(plot_w)
       if c < len(recent)
-        let rate = rates[c]
-        let plotted_row = plot_h - 1 - float2nr(rate / rmax * (plot_h - 1) + 0.5)
+        let rate = recent[c].frequency_per_min
+        let plotted_row = s:dashboard_log_y(rate, plot_h, log_bot, log_top)
         if r == plotted_row
           call add(row_chars, rate >= eff_aim ? '●' : '○')
         elseif r == aim_row
@@ -4079,19 +4099,25 @@ function! s:dashboard_chart_panel(id, registry, sessions, w, h) abort
           call add(row_chars, ' ')
         endif
       else
-        if r == aim_row
-          call add(row_chars, '·')
-        else
-          call add(row_chars, ' ')
-        endif
+        call add(row_chars, r == aim_row ? '·' : ' ')
       endif
     endfor
-    let line = '│ ' . join(row_chars, '') . ' │'
+    let line = '│ ' . label . join(row_chars, '') . ' │'
     call add(lines, line)
   endfor
-  call add(lines, '│ ' . s:pad_right(printf('last %d sessions  ·  aim line: ·  ·  ·', len(recent)), plot_w) . ' │')
+  call add(lines, '│ ' . s:pad_right(printf('last %d sessions  ·  aim line: ·  ·  ·  ·  log y-axis (rate/min)',
+    \ len(recent)), label_w + plot_w) . ' │')
   call add(lines, s:panel_box_bottom(a:w))
   return lines
+endfunction
+
+" Map a rate to a plot row (0 at top, plot_h-1 at bottom) using log10.
+function! s:dashboard_log_y(rate, plot_h, log_bot, log_top) abort
+  if a:rate <= 0 | return a:plot_h - 1 | endif
+  let logr = log10(a:rate)
+  let frac = (logr - a:log_bot) / (a:log_top - a:log_bot)
+  let row = float2nr((1.0 - frac) * (a:plot_h - 1) + 0.5)
+  return max([0, min([a:plot_h - 1, row])])
 endfunction
 
 function! s:dashboard_summary_panel(id, registry, sessions, w, h) abort
@@ -4146,14 +4172,19 @@ function! s:dashboard_summary_panel(id, registry, sessions, w, h) abort
   return lines
 endfunction
 
-" Render the bottom panel buffer: learner-profile aggregates.
+" Render the profile panel buffer: dashboard banner at the very
+" top, then the four learner-profile aggregates side-by-side.
+"
+" Session totals (total_sessions, total_elapsed) iterate over every
+" entry in a:sessions, NOT just those that match a pinpoint in the
+" current registry. The audit's renames left log entries under old
+" pinpoint ids (e.g. 'insert_basic', 'discriminate_find_vs_till'),
+" and those still count as real training time the learner spent
+" even though the slug no longer maps to anything live.
 function! s:dashboard_render_profile(registry, sessions, cols) abort
   let aim_overrides = get(s:load_settings(), 'aims', {})
   let at_aim = 0 | let climbing = 0 | let not_started = 0
   let total_pinpoints = len(a:registry)
-  let total_elapsed = 0.0
-  let session_count = 0
-  let by_day = {}  " 'YYYY-MM-DD' → count
   let by_rate = []  " [{id, ratio, rate, aim}] for non-empty pinpoints
 
   for [id, m] in items(a:registry)
@@ -4173,9 +4204,17 @@ function! s:dashboard_render_profile(registry, sessions, cols) abort
           \ 'rate': rate, 'aim': eff_aim})
       endif
     endif
+  endfor
+
+  " Aggregate over EVERY logged session — including sessions whose
+  " pinpoint id no longer exists in the registry. See the function
+  " docstring for the reasoning.
+  let total_elapsed = 0.0
+  let session_count = 0
+  let by_day = {}
+  for runs in values(a:sessions)
     for s in runs
-      let dur = get(s, 'elapsed_seconds', 0)
-      let total_elapsed += dur
+      let total_elapsed += get(s, 'elapsed_seconds', 0)
       let session_count += 1
       let day = strpart(get(s, 'timestamp', ''), 0, 10)
       if !empty(day)
@@ -4188,11 +4227,13 @@ function! s:dashboard_render_profile(registry, sessions, cols) abort
   let fastest = empty(by_rate) ? {} : by_rate[0]
   let slowest = empty(by_rate) ? {} : by_rate[-1]
 
-  " Daily-drills bar over the last 14 days.
   let days_back = 14
   let today_str = strftime('%Y-%m-%d')
   let today_count = get(by_day, today_str, 0)
   let streak = s:dashboard_streak(by_day, today_str)
+
+  let banner = s:pad_right(printf('─ Vim Fluency ─── Path: General  │  %d sessions logged | %s trained ',
+    \ session_count, s:format_duration(total_elapsed)), a:cols)
 
   let inner_w = a:cols - 2
   let panel_count = 4
@@ -4205,13 +4246,14 @@ function! s:dashboard_render_profile(registry, sessions, cols) abort
   call add(panels, s:dashboard_slowest_panel(slowest, pw))
   call add(panels, s:dashboard_daily_panel(by_day, days_back, today_count, streak, pw))
 
-  let height = s:DASHBOARD_PROFILE_HEIGHT - 2
+  " Profile panel rows below banner + 1 blank row.
+  let panel_h = s:DASHBOARD_PROFILE_HEIGHT - 2
   for p in panels
-    while len(p) < height | call add(p, '') | endwhile
+    while len(p) < panel_h | call add(p, '') | endwhile
   endfor
 
-  let lines = []
-  for i in range(height)
+  let lines = [banner, '']
+  for i in range(panel_h)
     let row_parts = []
     for p in panels
       call add(row_parts, s:pad_right(p[i], pw))
@@ -4219,8 +4261,6 @@ function! s:dashboard_render_profile(registry, sessions, cols) abort
     let line = ' ' . join(row_parts, repeat(' ', gap))
     call add(lines, s:pad_right(line, a:cols))
   endfor
-  call add(lines, printf(' TOTAL TIME TRAINED: %s   ·   SESSIONS LOGGED: %d',
-    \ s:format_duration(total_elapsed), session_count))
 
   call s:dashboard_write_buffer(get(b:, 'vf_dashboard_profile_bufnr', -1), lines)
 endfunction
