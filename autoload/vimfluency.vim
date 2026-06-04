@@ -4053,28 +4053,22 @@ function! s:dashboard_chart_panel(id, registry, sessions, w, h) abort
     \ icon, eff_aim, empty(usable) ? '—' : string(s:round1(last_rate)))
   call add(lines, '│' . s:pad_right(summary, a:w - 2) . '│')
 
-  " The chart frame (axis labels + aim line) renders even when there
-  " are no usable sessions yet — a stable visual placeholder beats a
-  " collapsing "(no data)" box that pops in and out as the cursor
-  " moves between trained / untrained drills.
+  " The chart frame (axis labels + aim line) renders even when
+  " there are no usable sessions yet — a stable visual placeholder
+  " beats a collapsing '(no data)' box that pops in and out as the
+  " cursor moves between trained / untrained drills.
+  "
+  " Bounds are FIXED at the Standard Celeration Chart's 1..1000
+  " (log_bot=0, log_top=3) per Precision Teaching convention —
+  " every chart, every pinpoint, every visit reads on the same
+  " y-axis so the visual slope of one drill is directly
+  " comparable to any other.
   let plot_h = max([a:h - 4, 3])
   let label_w = 5
   let plot_w = a:w - 4 - label_w
   let recent = len(usable) <= plot_w ? usable : usable[-plot_w :]
-  if !empty(recent)
-    let rates = map(copy(recent), 'v:val.frequency_per_min')
-    let high = max([max(rates), eff_aim * 1.0]) * 2.0
-    let low = max([min(rates) * 0.5, 1.0])
-    let log_bot = floor(log10(low))
-    let log_top = ceil(log10(high))
-  else
-    " No data — pick bounds that bracket the aim so the aim line
-    " sits in the middle of the chart.
-    let aim_log = eff_aim > 0 ? log10(eff_aim * 1.0) : 1.5
-    let log_bot = floor(aim_log - 0.5)
-    let log_top = ceil(aim_log + 0.5)
-  endif
-  if log_top - log_bot < 1 | let log_top = log_bot + 1 | endif
+  let log_bot = 0.0
+  let log_top = 3.0
 
   let aim_row = eff_aim > 0 ? s:dashboard_log_y(eff_aim, plot_h, log_bot, log_top) : -1
   let label_rows = {}
@@ -4327,11 +4321,13 @@ function! s:dashboard_daily_chart_panel(by_day, days_back, today_count, streak, 
     call add(counts, get(a:by_day, day, 0))
   endfor
 
-  let max_count = empty(counts) ? 1 : max(counts)
-  let high = max([max_count, 1]) * 2.0
+  " Same fixed Standard Celeration Chart bounds as the hovered-drill
+  " chart (1..1000). The unit here is sessions-per-day rather than
+  " rate/min, but the SCC philosophy is one y-axis everywhere — a
+  " day with 30 sessions reads at the same vertical position
+  " regardless of which chart you're looking at.
   let log_bot = 0.0
-  let log_top = ceil(log10(high))
-  if log_top - log_bot < 1 | let log_top = log_bot + 1 | endif
+  let log_top = 3.0
 
   let label_rows = {}
   let lg = log_top
