@@ -3841,3 +3841,534 @@ function! s:show_chart_buffer(id, lines, variant) abort
   nnoremap <buffer> <silent> <CR> :call vimfluency#close_summary()<CR>
   call cursor(1, 1)
 endfunction
+
+" ─────────────────────────────────────────────────────────────────
+" :VfDashboard — multi-panel view with hover-reactive context panels
+"
+" Layout (top to bottom, fixed for now; could grow toggles later):
+"   top section     ~11 rows   chart + last-session for hovered drill
+"   table header    1 row      column headers (sticky)
+"   table data      flex       scrollable list, cursor lives here
+"   bottom section  ~9 rows    learner-profile aggregates
+"
+" Buffers in the tab:
+"   vf-dashboard-table          (interactive — cursor + key bindings)
+"   vf-dashboard-table-header   (1-row sticky column header)
+"   vf-dashboard-top            (hovered-drill panels, refreshed on CursorMoved)
+"   vf-dashboard-bottom         (learner-profile aggregates, rendered once)
+" ─────────────────────────────────────────────────────────────────
+
+let s:DASHBOARD_TOP_HEIGHT = 11
+let s:DASHBOARD_BOTTOM_HEIGHT = 9
+
+function! vimfluency#dashboard() abort
+  let registry = vimfluency#discover_pinpoints()
+  if empty(registry)
+    echo 'no pinpoints built — see CATALOG.md'
+    return
+  endif
+  call s:show_dashboard(registry, s:load_sessions_grouped())
+endfunction
+
+function! s:show_dashboard(registry, sessions) abort
+  let view = s:build_list_view(a:registry, a:sessions, {})
+  let split = s:split_view(view)
+  let cols = &columns
+
+  tabnew
+  let tabnr = tabpagenr()
+
+  " --- Window 1 (initial, will become the table data window) ---
+  silent! execute 'keepalt file vf-dashboard-table'
+  setlocal buftype=nofile bufhidden=wipe noswapfile nobuflisted
+  setlocal nonumber norelativenumber nowrap signcolumn=no
+  setlocal cursorline modifiable
+  silent! %delete _
+  call setline(1, split.data_lines)
+  setlocal nomodifiable nomodified
+  let table_winid = win_getid()
+  let table_bufnr = bufnr('%')
+  let b:vf_list_line_to_id    = split.mapping
+  let b:vf_list_pinpoint_rows = split.pinpoint_rows
+  let b:vf_list_expanded = {}
+  let b:vf_list_sort_col = ''
+  let b:vf_list_sort_desc = 0
+  let b:vf_dashboard_tabnr = tabnr
+  let b:vf_dashboard_prev_laststatus = &laststatus
+  let &l:statusline = ' Vim Fluency dashboard   [L=Learn  T=Train  C=Chart  q=close]'
+  set laststatus=2
+
+  " --- Window 2: top section ---
+  topleft new
+  execute 'resize ' . s:DASHBOARD_TOP_HEIGHT
+  setlocal buftype=nofile bufhidden=wipe noswapfile nobuflisted
+  setlocal nonumber norelativenumber nowrap signcolumn=no
+  setlocal winfixheight nocursorline
+  silent! execute 'keepalt file vf-dashboard-top'
+  let top_bufnr = bufnr('%')
+  let &l:statusline = ' '
+
+  " --- Window 3: bottom section ---
+  call win_gotoid(table_winid)
+  botright new
+  execute 'resize ' . s:DASHBOARD_BOTTOM_HEIGHT
+  setlocal buftype=nofile bufhidden=wipe noswapfile nobuflisted
+  setlocal nonumber norelativenumber nowrap signcolumn=no
+  setlocal winfixheight nocursorline
+  silent! execute 'keepalt file vf-dashboard-bottom'
+  let bottom_bufnr = bufnr('%')
+  let &l:statusline = ' '
+
+  " --- Window 4: 1-row sticky column header above the table data ---
+  " (`new`, not `split` — split reuses the current buffer, which
+  " would mean the column-header setline wipes our table data.)
+  call win_gotoid(table_winid)
+  aboveleft 1new
+  resize 1
+  setlocal buftype=nofile bufhidden=wipe noswapfile nobuflisted
+  setlocal nonumber norelativenumber nowrap signcolumn=no
+  setlocal winfixheight nocursorline
+  silent! execute 'keepalt file vf-dashboard-table-header'
+  setlocal modifiable
+  silent! %delete _
+  " The last line of split.header_lines is the actual column-header row
+  " (the lines before it are banner + sort hints — too tall for the
+  " dashboard's compressed header strip).
+  call setline(1, [split.header_lines[-1]])
+  setlocal nomodifiable nomodified
+  let &l:statusline = ' '
+
+  " Return to the table data window — that's where the cursor lives.
+  call win_gotoid(table_winid)
+  " Stash the panel buffer numbers on the table buffer so the
+  " CursorMoved handler can find them without walking windows.
+  let b:vf_dashboard_top_bufnr = top_bufnr
+  let b:vf_dashboard_bottom_bufnr = bottom_bufnr
+
+  let first_line = empty(split.pinpoint_rows) ? 1 : split.pinpoint_rows[0]
+  call cursor(first_line, 1)
+  let b:vf_dashboard_last_row = first_line
+
+  " Initial render of both side panels.
+  call s:dashboard_render_top(split.mapping, first_line, a:registry, a:sessions, cols)
+  call s:dashboard_render_bottom(a:registry, a:sessions, cols)
+
+  augroup VfDashboard
+    autocmd!
+    autocmd CursorMoved <buffer> call s:dashboard_on_cursor_moved()
+    autocmd BufWipeout <buffer> silent! call s:dashboard_cleanup()
+  augroup END
+
+  " Key bindings on the table data window. Reuses the existing
+  " :VfList action callbacks since they read the same b:vf_list_*
+  " variables we set up above.
+  nnoremap <buffer> <silent> L :call vimfluency#list_action('learn')<CR>
+  nnoremap <buffer> <silent> T :call vimfluency#list_action('train')<CR>
+  nnoremap <buffer> <silent> C :call vimfluency#list_action('chart')<CR>
+  nnoremap <buffer> <silent> A :call vimfluency#list_set_aim()<CR>
+  nnoremap <buffer> <silent> D :call vimfluency#list_set_duration()<CR>
+  nnoremap <buffer> <silent> q :call vimfluency#close_summary()<CR>
+  nnoremap <buffer> <silent> j :call vimfluency#list_move('next')<CR>
+  nnoremap <buffer> <silent> k :call vimfluency#list_move('prev')<CR>
+  nnoremap <buffer> <silent> gg :call vimfluency#list_move('first')<CR>
+  nnoremap <buffer> <silent> G :call vimfluency#list_move('last')<CR>
+endfunction
+
+function! s:dashboard_on_cursor_moved() abort
+  if !exists('b:vf_dashboard_top_bufnr') | return | endif
+  let row = line('.')
+  if row == get(b:, 'vf_dashboard_last_row', -1) | return | endif
+  let b:vf_dashboard_last_row = row
+  " Re-fetch registry + sessions; the JSONL log only grows during
+  " training, not while the dashboard is open, so this is cheap.
+  let registry = vimfluency#discover_pinpoints()
+  let sessions = s:load_sessions_grouped()
+  call s:dashboard_render_top(b:vf_list_line_to_id, row, registry, sessions, &columns)
+endfunction
+
+function! s:dashboard_cleanup() abort
+  for name in ['vf-dashboard-top', 'vf-dashboard-bottom', 'vf-dashboard-table-header']
+    let b = bufnr(name)
+    if b > 0 | silent! execute 'bwipeout! ' . b | endif
+  endfor
+  silent! autocmd! VfDashboard
+endfunction
+
+" Render the top panel buffer: dashboard banner + hovered-drill
+" chart on the left, last-session summary on the right.
+function! s:dashboard_render_top(mapping, row, registry, sessions, cols) abort
+  let id = get(a:mapping, a:row, '')
+  let total_sessions = 0
+  for s in values(a:sessions) | let total_sessions += len(s) | endfor
+
+  let banner_prefix = printf(' Vim Fluency ─── Path: General  │  %d sessions logged ',
+    \ total_sessions)
+  let banner = s:pad_right('─' . banner_prefix, a:cols)
+
+  " Split the inner area horizontally into chart (left) and summary
+  " (right). Leave a 3-col gap between panels for visual breathing room.
+  let inner_w = a:cols - 2  " 1-col padding each side
+  let chart_w = (inner_w - 3) / 2
+  let summary_w = inner_w - 3 - chart_w
+  let chart_h = s:DASHBOARD_TOP_HEIGHT - 3  " 1 banner, 1 blank, 1 bottom blank
+
+  let chart_lines = s:dashboard_chart_panel(id, a:registry, a:sessions, chart_w, chart_h)
+  let summary_lines = s:dashboard_summary_panel(id, a:registry, a:sessions, summary_w, chart_h)
+
+  " Pad both panels to the same height so the side-by-side join works.
+  while len(chart_lines) < chart_h | call add(chart_lines, '') | endwhile
+  while len(summary_lines) < chart_h | call add(summary_lines, '') | endwhile
+
+  let lines = [banner, '']
+  for i in range(chart_h)
+    let l = ' ' . s:pad_right(chart_lines[i], chart_w) . '   ' . s:pad_right(summary_lines[i], summary_w)
+    call add(lines, s:pad_right(l, a:cols))
+  endfor
+
+  call s:dashboard_write_buffer(get(b:, 'vf_dashboard_top_bufnr', -1), lines)
+endfunction
+
+function! s:dashboard_chart_panel(id, registry, sessions, w, h) abort
+  if empty(a:id) || !has_key(a:registry, a:id)
+    return [s:panel_box_top('HOVERED', a:w),
+      \ '│ (no row hovered)' . repeat(' ', a:w - 18) . '│',
+      \ s:panel_box_bottom(a:w)]
+  endif
+  let meta = a:registry[a:id]
+  let aim_overrides = get(s:load_settings(), 'aims', {})
+  let eff_aim = get(aim_overrides, a:id, get(meta, 'aim', 0))
+  let runs = get(a:sessions, a:id, [])
+  let usable = filter(copy(runs), 'get(v:val, "frequency_per_min", 0) > 0')
+  call sort(usable, {a, b -> a.timestamp ==# b.timestamp ? 0
+    \ : (a.timestamp <# b.timestamp ? -1 : 1)})
+
+  let title = printf('HOVERED: %s', a:id)
+  let lines = [s:panel_box_top(title, a:w)]
+
+  let status = s:status_from_sessions(eff_aim, runs)
+  let last_rate = empty(usable) ? 0 : usable[-1].frequency_per_min
+  let icon = status ==# 'at_aim' ? '✓'
+    \ : status ==# 'climbing' ? '▶'
+    \ : '○'
+  let summary = printf(' %s  aim %d/min  ·  last %s/min',
+    \ icon, eff_aim, empty(usable) ? '—' : string(s:round1(last_rate)))
+  call add(lines, '│' . s:pad_right(summary, a:w - 2) . '│')
+
+  if empty(usable)
+    call add(lines, '│' . s:pad_right(' (no completed sessions yet)', a:w - 2) . '│')
+    call add(lines, s:panel_box_bottom(a:w))
+    return lines
+  endif
+
+  " Plot area: a compact sparkline of recent rates. h - 4 rows for plot
+  " (1 for top border, 1 for stats, 1 for axis label, 1 for bottom).
+  let plot_h = max([a:h - 4, 3])
+  let plot_w = a:w - 4  " left/right padding (1+1) + inside border (1+1)
+  " vim slicing returns [] when start is more-negative than the list
+  " length (no clamping), so take the whole list when there's fewer
+  " sessions than the plot is wide.
+  let recent = len(usable) <= plot_w ? usable : usable[-plot_w :]
+  let rates = map(copy(recent), 'v:val.frequency_per_min')
+  let rmax = max([max(rates), eff_aim]) * 1.05
+  let rmin = 0.0
+  let aim_row = plot_h - 1 - float2nr(eff_aim / rmax * (plot_h - 1) + 0.5)
+
+  for r in range(plot_h)
+    let row_chars = []
+    for c in range(plot_w)
+      if c < len(recent)
+        let rate = rates[c]
+        let plotted_row = plot_h - 1 - float2nr(rate / rmax * (plot_h - 1) + 0.5)
+        if r == plotted_row
+          call add(row_chars, rate >= eff_aim ? '●' : '○')
+        elseif r == aim_row
+          call add(row_chars, '·')
+        else
+          call add(row_chars, ' ')
+        endif
+      else
+        if r == aim_row
+          call add(row_chars, '·')
+        else
+          call add(row_chars, ' ')
+        endif
+      endif
+    endfor
+    let line = '│ ' . join(row_chars, '') . ' │'
+    call add(lines, line)
+  endfor
+  call add(lines, '│ ' . s:pad_right(printf('last %d sessions  ·  aim line: ·  ·  ·', len(recent)), plot_w) . ' │')
+  call add(lines, s:panel_box_bottom(a:w))
+  return lines
+endfunction
+
+function! s:dashboard_summary_panel(id, registry, sessions, w, h) abort
+  let runs = get(a:sessions, a:id, [])
+  let usable = filter(copy(runs), 'get(v:val, "frequency_per_min", 0) > 0')
+  call sort(usable, {a, b -> a.timestamp ==# b.timestamp ? 0
+    \ : (a.timestamp <# b.timestamp ? -1 : 1)})
+
+  let title = 'LAST SESSION'
+  let lines = [s:panel_box_top(title, a:w)]
+  if empty(usable)
+    call add(lines, '│' . s:pad_right(' (no sessions yet)', a:w - 2) . '│')
+    call add(lines, s:panel_box_bottom(a:w))
+    return lines
+  endif
+  let last = usable[-1]
+  let date = strpart(get(last, 'timestamp', ''), 0, 10)
+  let rate = string(s:round1(last.frequency_per_min))
+  let aim_val = get(last, 'aim', 0)
+  let dur = get(last, 'elapsed_seconds', get(last, 'duration_seconds', 0))
+  let correct = get(last, 'items_correct', 0)
+  let errors = string(s:round1(get(last, 'errors_per_min', 0)))
+  let eff = get(last, 'efficiency_pct', 0)
+
+  let stat_rows = [
+    \ printf(' %s   rate %s/min   aim %d/min', date, rate, aim_val),
+    \ printf(' duration %ds   correct %d   errors %s/min', float2nr(dur), correct, errors),
+    \ ]
+  if eff > 0
+    call add(stat_rows, printf(' efficiency %d%%', float2nr(eff)))
+  endif
+
+  " Per-motion mini breakdown (one line per motion, sorted by rate desc).
+  let pm = get(last, 'per_motion', {})
+  if !empty(pm)
+    let entries = []
+    for [motion, m] in items(pm)
+      call add(entries, {'motion': motion, 'rate': get(m, 'rate_per_min', 0)})
+    endfor
+    call sort(entries, {a, b -> a.rate < b.rate ? 1 : (a.rate > b.rate ? -1 : 0)})
+    call add(stat_rows, ' per motion:')
+    for e in entries[:3]
+      call add(stat_rows, printf('   %-4s  %5s/min', e.motion, string(s:round1(e.rate))))
+    endfor
+  endif
+
+  for r in stat_rows
+    if len(lines) - 1 >= a:h - 1 | break | endif
+    call add(lines, '│' . s:pad_right(r, a:w - 2) . '│')
+  endfor
+  call add(lines, s:panel_box_bottom(a:w))
+  return lines
+endfunction
+
+" Render the bottom panel buffer: learner-profile aggregates.
+function! s:dashboard_render_bottom(registry, sessions, cols) abort
+  let aim_overrides = get(s:load_settings(), 'aims', {})
+  let at_aim = 0 | let climbing = 0 | let not_started = 0
+  let total_pinpoints = len(a:registry)
+  let total_elapsed = 0.0
+  let session_count = 0
+  let by_day = {}  " 'YYYY-MM-DD' → count
+  let by_rate = []  " [{id, ratio, rate, aim}] for non-empty pinpoints
+
+  for [id, m] in items(a:registry)
+    let runs = get(a:sessions, id, [])
+    let eff_aim = get(aim_overrides, id, get(m, 'aim', 0))
+    let status = s:status_from_sessions(eff_aim, runs)
+    if     status ==# 'at_aim'      | let at_aim += 1
+    elseif status ==# 'climbing'    | let climbing += 1
+    else                            | let not_started += 1
+    endif
+    let usable = filter(copy(runs), 'get(v:val, "frequency_per_min", 0) > 0')
+    if !empty(usable)
+      let last = usable[-1]
+      let rate = last.frequency_per_min
+      if eff_aim > 0
+        call add(by_rate, {'id': id, 'ratio': rate * 1.0 / eff_aim,
+          \ 'rate': rate, 'aim': eff_aim})
+      endif
+    endif
+    for s in runs
+      let dur = get(s, 'elapsed_seconds', 0)
+      let total_elapsed += dur
+      let session_count += 1
+      let day = strpart(get(s, 'timestamp', ''), 0, 10)
+      if !empty(day)
+        let by_day[day] = get(by_day, day, 0) + 1
+      endif
+    endfor
+  endfor
+
+  call sort(by_rate, {a, b -> a.ratio < b.ratio ? 1 : (a.ratio > b.ratio ? -1 : 0)})
+  let fastest = empty(by_rate) ? {} : by_rate[0]
+  let slowest = empty(by_rate) ? {} : by_rate[-1]
+
+  " Daily-drills bar over the last 14 days.
+  let days_back = 14
+  let today_str = strftime('%Y-%m-%d')
+  let today_count = get(by_day, today_str, 0)
+  let streak = s:dashboard_streak(by_day, today_str)
+
+  let inner_w = a:cols - 2
+  let panel_count = 4
+  let gap = 3
+  let pw = (inner_w - (panel_count - 1) * gap) / panel_count
+
+  let panels = []
+  call add(panels, s:dashboard_aim_panel(at_aim, climbing, not_started, total_pinpoints, total_elapsed, pw))
+  call add(panels, s:dashboard_fastest_panel(fastest, pw))
+  call add(panels, s:dashboard_slowest_panel(slowest, pw))
+  call add(panels, s:dashboard_daily_panel(by_day, days_back, today_count, streak, pw))
+
+  let height = s:DASHBOARD_BOTTOM_HEIGHT - 2
+  for p in panels
+    while len(p) < height | call add(p, '') | endwhile
+  endfor
+
+  let lines = []
+  for i in range(height)
+    let row_parts = []
+    for p in panels
+      call add(row_parts, s:pad_right(p[i], pw))
+    endfor
+    let line = ' ' . join(row_parts, repeat(' ', gap))
+    call add(lines, s:pad_right(line, a:cols))
+  endfor
+  call add(lines, printf(' TOTAL TIME TRAINED: %s   ·   SESSIONS LOGGED: %d',
+    \ s:format_duration(total_elapsed), session_count))
+
+  call s:dashboard_write_buffer(get(b:, 'vf_dashboard_bottom_bufnr', -1), lines)
+endfunction
+
+function! s:dashboard_aim_panel(at, climbing, not_started, total, total_seconds, w) abort
+  let lines = [s:panel_box_top('STATUS', a:w)]
+  call add(lines, '│' . s:pad_right(printf(' ✓ at aim       %3d / %d', a:at, a:total), a:w - 2) . '│')
+  call add(lines, '│' . s:pad_right(printf(' ▶ climbing     %3d / %d', a:climbing, a:total), a:w - 2) . '│')
+  call add(lines, '│' . s:pad_right(printf(' ○ not started  %3d / %d', a:not_started, a:total), a:w - 2) . '│')
+  call add(lines, s:panel_box_bottom(a:w))
+  return lines
+endfunction
+
+function! s:dashboard_fastest_panel(fastest, w) abort
+  let lines = [s:panel_box_top('FASTEST', a:w)]
+  if empty(a:fastest)
+    call add(lines, '│' . s:pad_right(' (no data)', a:w - 2) . '│')
+  else
+    call add(lines, '│' . s:pad_right(' ' . a:fastest.id, a:w - 2) . '│')
+    call add(lines, '│' . s:pad_right(printf(' %s/min  (%d%% of aim)',
+      \ string(s:round1(a:fastest.rate)), float2nr(a:fastest.ratio * 100)), a:w - 2) . '│')
+  endif
+  call add(lines, s:panel_box_bottom(a:w))
+  return lines
+endfunction
+
+function! s:dashboard_slowest_panel(slowest, w) abort
+  let lines = [s:panel_box_top('NEEDS WORK', a:w)]
+  if empty(a:slowest)
+    call add(lines, '│' . s:pad_right(' (no data)', a:w - 2) . '│')
+  else
+    call add(lines, '│' . s:pad_right(' ' . a:slowest.id, a:w - 2) . '│')
+    call add(lines, '│' . s:pad_right(printf(' %s/min  (%d%% of aim)',
+      \ string(s:round1(a:slowest.rate)), float2nr(a:slowest.ratio * 100)), a:w - 2) . '│')
+  endif
+  call add(lines, s:panel_box_bottom(a:w))
+  return lines
+endfunction
+
+function! s:dashboard_daily_panel(by_day, days_back, today_count, streak, w) abort
+  let lines = [s:panel_box_top(printf('DAILY (last %dd)', a:days_back), a:w)]
+  let bars = ' '
+  for i in range(a:days_back - 1, 0, -1)
+    let day = strftime('%Y-%m-%d', localtime() - i * 86400)
+    let n = get(a:by_day, day, 0)
+    if     n == 0  | let ch = '▁'
+    elseif n <= 2  | let ch = '▃'
+    elseif n <= 4  | let ch = '▅'
+    elseif n <= 6  | let ch = '▆'
+    else           | let ch = '█'
+    endif
+    let bars .= ch
+  endfor
+  call add(lines, '│' . s:pad_right(bars, a:w - 2) . '│')
+  call add(lines, '│' . s:pad_right(printf(' today: %d   streak: %d day%s',
+    \ a:today_count, a:streak, a:streak == 1 ? '' : 's'), a:w - 2) . '│')
+  call add(lines, s:panel_box_bottom(a:w))
+  return lines
+endfunction
+
+function! s:dashboard_streak(by_day, today_str) abort
+  let streak = 0
+  let i = 0
+  while 1
+    let day = strftime('%Y-%m-%d', localtime() - i * 86400)
+    if get(a:by_day, day, 0) > 0
+      let streak += 1
+      let i += 1
+    else
+      break
+    endif
+  endwhile
+  return streak
+endfunction
+
+" Replace a panel buffer's contents without disturbing the cursor in
+" the table window. Uses the buffer's number rather than walking
+" windows so we can render from anywhere.
+function! s:dashboard_write_buffer(bufnr, lines) abort
+  if a:bufnr <= 0 | return | endif
+  if !bufexists(a:bufnr) | return | endif
+  let cur_winid = win_getid()
+  for win in range(1, winnr('$'))
+    if winbufnr(win) == a:bufnr
+      execute win . 'wincmd w'
+      setlocal modifiable
+      silent! %delete _
+      call setline(1, a:lines)
+      setlocal nomodifiable nomodified
+      break
+    endif
+  endfor
+  call win_gotoid(cur_winid)
+endfunction
+
+" ──────────── small text helpers for the dashboard ────────────
+
+function! s:panel_box_top(title, w) abort
+  let title_padded = ' ' . a:title . ' '
+  let dashes = repeat('─', max([a:w - len(title_padded) - 2, 0]))
+  return '┌' . title_padded . dashes . '┐'
+endfunction
+
+function! s:panel_box_bottom(w) abort
+  return '└' . repeat('─', a:w - 2) . '┘'
+endfunction
+
+function! s:pad_right(s, w) abort
+  let l = strdisplaywidth(a:s)
+  if l >= a:w
+    " Trim by character so we don't split a UTF-8 sequence mid-byte
+    " (the box-drawing chars in our panels are 3-byte sequences;
+    " strpart would slice them into '�').
+    let result = ''
+    let width = 0
+    for ch in split(a:s, '\zs')
+      let chw = strdisplaywidth(ch)
+      if width + chw > a:w | break | endif
+      let result .= ch
+      let width += chw
+    endfor
+    return result . repeat(' ', a:w - width)
+  endif
+  return a:s . repeat(' ', a:w - l)
+endfunction
+
+function! s:round1(f) abort
+  return float2nr(a:f * 10 + 0.5) / 10.0
+endfunction
+
+function! s:format_duration(seconds) abort
+  let s = float2nr(a:seconds)
+  let h = s / 3600
+  let m = (s % 3600) / 60
+  let sec = s % 60
+  if h > 0
+    return printf('%dh %dm', h, m)
+  elseif m > 0
+    return printf('%dm %ds', m, sec)
+  else
+    return printf('%ds', sec)
+  endif
+endfunction
