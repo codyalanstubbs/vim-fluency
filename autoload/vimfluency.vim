@@ -3296,47 +3296,49 @@ function! s:learn_show_complete() abort
     let s:session.deletion_match_id = -1
   endif
   call s:clear_waypoint_matches()
-  " Force back to Normal so q/p fire as Normal-mode mappings. The
+  " Force back to Normal so q/t fire as Normal-mode mappings. The
   " mode_switch lessons end with the learner in whatever mode satisfied
   " the final test item (Insert/Visual/Replace/Cmd) — without this,
-  " pressing q or p just inserts text instead of firing the mapping.
+  " pressing q or t just inserts text instead of firing the mapping.
   " <C-\><C-n> is vim's universal "to Normal from anywhere" sequence.
   silent! call feedkeys("\<C-\>\<C-n>", 'n')
-  " Recall lessons skipped the q/p overrides during input phases
+  " Recall lessons skipped the q/t overrides during input phases
   " (those letters belong to answer strings); install them now so
   " the completion screen's instructions work.
   if has_key(s:session, "input_row") | unlet s:session.input_row | endif
   nnoremap <buffer> <silent> q :call vimfluency#learn_stop()<CR>
-  nnoremap <buffer> <silent> p :call <SID>learn_start_train()<CR>
+  nnoremap <buffer> <silent> t :call <SID>learn_start_train()<CR>
 
+  let streak = s:session.required_streak
+  let duration = s:effective_duration()
   setlocal modifiable
   silent! %delete _
   call setline(1, [
-    \ printf('LESSON %s  COMPLETE  [p=start training]  [q=quit]', s:session.id),
+    \ printf('LESSON %s  COMPLETE  [t=start training]  [q=quit]', s:session.id),
     \ '',
-    \ printf('  ✓ 3 in a row on %s — nice work.', s:session.name),
+    \ printf('  ✓ %d in a row on %s — nice work.', streak, s:session.name),
     \ '',
-    \ '  The training presents the same kind of items, but on a 60-second',
+    \ printf('  The training presents the same kind of items on a %d-second', duration),
     \ '  clock. The lesson just confirmed you know the rule; the training',
     \ '  is where you build fluency — the speed and automaticity that',
     \ '  make a motion useful during real editing. Knowing how a motion',
     \ '  works and being fluent at it are different things, and only',
     \ '  repetition under time pressure closes the gap.',
     \ '',
-    \ '  Smooth is slow. Slow is fast.',
+    \ '  Slow is smooth. Smooth is fast.',
     \ '',
     \ '  Each training writes a data point to the session log;',
     \ printf('  :VfChart %s plots your rate over days.', s:session.id),
     \ '',
-    \ printf('    p   start :Vf %s', s:session.id),
+    \ printf('    t   start :Vf %s', s:session.id),
     \ '    q   exit (run :Vf later when ready)',
     \ ])
   call cursor(1, 1)
   let s:session.advancing = 0
 endfunction
 
-" Triggered by the p mapping on the completion screen. No-op anywhere
-" else, so p stays inert during normal lesson flow.
+" Triggered by the t mapping on the completion screen. No-op anywhere
+" else, so t stays inert during normal lesson flow.
 function! s:learn_start_train() abort
   if empty(s:session) || s:session.mode !=# 'learn' | return | endif
   if get(s:session, 'phase', '') !=# 'complete' | return | endif

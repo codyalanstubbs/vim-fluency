@@ -154,14 +154,18 @@ accumulates per-motion rate, average actual motions, and total wasted motions
   the target — figure out the motion"). The learner must apply the
   rule without being told the answer. Streak counter advances on
   first-try-correct (motion count ≤ optimal); resets on inefficient
-  reach. On 3 in a row the runner enters a `complete` phase and
-  shows a celebration screen with explicit options: **p** starts
-  `:Vf <id>` (60 s training), **q** exits. Space/Enter and CursorMoved
-  are no-ops on this screen — the handoff is deliberate. On either
-  failure condition — 3 wrong in a row (symmetric with the success
-  criterion) or the 20-item safety cap — the runner **restarts the
-  lesson from frame 0 in place**, echoing the reason; the tab and
-  autocmds stay put so the learner just keeps going. Because test
+  reach. Each pinpoint declares `test_sequence` in meta — the cycle
+  of `expected_motion` values the test phase walks; required streak
+  is 3 × len(test_sequence) (3 complete sequences). On reaching the
+  streak the runner enters a `complete` phase and shows a
+  celebration screen with explicit options: **t** starts `:Vf <id>`
+  (uses the configured default duration), **q** exits. Space/Enter
+  and CursorMoved are no-ops on this screen — the handoff is
+  deliberate. On either failure condition — 3 wrong in a row or the
+  max_test_items safety cap (scales with sequence length) — the
+  runner **restarts the lesson from frame 0 in place**, echoing the
+  reason; the tab and autocmds stay put so the learner just keeps
+  going. Because test
   items come from the same `generate()` the training uses, their
   cheat-defense is identical — the intended motion is the canonical
   answer.
