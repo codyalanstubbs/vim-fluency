@@ -4053,19 +4053,25 @@ function! s:dashboard_chart_panel(id, registry, sessions, w, h) abort
     \ icon, eff_aim, empty(usable) ? '—' : string(s:round1(last_rate)))
   call add(lines, '│' . s:pad_right(summary, a:w - 2) . '│')
 
-  " The chart frame (axis labels + aim line) renders even when
-  " there are no usable sessions yet — a stable visual placeholder
-  " beats a collapsing '(no data)' box that pops in and out as the
-  " cursor moves between trained / untrained drills.
+  " The chart frame (y-axis + x-axis + tick marks + decade labels +
+  " aim line) renders even when there are no usable sessions yet —
+  " a stable visual placeholder beats a collapsing '(no data)' box
+  " that pops in and out as the cursor moves between trained /
+  " untrained drills.
   "
   " Bounds are FIXED at the Standard Celeration Chart's 1..1000
   " (log_bot=0, log_top=3) per Precision Teaching convention —
   " every chart, every pinpoint, every visit reads on the same
-  " y-axis so the visual slope of one drill is directly
-  " comparable to any other.
-  let plot_h = max([a:h - 4, 3])
-  let label_w = 5
-  let plot_w = a:w - 4 - label_w
+  " y-axis so the visual slope of one drill is directly comparable
+  " to any other.
+  "
+  " Axes use box-drawing characters: │ for the y-axis line, ─ for
+  " the x-axis line, └ at their meeting corner. Tick marks point
+  " INWARD: ├ on the y-axis at each decade label, ┴ on the x-axis
+  " at the first and last data columns.
+  let label_w = 4
+  let plot_w = a:w - 5 - label_w
+  let plot_h = max([a:h - 5, 3])
   let recent = len(usable) <= plot_w ? usable : usable[-plot_w :]
   let log_bot = 0.0
   let log_top = 3.0
@@ -4080,8 +4086,9 @@ function! s:dashboard_chart_panel(id, registry, sessions, w, h) abort
 
   for r in range(plot_h)
     let label = has_key(label_rows, r)
-      \ ? printf('%' . (label_w - 1) . 'd ', label_rows[r])
+      \ ? printf('%' . label_w . 'd', label_rows[r])
       \ : repeat(' ', label_w)
+    let axis_char = has_key(label_rows, r) ? '├' : '│'
     let row_chars = []
     for c in range(plot_w)
       if c < len(recent)
@@ -4098,10 +4105,20 @@ function! s:dashboard_chart_panel(id, registry, sessions, w, h) abort
         call add(row_chars, r == aim_row ? '·' : ' ')
       endif
     endfor
-    call add(lines, '│ ' . label . join(row_chars, '') . ' │')
+    call add(lines, '│ ' . label . axis_char . join(row_chars, '') . ' │')
   endfor
+
+  " X-axis line with corner + inward ticks at the data extremes.
+  let xaxis_chars = repeat(['─'], plot_w)
+  if len(recent) > 0
+    let xaxis_chars[0] = '┴'
+    let last_col = min([len(recent) - 1, plot_w - 1])
+    if last_col != 0 | let xaxis_chars[last_col] = '┴' | endif
+  endif
+  call add(lines, '│ ' . repeat(' ', label_w) . '└' . join(xaxis_chars, '') . ' │')
+
   call add(lines, '│ ' . s:pad_right(printf('last %d sessions  ·  aim line: ·  ·  ·  ·  log y-axis (rate/min)',
-    \ len(recent)), label_w + plot_w) . ' │')
+    \ len(recent)), label_w + 1 + plot_w) . ' │')
   call add(lines, s:panel_box_bottom(a:w))
   return lines
 endfunction
@@ -4311,9 +4328,9 @@ function! s:dashboard_daily_chart_panel(by_day, days_back, today_count, streak, 
     \ a:today_count, a:streak, a:streak == 1 ? '' : 's')
   call add(lines, '│' . s:pad_right(summary, a:w - 2) . '│')
 
-  let plot_h = max([a:h - 4, 3])
-  let label_w = 5
-  let plot_w = a:w - 4 - label_w
+  let label_w = 4
+  let plot_w = a:w - 5 - label_w
+  let plot_h = max([a:h - 5, 3])
 
   let counts = []
   for i in range(a:days_back - 1, 0, -1)
@@ -4347,8 +4364,9 @@ function! s:dashboard_daily_chart_panel(by_day, days_back, today_count, streak, 
 
   for r in range(plot_h)
     let label = has_key(label_rows, r)
-      \ ? printf('%' . (label_w - 1) . 'd ', label_rows[r])
+      \ ? printf('%' . label_w . 'd', label_rows[r])
       \ : repeat(' ', label_w)
+    let axis_char = has_key(label_rows, r) ? '├' : '│'
     let row_chars = repeat([' '], plot_w)
     for day_i in range(a:days_back)
       let n = counts[day_i]
@@ -4359,11 +4377,23 @@ function! s:dashboard_daily_chart_panel(by_day, days_back, today_count, streak, 
         if c < plot_w | let row_chars[c] = '●' | endif
       endif
     endfor
-    call add(lines, '│ ' . label . join(row_chars, '') . ' │')
+    call add(lines, '│ ' . label . axis_char . join(row_chars, '') . ' │')
   endfor
+
+  " X-axis line with corner + inward ticks at the first and last
+  " day positions (14 days ago and today).
+  let xaxis_chars = repeat(['─'], plot_w)
+  let first_col = col_for_day[0]
+  let last_col = col_for_day[a:days_back - 1]
+  if first_col < plot_w | let xaxis_chars[first_col] = '┴' | endif
+  if last_col < plot_w && last_col != first_col
+    let xaxis_chars[last_col] = '┴'
+  endif
+  call add(lines, '│ ' . repeat(' ', label_w) . '└' . join(xaxis_chars, '') . ' │')
+
   call add(lines, '│ ' . s:pad_right(printf('%dd ago' . repeat(' ',
     \ max([plot_w - 13, 0])) . 'today', a:days_back),
-    \ label_w + plot_w) . ' │')
+    \ label_w + 1 + plot_w) . ' │')
   call add(lines, s:panel_box_bottom(a:w))
   return lines
 endfunction
