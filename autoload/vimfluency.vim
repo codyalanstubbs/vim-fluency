@@ -3943,7 +3943,7 @@ function! s:show_dashboard(registry, sessions) abort
   let b:vf_dashboard_last_row = first_line
 
   call s:dashboard_render_hover(mapping, first_line, a:registry, a:sessions, cols)
-  call s:dashboard_render_profile(a:registry, a:sessions, cols)
+  call s:dashboard_render_profile(mapping, first_line, a:registry, a:sessions, cols)
 
   augroup VfDashboard
     autocmd!
@@ -3976,6 +3976,7 @@ function! s:dashboard_on_cursor_moved() abort
   let registry = vimfluency#discover_pinpoints()
   let sessions = s:load_sessions_grouped()
   call s:dashboard_render_hover(b:vf_list_line_to_id, row, registry, sessions, &columns)
+  call s:dashboard_render_profile(b:vf_list_line_to_id, row, registry, sessions, &columns)
 endfunction
 
 function! s:dashboard_cleanup() abort
@@ -3986,29 +3987,42 @@ function! s:dashboard_cleanup() abort
   silent! autocmd! VfDashboard
 endfunction
 
-" Render the hover panel buffer: chart on the left, last-session
-" summary on the right. The dashboard banner sits in the profile
-" panel above, so this buffer starts directly with the panels.
+" Render the hover panel buffer: two celeration charts side-by-side.
+" The hovered-drill chart is on the left (above LAST SESSION in the
+" profile panel); the daily-drills celeration chart is on the right
+" (above DAILY-related metrics there's nothing — the chart IS the
+" daily metric on its own).
 function! s:dashboard_render_hover(mapping, row, registry, sessions, cols) abort
   let id = get(a:mapping, a:row, '')
 
-  " Split the inner area horizontally into chart (left) and summary
-  " (right). Leave a 3-col gap between panels for visual breathing room.
-  let inner_w = a:cols - 2  " 1-col padding each side
-  let chart_w = (inner_w - 3) / 2
-  let summary_w = inner_w - 3 - chart_w
-  let chart_h = s:DASHBOARD_HOVER_HEIGHT - 1  " 1 trailing blank below
+  let inner_w = a:cols - 2
+  let left_w = (inner_w - 3) / 2
+  let right_w = inner_w - 3 - left_w
+  let chart_h = s:DASHBOARD_HOVER_HEIGHT - 1
 
-  let chart_lines = s:dashboard_chart_panel(id, a:registry, a:sessions, chart_w, chart_h)
-  let summary_lines = s:dashboard_summary_panel(id, a:registry, a:sessions, summary_w, chart_h)
+  let hovered_lines = s:dashboard_chart_panel(id, a:registry, a:sessions, left_w, chart_h)
 
-  " Pad both panels to the same height so the side-by-side join works.
-  while len(chart_lines) < chart_h | call add(chart_lines, '') | endwhile
-  while len(summary_lines) < chart_h | call add(summary_lines, '') | endwhile
+  " Aggregate daily counts across every logged session — same data
+  " model as the profile's session-count totals.
+  let by_day = {}
+  for runs in values(a:sessions)
+    for s in runs
+      let day = strpart(get(s, 'timestamp', ''), 0, 10)
+      if !empty(day) | let by_day[day] = get(by_day, day, 0) + 1 | endif
+    endfor
+  endfor
+  let days_back = 14
+  let today_str = strftime('%Y-%m-%d')
+  let today_count = get(by_day, today_str, 0)
+  let streak = s:dashboard_streak(by_day, today_str)
+  let daily_lines = s:dashboard_daily_chart_panel(by_day, days_back, today_count, streak, right_w, chart_h)
+
+  while len(hovered_lines) < chart_h | call add(hovered_lines, '') | endwhile
+  while len(daily_lines) < chart_h | call add(daily_lines, '') | endwhile
 
   let lines = []
   for i in range(chart_h)
-    let l = ' ' . s:pad_right(chart_lines[i], chart_w) . '   ' . s:pad_right(summary_lines[i], summary_w)
+    let l = ' ' . s:pad_right(hovered_lines[i], left_w) . '   ' . s:pad_right(daily_lines[i], right_w)
     call add(lines, s:pad_right(l, a:cols))
   endfor
 
@@ -4016,20 +4030,18 @@ function! s:dashboard_render_hover(mapping, row, registry, sessions, cols) abort
 endfunction
 
 function! s:dashboard_chart_panel(id, registry, sessions, w, h) abort
-  if empty(a:id) || !has_key(a:registry, a:id)
-    return [s:panel_box_top('HOVERED', a:w),
-      \ '│ (no row hovered)' . repeat(' ', a:w - 18) . '│',
-      \ s:panel_box_bottom(a:w)]
-  endif
-  let meta = a:registry[a:id]
-  let aim_overrides = get(s:load_settings(), 'aims', {})
-  let eff_aim = get(aim_overrides, a:id, get(meta, 'aim', 0))
-  let runs = get(a:sessions, a:id, [])
+  let runs = empty(a:id) ? [] : get(a:sessions, a:id, [])
   let usable = filter(copy(runs), 'get(v:val, "frequency_per_min", 0) > 0')
   call sort(usable, {a, b -> a.timestamp ==# b.timestamp ? 0
     \ : (a.timestamp <# b.timestamp ? -1 : 1)})
 
-  let title = printf('HOVERED: %s', a:id)
+  let aim_overrides = get(s:load_settings(), 'aims', {})
+  let eff_aim = 0
+  if !empty(a:id) && has_key(a:registry, a:id)
+    let eff_aim = get(aim_overrides, a:id, get(a:registry[a:id], 'aim', 0))
+  endif
+
+  let title = empty(a:id) ? 'HOVERED' : printf('HOVERED: %s', a:id)
   let lines = [s:panel_box_top(title, a:w)]
 
   let status = s:status_from_sessions(eff_aim, runs)
@@ -4041,46 +4053,36 @@ function! s:dashboard_chart_panel(id, registry, sessions, w, h) abort
     \ icon, eff_aim, empty(usable) ? '—' : string(s:round1(last_rate)))
   call add(lines, '│' . s:pad_right(summary, a:w - 2) . '│')
 
-  if empty(usable)
-    call add(lines, '│' . s:pad_right(' (no completed sessions yet)', a:w - 2) . '│')
-    call add(lines, s:panel_box_bottom(a:w))
-    return lines
-  endif
-
-  " Plot area uses log10 mapping (celeration convention — equal
-  " vertical distances == equal ratio changes). Bounds adapt to the
-  " observed rate range plus aim with a half-decade of padding above
-  " and below so the data isn't smashed against the borders.
+  " The chart frame (axis labels + aim line) renders even when there
+  " are no usable sessions yet — a stable visual placeholder beats a
+  " collapsing "(no data)" box that pops in and out as the cursor
+  " moves between trained / untrained drills.
   let plot_h = max([a:h - 4, 3])
   let label_w = 5
   let plot_w = a:w - 4 - label_w
-  " vim slicing returns [] when start is more-negative than the list
-  " length (no clamping), so take the whole list when there's fewer
-  " sessions than the plot is wide.
   let recent = len(usable) <= plot_w ? usable : usable[-plot_w :]
-  let rates = map(copy(recent), 'v:val.frequency_per_min')
-  let high = max([max(rates), eff_aim * 1.0]) * 2.0
-  let low = max([min(rates) * 0.5, 1.0])
-  let log_bot = floor(log10(low))
-  let log_top = ceil(log10(high))
+  if !empty(recent)
+    let rates = map(copy(recent), 'v:val.frequency_per_min')
+    let high = max([max(rates), eff_aim * 1.0]) * 2.0
+    let low = max([min(rates) * 0.5, 1.0])
+    let log_bot = floor(log10(low))
+    let log_top = ceil(log10(high))
+  else
+    " No data — pick bounds that bracket the aim so the aim line
+    " sits in the middle of the chart.
+    let aim_log = eff_aim > 0 ? log10(eff_aim * 1.0) : 1.5
+    let log_bot = floor(aim_log - 0.5)
+    let log_top = ceil(aim_log + 0.5)
+  endif
   if log_top - log_bot < 1 | let log_top = log_bot + 1 | endif
 
-  let aim_row = s:dashboard_log_y(eff_aim, plot_h, log_bot, log_top)
+  let aim_row = eff_aim > 0 ? s:dashboard_log_y(eff_aim, plot_h, log_bot, log_top) : -1
   let label_rows = {}
-  " Decade labels at every integer log10 step within the bounds, plus
-  " a half-decade row when the span is just one decade.
-  let ref_rates = []
   let lg = log_top
   while lg >= log_bot
-    call add(ref_rates, float2nr(pow(10.0, lg) + 0.5))
+    call s:add_label_rows(label_rows, plot_h, log_bot, log_top, float2nr(pow(10.0, lg) + 0.5))
     let lg -= 1.0
   endwhile
-  for ref_rate in ref_rates
-    let row = s:dashboard_log_y(ref_rate * 1.0, plot_h, log_bot, log_top)
-    if row >= 0 && row < plot_h && !has_key(label_rows, row)
-      let label_rows[row] = ref_rate
-    endif
-  endfor
 
   for r in range(plot_h)
     let label = has_key(label_rows, r)
@@ -4102,13 +4104,21 @@ function! s:dashboard_chart_panel(id, registry, sessions, w, h) abort
         call add(row_chars, r == aim_row ? '·' : ' ')
       endif
     endfor
-    let line = '│ ' . label . join(row_chars, '') . ' │'
-    call add(lines, line)
+    call add(lines, '│ ' . label . join(row_chars, '') . ' │')
   endfor
   call add(lines, '│ ' . s:pad_right(printf('last %d sessions  ·  aim line: ·  ·  ·  ·  log y-axis (rate/min)',
     \ len(recent)), label_w + plot_w) . ' │')
   call add(lines, s:panel_box_bottom(a:w))
   return lines
+endfunction
+
+" Helper used by both the hovered chart and the daily celeration
+" chart to populate decade-boundary y-axis labels.
+function! s:add_label_rows(label_rows, plot_h, log_bot, log_top, value) abort
+  let row = s:dashboard_log_y(a:value * 1.0, a:plot_h, a:log_bot, a:log_top)
+  if row >= 0 && row < a:plot_h && !has_key(a:label_rows, row)
+    let a:label_rows[row] = a:value
+  endif
 endfunction
 
 " Map a rate to a plot row (0 at top, plot_h-1 at bottom) using log10.
@@ -4142,27 +4152,16 @@ function! s:dashboard_summary_panel(id, registry, sessions, w, h) abort
   let errors = string(s:round1(get(last, 'errors_per_min', 0)))
   let eff = get(last, 'efficiency_pct', 0)
 
+  " Compact two-column layout — this panel lives in 1/4 of the
+  " dashboard width, so we can't afford the wide one-line-per-stat
+  " shape from the old half-width design.
+  let eff_part = eff > 0 ? printf('   eff %d%%', float2nr(eff)) : ''
   let stat_rows = [
-    \ printf(' %s   rate %s/min   aim %d/min', date, rate, aim_val),
-    \ printf(' duration %ds   correct %d   errors %s/min', float2nr(dur), correct, errors),
+    \ printf(' %s', date),
+    \ printf(' rate %s/min  ·  aim %d', rate, aim_val),
+    \ printf(' %d items in %ds', correct, float2nr(dur)),
+    \ printf(' errors %s/min%s', errors, eff_part),
     \ ]
-  if eff > 0
-    call add(stat_rows, printf(' efficiency %d%%', float2nr(eff)))
-  endif
-
-  " Per-motion mini breakdown (one line per motion, sorted by rate desc).
-  let pm = get(last, 'per_motion', {})
-  if !empty(pm)
-    let entries = []
-    for [motion, m] in items(pm)
-      call add(entries, {'motion': motion, 'rate': get(m, 'rate_per_min', 0)})
-    endfor
-    call sort(entries, {a, b -> a.rate < b.rate ? 1 : (a.rate > b.rate ? -1 : 0)})
-    call add(stat_rows, ' per motion:')
-    for e in entries[:3]
-      call add(stat_rows, printf('   %-4s  %5s/min', e.motion, string(s:round1(e.rate))))
-    endfor
-  endif
 
   for r in stat_rows
     if len(lines) - 1 >= a:h - 1 | break | endif
@@ -4173,7 +4172,9 @@ function! s:dashboard_summary_panel(id, registry, sessions, w, h) abort
 endfunction
 
 " Render the profile panel buffer: dashboard banner at the very
-" top, then the four learner-profile aggregates side-by-side.
+" top, then four panels side-by-side. The first panel (LAST SESSION)
+" is the only one that changes with the hovered row; the other three
+" are aggregates over the whole training history.
 "
 " Session totals (total_sessions, total_elapsed) iterate over every
 " entry in a:sessions, NOT just those that match a pinpoint in the
@@ -4181,7 +4182,7 @@ endfunction
 " pinpoint ids (e.g. 'insert_basic', 'discriminate_find_vs_till'),
 " and those still count as real training time the learner spent
 " even though the slug no longer maps to anything live.
-function! s:dashboard_render_profile(registry, sessions, cols) abort
+function! s:dashboard_render_profile(mapping, row, registry, sessions, cols) abort
   let aim_overrides = get(s:load_settings(), 'aims', {})
   let at_aim = 0 | let climbing = 0 | let not_started = 0
   let total_pinpoints = len(a:registry)
@@ -4240,14 +4241,18 @@ function! s:dashboard_render_profile(registry, sessions, cols) abort
   let gap = 3
   let pw = (inner_w - (panel_count - 1) * gap) / panel_count
 
+  " Panel order: LAST SESSION (left, hover-reactive), STATUS,
+  " FASTEST, NEEDS WORK. DAILY moved out to the hover row as its
+  " own celeration chart.
+  let hovered_id = get(a:mapping, a:row, '')
+  let panel_h = s:DASHBOARD_PROFILE_HEIGHT - 2
   let panels = []
+  call add(panels, s:dashboard_summary_panel(hovered_id, a:registry, a:sessions, pw, panel_h))
   call add(panels, s:dashboard_aim_panel(at_aim, climbing, not_started, total_pinpoints, total_elapsed, pw))
   call add(panels, s:dashboard_fastest_panel(fastest, pw))
   call add(panels, s:dashboard_slowest_panel(slowest, pw))
-  call add(panels, s:dashboard_daily_panel(by_day, days_back, today_count, streak, pw))
 
   " Profile panel rows below banner + 1 blank row.
-  let panel_h = s:DASHBOARD_PROFILE_HEIGHT - 2
   for p in panels
     while len(p) < panel_h | call add(p, '') | endwhile
   endfor
@@ -4300,23 +4305,69 @@ function! s:dashboard_slowest_panel(slowest, w) abort
   return lines
 endfunction
 
-function! s:dashboard_daily_panel(by_day, days_back, today_count, streak, w) abort
-  let lines = [s:panel_box_top(printf('DAILY (last %dd)', a:days_back), a:w)]
-  let bars = ' '
+" Daily celeration chart: training session count per day plotted on
+" a log y-axis. Same visual shape as the hovered-drill chart so the
+" two panels read consistently. Days with zero training don't get a
+" dot (log scale can't represent 0) — the gap itself is the cue.
+function! s:dashboard_daily_chart_panel(by_day, days_back, today_count, streak, w, h) abort
+  let title = printf('DAILY DRILLS (last %dd)', a:days_back)
+  let lines = [s:panel_box_top(title, a:w)]
+
+  let summary = printf(' today: %d  ·  streak: %d day%s',
+    \ a:today_count, a:streak, a:streak == 1 ? '' : 's')
+  call add(lines, '│' . s:pad_right(summary, a:w - 2) . '│')
+
+  let plot_h = max([a:h - 4, 3])
+  let label_w = 5
+  let plot_w = a:w - 4 - label_w
+
+  let counts = []
   for i in range(a:days_back - 1, 0, -1)
     let day = strftime('%Y-%m-%d', localtime() - i * 86400)
-    let n = get(a:by_day, day, 0)
-    if     n == 0  | let ch = '▁'
-    elseif n <= 2  | let ch = '▃'
-    elseif n <= 4  | let ch = '▅'
-    elseif n <= 6  | let ch = '▆'
-    else           | let ch = '█'
-    endif
-    let bars .= ch
+    call add(counts, get(a:by_day, day, 0))
   endfor
-  call add(lines, '│' . s:pad_right(bars, a:w - 2) . '│')
-  call add(lines, '│' . s:pad_right(printf(' today: %d   streak: %d day%s',
-    \ a:today_count, a:streak, a:streak == 1 ? '' : 's'), a:w - 2) . '│')
+
+  let max_count = empty(counts) ? 1 : max(counts)
+  let high = max([max_count, 1]) * 2.0
+  let log_bot = 0.0
+  let log_top = ceil(log10(high))
+  if log_top - log_bot < 1 | let log_top = log_bot + 1 | endif
+
+  let label_rows = {}
+  let lg = log_top
+  while lg >= log_bot
+    call s:add_label_rows(label_rows, plot_h, log_bot, log_top, float2nr(pow(10.0, lg) + 0.5))
+    let lg -= 1.0
+  endwhile
+
+  " Place day-column anchors evenly across plot_w. With days_back=14
+  " and plot_w >> 14 there's room to space the columns out; we
+  " just centre each day in its slot.
+  let col_per_day = plot_w * 1.0 / a:days_back
+  let col_for_day = []
+  for i in range(a:days_back)
+    call add(col_for_day, float2nr(i * col_per_day + col_per_day / 2.0))
+  endfor
+
+  for r in range(plot_h)
+    let label = has_key(label_rows, r)
+      \ ? printf('%' . (label_w - 1) . 'd ', label_rows[r])
+      \ : repeat(' ', label_w)
+    let row_chars = repeat([' '], plot_w)
+    for day_i in range(a:days_back)
+      let n = counts[day_i]
+      if n <= 0 | continue | endif
+      let plotted_row = s:dashboard_log_y(n * 1.0, plot_h, log_bot, log_top)
+      if r == plotted_row
+        let c = col_for_day[day_i]
+        if c < plot_w | let row_chars[c] = '●' | endif
+      endif
+    endfor
+    call add(lines, '│ ' . label . join(row_chars, '') . ' │')
+  endfor
+  call add(lines, '│ ' . s:pad_right(printf('%dd ago' . repeat(' ',
+    \ max([plot_w - 13, 0])) . 'today', a:days_back),
+    \ label_w + plot_w) . ' │')
   call add(lines, s:panel_box_bottom(a:w))
   return lines
 endfunction
