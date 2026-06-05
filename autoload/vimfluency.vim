@@ -4304,7 +4304,9 @@ function! s:dashboard_chart_panel(id, registry, sessions, w, h) abort
     let eff_aim = get(aim_overrides, a:id, get(a:registry[a:id], 'aim', 0))
   endif
 
-  let title = empty(a:id) ? 'HOVERED' : printf('HOVERED: %s', a:id)
+  let title = empty(a:id)
+    \ ? 'STANDARD CELERATION CHART'
+    \ : printf('STANDARD CELERATION CHART: %s', a:id)
   let lines = [s:panel_box_top(title, a:w)]
 
   let status = s:status_from_sessions(eff_aim, runs)
@@ -4415,7 +4417,10 @@ endfunction
 " prereqs list and per-command sub-table the :VfList B-breakdown
 " surfaces.
 function! s:dashboard_last_session_breakdown_panel(id, registry, sessions, w, h) abort
-  let lines = [s:panel_box_top('LAST SESSION', a:w)]
+  let title = empty(a:id)
+    \ ? 'LAST SESSION'
+    \ : printf('LAST SESSION: %s', a:id)
+  let lines = [s:panel_box_top(title, a:w)]
   if empty(a:id) || !has_key(a:registry, a:id)
     call add(lines, '│' . s:pad_right(' (no row hovered)', a:w - 2) . '│')
     while len(lines) < a:h - 1 | call add(lines, '│' . repeat(' ', a:w - 2) . '│') | endwhile
