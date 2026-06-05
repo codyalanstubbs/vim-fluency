@@ -3996,7 +3996,15 @@ endfunction
 "   vf-dashboard-table    (interactive — cursor + key bindings)
 " ─────────────────────────────────────────────────────────────────
 
-let s:DASHBOARD_PROFILE_HEIGHT = 8
+" Profile window height: tall enough to fit LAST SESSION + commands
+" sub-table (top border, 2 summary rows, 'commands:' header, column
+" header, up to 5 command rows, bottom border = ~10) and DRILLS
+" SUMMARY (top, 3 status rows, spacer, FASTEST, NEEDS WORK, bottom
+" = 8). Drills with more than 5 commands get truncated at the body
+" loop's break; drills with fewer leave blank padding above the
+" bottom border. The blank-spacer row + statusline cost is added by
+" s:dashboard_render_profile.
+let s:DASHBOARD_PROFILE_HEIGHT = 13
 let s:DASHBOARD_HOVER_HEIGHT = 15
 
 function! vimfluency#dashboard() abort
@@ -4402,43 +4410,118 @@ function! s:dashboard_log_y(rate, plot_h, log_bot, log_top) abort
   return max([0, min([a:plot_h - 1, row])])
 endfunction
 
-function! s:dashboard_summary_panel(id, registry, sessions, w, h) abort
+" LAST SESSION + breakdown for the hovered pinpoint. Now lives in
+" half the profile-row width (was 1/4), so we have room for the
+" prereqs list and per-command sub-table the :VfList B-breakdown
+" surfaces.
+function! s:dashboard_last_session_breakdown_panel(id, registry, sessions, w, h) abort
+  let lines = [s:panel_box_top('LAST SESSION', a:w)]
+  if empty(a:id) || !has_key(a:registry, a:id)
+    call add(lines, '│' . s:pad_right(' (no row hovered)', a:w - 2) . '│')
+    while len(lines) < a:h - 1 | call add(lines, '│' . repeat(' ', a:w - 2) . '│') | endwhile
+    call add(lines, s:panel_box_bottom(a:w))
+    return lines
+  endif
   let runs = get(a:sessions, a:id, [])
   let usable = filter(copy(runs), 'get(v:val, "frequency_per_min", 0) > 0')
   call sort(usable, {a, b -> a.timestamp ==# b.timestamp ? 0
     \ : (a.timestamp <# b.timestamp ? -1 : 1)})
 
-  let title = 'LAST SESSION'
-  let lines = [s:panel_box_top(title, a:w)]
+  let body = []
   if empty(usable)
-    call add(lines, '│' . s:pad_right(' (no sessions yet)', a:w - 2) . '│')
-    call add(lines, s:panel_box_bottom(a:w))
-    return lines
+    call add(body, ' (no sessions yet)')
+  else
+    let last = usable[-1]
+    let date = strpart(get(last, 'timestamp', ''), 0, 10)
+    let rate = string(s:round1(last.frequency_per_min))
+    let aim_val = get(last, 'aim', 0)
+    let dur = get(last, 'elapsed_seconds', get(last, 'duration_seconds', 0))
+    let correct = get(last, 'items_correct', 0)
+    let errors = string(s:round1(get(last, 'errors_per_min', 0)))
+    let eff = get(last, 'efficiency_pct', 0)
+    call add(body, printf(' %s   rate %s/min   aim %d/min   eff %d%%',
+      \ date, rate, aim_val, float2nr(eff)))
+    call add(body, printf(' %d items in %ds   errors %s/min',
+      \ correct, float2nr(dur), errors))
   endif
-  let last = usable[-1]
-  let date = strpart(get(last, 'timestamp', ''), 0, 10)
-  let rate = string(s:round1(last.frequency_per_min))
-  let aim_val = get(last, 'aim', 0)
-  let dur = get(last, 'elapsed_seconds', get(last, 'duration_seconds', 0))
-  let correct = get(last, 'items_correct', 0)
-  let errors = string(s:round1(get(last, 'errors_per_min', 0)))
-  let eff = get(last, 'efficiency_pct', 0)
 
-  " Compact two-column layout — this panel lives in 1/4 of the
-  " dashboard width, so we can't afford the wide one-line-per-stat
-  " shape from the old half-width design.
-  let eff_part = eff > 0 ? printf('   eff %d%%', float2nr(eff)) : ''
-  let stat_rows = [
-    \ printf(' %s', date),
-    \ printf(' rate %s/min  ·  aim %d', rate, aim_val),
-    \ printf(' %d items in %ds', correct, float2nr(dur)),
-    \ printf(' errors %s/min%s', errors, eff_part),
-    \ ]
+  " Prereqs sub-block — one line per prereq with its current status
+  " icon, matching the :VfList B-breakdown formatting.
+  let meta = a:registry[a:id]
+  let prereqs = filter(copy(get(meta, 'prereqs', [])),
+    \ 'has_key(a:registry, v:val)')
+  if !empty(prereqs)
+    call add(body, ' prereqs:')
+    let aim_overrides = get(s:load_settings(), 'aims', {})
+    for p in prereqs
+      let p_runs = get(a:sessions, p, [])
+      let p_meta = a:registry[p]
+      let p_aim = get(aim_overrides, p, get(p_meta, 'aim', 0))
+      let p_status = s:status_from_sessions(p_aim, p_runs)
+      call add(body, printf('   %s %s', s:status_icon(p_status), p))
+    endfor
+  endif
 
-  for r in stat_rows
-    if len(lines) - 1 >= a:h - 1 | break | endif
+  " Commands sub-table — header + one row per motion in the last
+  " session. Mirrors the breakdown columns from s:append_breakdown
+  " (command, last_rate, stroke_count, stroke_rate).
+  if !empty(usable)
+    let pm = get(usable[-1], 'per_motion', {})
+    if !empty(pm)
+      let eff_aim_for_drill = get(get(s:load_settings(), 'aims', {}), a:id, get(meta, 'aim', 0))
+      let stroke_overrides = get(meta, 'stroke_counts', {})
+      call add(body, ' commands:')
+      call add(body, printf('   %-6s  %9s  %7s  %s',
+        \ 'command', 'last_rate', 'strokes', 'stroke_rate'))
+      for motion in sort(keys(pm))
+        let mrate_f = get(pm[motion], 'rate_per_min', 0)
+        let mrate_i = float2nr(mrate_f + 0.5)
+        let strokes = get(stroke_overrides, motion, s:command_strokes(motion))
+        let mark = mrate_i >= eff_aim_for_drill ? '✓' : ' '
+        call add(body, printf(' %s %-6s  %6d/min  %4d str  %s',
+          \ mark, motion, mrate_i, strokes,
+          \ s:stroke_rate_field(mrate_f, strokes)))
+      endfor
+    endif
+  endif
+
+  " Body loop reserves the last row of the panel for the bottom
+  " border. `a:h` is the requested total panel rows (top + body/pad
+  " + bottom), so body stops once `len(lines)` reaches `a:h - 1` and
+  " the bottom border becomes row `a:h`.
+  for r in body
+    if len(lines) >= a:h - 1 | break | endif
     call add(lines, '│' . s:pad_right(r, a:w - 2) . '│')
   endfor
+  while len(lines) < a:h - 1 | call add(lines, '│' . repeat(' ', a:w - 2) . '│') | endwhile
+  call add(lines, s:panel_box_bottom(a:w))
+  return lines
+endfunction
+
+" DRILLS SUMMARY — merges the old STATUS / FASTEST / NEEDS WORK
+" panels into one wide panel that sits on the right side of the
+" profile row, directly above the DRILLS PER DAY chart.
+function! s:dashboard_drills_summary_panel(at_aim, climbing, not_started, total, fastest, slowest, w, h) abort
+  let lines = [s:panel_box_top('DRILLS SUMMARY', a:w)]
+  call add(lines, '│' . s:pad_right(printf(' ✓ at aim        %3d / %d', a:at_aim, a:total), a:w - 2) . '│')
+  call add(lines, '│' . s:pad_right(printf(' ▶ climbing      %3d / %d', a:climbing, a:total), a:w - 2) . '│')
+  call add(lines, '│' . s:pad_right(printf(' ○ not started   %3d / %d', a:not_started, a:total), a:w - 2) . '│')
+  call add(lines, '│' . repeat(' ', a:w - 2) . '│')
+  if !empty(a:fastest)
+    call add(lines, '│' . s:pad_right(printf(' FASTEST     %s   %s/min  (%d%% of aim)',
+      \ a:fastest.id, string(s:round1(a:fastest.rate)),
+      \ float2nr(a:fastest.ratio * 100)), a:w - 2) . '│')
+  else
+    call add(lines, '│' . s:pad_right(' FASTEST     (no data yet)', a:w - 2) . '│')
+  endif
+  if !empty(a:slowest)
+    call add(lines, '│' . s:pad_right(printf(' NEEDS WORK  %s   %s/min  (%d%% of aim)',
+      \ a:slowest.id, string(s:round1(a:slowest.rate)),
+      \ float2nr(a:slowest.ratio * 100)), a:w - 2) . '│')
+  else
+    call add(lines, '│' . s:pad_right(' NEEDS WORK  (no data yet)', a:w - 2) . '│')
+  endif
+  while len(lines) < a:h - 1 | call add(lines, '│' . repeat(' ', a:w - 2) . '│') | endwhile
   call add(lines, s:panel_box_bottom(a:w))
   return lines
 endfunction
@@ -4519,81 +4602,46 @@ function! s:dashboard_render_profile(mapping, row, registry, sessions, cols) abo
     \ s:format_path(s:effective_path()), path_scope,
     \ session_count, s:format_duration(total_elapsed)), a:cols)
 
+  " Two panels side-by-side at 1/2 width each. Left = LAST SESSION
+  " + breakdown for the hovered drill (above the HOVERED chart in
+  " the hover row). Right = DRILLS SUMMARY (above the DRILLS PER
+  " DAY chart). The half-width split matches the hover row's
+  " column split so the four panels line up vertically.
   let inner_w = a:cols - 2
-  let panel_count = 4
   let gap = 3
-  let pw = (inner_w - (panel_count - 1) * gap) / panel_count
+  let left_w = (inner_w - gap) / 2
+  let right_w = inner_w - gap - left_w
 
-  " Panel order: LAST SESSION (left, hover-reactive), STATUS,
-  " FASTEST, NEEDS WORK. DAILY moved out to the hover row as its
-  " own celeration chart.
   let hovered_id = get(a:mapping, a:row, '')
-  let panel_h = s:DASHBOARD_PROFILE_HEIGHT - 2
-  let panels = []
-  call add(panels, s:dashboard_summary_panel(hovered_id, a:registry, a:sessions, pw, panel_h))
-  call add(panels, s:dashboard_aim_panel(at_aim, climbing, not_started, total_pinpoints, total_elapsed, pw))
-  call add(panels, s:dashboard_fastest_panel(fastest, pw))
-  call add(panels, s:dashboard_slowest_panel(slowest, pw))
+  " Window has PROFILE_HEIGHT rows including the statusline, so the
+  " buffer content area is PROFILE_HEIGHT - 1. Subtract banner +
+  " blank spacer (2 more rows) to get the per-panel row budget.
+  let panel_h = s:DASHBOARD_PROFILE_HEIGHT - 3
 
-  " Profile panel rows below banner + 1 blank row.
-  for p in panels
-    while len(p) < panel_h | call add(p, '') | endwhile
-  endfor
+  let left_lines = s:dashboard_last_session_breakdown_panel(
+    \ hovered_id, a:registry, a:sessions, left_w, panel_h)
+  let right_lines = s:dashboard_drills_summary_panel(
+    \ at_aim, climbing, not_started, total_pinpoints,
+    \ fastest, slowest, right_w, panel_h)
+  while len(left_lines)  < panel_h | call add(left_lines,  '') | endwhile
+  while len(right_lines) < panel_h | call add(right_lines, '') | endwhile
 
   let lines = [banner, '']
   for i in range(panel_h)
-    let row_parts = []
-    for p in panels
-      call add(row_parts, s:pad_right(p[i], pw))
-    endfor
-    let line = ' ' . join(row_parts, repeat(' ', gap))
-    call add(lines, s:pad_right(line, a:cols))
+    let l = ' ' . s:pad_right(left_lines[i], left_w) . repeat(' ', gap) . s:pad_right(right_lines[i], right_w)
+    call add(lines, s:pad_right(l, a:cols))
   endfor
 
   call s:dashboard_write_buffer(get(b:, 'vf_dashboard_profile_bufnr', -1), lines)
 endfunction
 
-function! s:dashboard_aim_panel(at, climbing, not_started, total, total_seconds, w) abort
-  let lines = [s:panel_box_top('STATUS', a:w)]
-  call add(lines, '│' . s:pad_right(printf(' ✓ at aim       %3d / %d', a:at, a:total), a:w - 2) . '│')
-  call add(lines, '│' . s:pad_right(printf(' ▶ climbing     %3d / %d', a:climbing, a:total), a:w - 2) . '│')
-  call add(lines, '│' . s:pad_right(printf(' ○ not started  %3d / %d', a:not_started, a:total), a:w - 2) . '│')
-  call add(lines, s:panel_box_bottom(a:w))
-  return lines
-endfunction
-
-function! s:dashboard_fastest_panel(fastest, w) abort
-  let lines = [s:panel_box_top('FASTEST', a:w)]
-  if empty(a:fastest)
-    call add(lines, '│' . s:pad_right(' (no data)', a:w - 2) . '│')
-  else
-    call add(lines, '│' . s:pad_right(' ' . a:fastest.id, a:w - 2) . '│')
-    call add(lines, '│' . s:pad_right(printf(' %s/min  (%d%% of aim)',
-      \ string(s:round1(a:fastest.rate)), float2nr(a:fastest.ratio * 100)), a:w - 2) . '│')
-  endif
-  call add(lines, s:panel_box_bottom(a:w))
-  return lines
-endfunction
-
-function! s:dashboard_slowest_panel(slowest, w) abort
-  let lines = [s:panel_box_top('NEEDS WORK', a:w)]
-  if empty(a:slowest)
-    call add(lines, '│' . s:pad_right(' (no data)', a:w - 2) . '│')
-  else
-    call add(lines, '│' . s:pad_right(' ' . a:slowest.id, a:w - 2) . '│')
-    call add(lines, '│' . s:pad_right(printf(' %s/min  (%d%% of aim)',
-      \ string(s:round1(a:slowest.rate)), float2nr(a:slowest.ratio * 100)), a:w - 2) . '│')
-  endif
-  call add(lines, s:panel_box_bottom(a:w))
-  return lines
-endfunction
-
-" Daily celeration chart: training session count per day plotted on
-" a log y-axis. Same visual shape as the hovered-drill chart so the
-" two panels read consistently. Days with zero training don't get a
-" dot (log scale can't represent 0) — the gap itself is the cue.
+" Drills-per-day celeration chart: training session count per day
+" plotted on a log y-axis. Same visual shape as the hovered-drill
+" chart so the two panels read consistently. Days with zero training
+" don't get a dot (log scale can't represent 0) — the gap itself is
+" the cue.
 function! s:dashboard_daily_chart_panel(by_day, days_back, today_count, streak, w, h) abort
-  let title = printf('DAILY DRILLS (last %dd)', a:days_back)
+  let title = printf('DRILLS PER DAY (last %dd)', a:days_back)
   let lines = [s:panel_box_top(title, a:w)]
 
   let summary = printf(' today: %d  ·  streak: %d day%s',
