@@ -23,6 +23,8 @@ command! -nargs=+ -complete=customlist,vimfluency#complete VfSetAim call vimflue
 command! -nargs=1 -complete=customlist,vimfluency#complete VfResetAim call vimfluency#reset_aim(<f-args>)
 command! -nargs=1 VfSetDuration call vimfluency#set_duration(<f-args>)
 command! VfResetDuration call vimfluency#reset_duration()
+command! -nargs=+ VfSetPath call vimfluency#set_path(<q-args>)
+command! VfResetPath call vimfluency#reset_path()
 
 " High-contrast highlights so the target character stays legible against
 " any colorscheme. Saturated bg + dark fg = "highlighter pen" look.

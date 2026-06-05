@@ -173,6 +173,26 @@ function! s:effective_duration() abort
   return get(s:load_settings(), 'default_duration', 60)
 endfunction
 
+" Effective current path (specialty / curriculum focus). Defaults to
+" 'general' when unset. The path doesn't filter anything yet — it's
+" just a display field for now; the filtering layer ships in a
+" later round once the path data model is designed.
+function! s:effective_path() abort
+  return get(s:load_settings(), 'current_path', 'general')
+endfunction
+
+" Display-format a path slug: title-case each whitespace-separated
+" word ('frontend' → 'Frontend', 'web dev' → 'Web Dev').
+function! s:format_path(p) abort
+  if empty(a:p) | return 'General' | endif
+  let words = split(a:p, '\s\+')
+  let out = []
+  for w in words
+    call add(out, toupper(w[0]) . tolower(strpart(w, 1)))
+  endfor
+  return join(out, ' ')
+endfunction
+
 " :VfSetAim <id> <rate>  — store an aim override for one pinpoint.
 function! vimfluency#set_aim(id, rate) abort
   let registry = vimfluency#discover_pinpoints()
@@ -238,6 +258,32 @@ function! vimfluency#reset_duration() abort
   echo 'default duration cleared (reverted to 60s)'
 endfunction
 
+" :VfSetPath <name>  — store the learner's current path/specialty.
+" No validation (the path data model is a later round); whatever
+" the learner types is saved verbatim.
+function! vimfluency#set_path(...) abort
+  let raw = a:0 > 0 ? a:1 : ''
+  let p = substitute(raw, '^\s*\(.\{-}\)\s*$', '\1', '')
+  if empty(p)
+    echo 'path cannot be empty (use :VfResetPath to go back to general)'
+    return
+  endif
+  let settings = s:load_settings()
+  let settings.current_path = p
+  call s:save_settings(settings)
+  echo 'path set to ' . s:format_path(p)
+endfunction
+
+" :VfResetPath  — clear the path override (reverts to 'general').
+function! vimfluency#reset_path() abort
+  let settings = s:load_settings()
+  if has_key(settings, 'current_path')
+    call remove(settings, 'current_path')
+    call s:save_settings(settings)
+  endif
+  echo 'path reset to General'
+endfunction
+
 " Test accessors.
 function! vimfluency#_test_effective_aim(id, meta) abort
   return s:effective_aim(a:id, a:meta)
@@ -245,6 +291,10 @@ endfunction
 
 function! vimfluency#_test_effective_duration() abort
   return s:effective_duration()
+endfunction
+
+function! vimfluency#_test_effective_path() abort
+  return s:effective_path()
 endfunction
 
 function! vimfluency#discover_pinpoints() abort
@@ -3907,7 +3957,7 @@ function! s:show_dashboard(registry, sessions) abort
   let b:vf_list_sort_desc = 0
   let b:vf_dashboard_tabnr = tabnr
   let b:vf_dashboard_prev_laststatus = &laststatus
-  let &l:statusline = ' Vim Fluency dashboard   [L=Learn  T=Train  C=Chart  q=close]'
+  let &l:statusline = ' Vim Fluency dashboard   [L=Learn  T=Train  C=Chart  A=Aim  D=Duration  P=Path  q=close]'
   set laststatus=2
 
   " --- Window 2: profile aggregates at the very top ---
@@ -3957,8 +4007,9 @@ function! s:show_dashboard(registry, sessions) abort
   nnoremap <buffer> <silent> L :call vimfluency#list_action('learn')<CR>
   nnoremap <buffer> <silent> T :call vimfluency#list_action('train')<CR>
   nnoremap <buffer> <silent> C :call vimfluency#list_action('chart')<CR>
-  nnoremap <buffer> <silent> A :call vimfluency#list_set_aim()<CR>
-  nnoremap <buffer> <silent> D :call vimfluency#list_set_duration()<CR>
+  nnoremap <buffer> <silent> A :call vimfluency#dashboard_set_aim()<CR>
+  nnoremap <buffer> <silent> D :call vimfluency#dashboard_set_duration()<CR>
+  nnoremap <buffer> <silent> P :call vimfluency#dashboard_set_path()<CR>
   nnoremap <buffer> <silent> q :call vimfluency#close_summary()<CR>
   nnoremap <buffer> <silent> j :call vimfluency#list_move('next')<CR>
   nnoremap <buffer> <silent> k :call vimfluency#list_move('prev')<CR>
@@ -3985,6 +4036,118 @@ function! s:dashboard_cleanup() abort
     if b > 0 | silent! execute 'bwipeout! ' . b | endif
   endfor
   silent! autocmd! VfDashboard
+endfunction
+
+" Rebuild the dashboard table + panels after a settings change
+" (aim, path, etc.). Mirrors s:rebuild_list_buffer_keeping_pinpoint
+" but writes into the dashboard's vf-dashboard-table buffer and
+" refreshes the hover and profile side panels too. The column-header
+" row is prepended to the data lines (same +1 shift on row→id
+" mapping as the initial setup in s:show_dashboard).
+function! s:rebuild_dashboard_keeping_pinpoint(id) abort
+  let registry = vimfluency#discover_pinpoints()
+  let sessions = s:load_sessions_grouped()
+  let view = s:build_list_view(registry, sessions, get(b:, 'vf_list_expanded', {}),
+    \ get(b:, 'vf_list_sort_col', ''), get(b:, 'vf_list_sort_desc', 0))
+  let split = s:split_view(view)
+
+  let table_lines = [split.header_lines[-1]] + split.data_lines
+  let mapping = {}
+  for [k, id] in items(split.mapping)
+    let mapping[str2nr(k) + 1] = id
+  endfor
+  let pinpoint_rows = map(copy(split.pinpoint_rows), 'v:val + 1')
+
+  setlocal modifiable
+  silent! %delete _
+  call setline(1, table_lines)
+  setlocal nomodifiable nomodified
+  let b:vf_list_line_to_id    = mapping
+  let b:vf_list_pinpoint_rows = pinpoint_rows
+
+  let landing = empty(pinpoint_rows) ? 2 : pinpoint_rows[0]
+  for row in pinpoint_rows
+    if get(mapping, row, '') ==# a:id
+      let landing = row | break
+    endif
+  endfor
+  call cursor(landing, 1)
+  let b:vf_dashboard_last_row = landing
+
+  call s:dashboard_render_hover(mapping, landing, registry, sessions, &columns)
+  call s:dashboard_render_profile(mapping, landing, registry, sessions, &columns)
+endfunction
+
+" A → prompt to set or reset the aim for the hovered pinpoint.
+" Same set/reset semantics as vimfluency#list_set_aim, but the
+" rebuild path targets the dashboard buffers.
+function! vimfluency#dashboard_set_aim() abort
+  if !exists('b:vf_list_line_to_id') | return | endif
+  let id = get(b:vf_list_line_to_id, line('.'), '')
+  if empty(id)
+    echo 'cursor must be on a pinpoint row'
+    return
+  endif
+  let registry = vimfluency#discover_pinpoints()
+  let meta = get(registry, id, {})
+  let cur_aim = s:effective_aim(id, meta)
+  let aims = get(s:load_settings(), 'aims', {})
+  let is_overridden = has_key(aims, id)
+  let tag = is_overridden ? 'overridden' : 'default'
+  let prompt = printf('aim for %s [current %d/min, %s] (0 = reset, Esc = cancel): ',
+    \ id, cur_aim, tag)
+  let response = input(prompt)
+  redraw
+  if empty(response)
+    echo 'cancelled'
+    return
+  endif
+  if response !~# '^\d\+$'
+    echo 'aim must be a non-negative integer (rate per minute)'
+    return
+  endif
+  let rate = str2nr(response)
+  if rate == 0
+    if is_overridden
+      call vimfluency#reset_aim(id)
+    else
+      echo 'no aim override set for ' . id
+      return
+    endif
+  else
+    call vimfluency#set_aim(id, response)
+  endif
+  call s:rebuild_dashboard_keeping_pinpoint(id)
+endfunction
+
+" D → prompt for the global default duration. Duration doesn't
+" surface in the dashboard layout itself, so no rebuild — just
+" reuse the existing list_set_duration prompt.
+function! vimfluency#dashboard_set_duration() abort
+  call vimfluency#list_set_duration()
+endfunction
+
+" P → prompt to set the current path. Empty input cancels;
+" 'general' (or :VfResetPath) reverts to the default. The path
+" displays in the banner; it doesn't filter anything yet.
+function! vimfluency#dashboard_set_path() abort
+  let cur = s:effective_path()
+  let prompt = printf('current path [%s] (text = set, Esc = cancel): ',
+    \ s:format_path(cur))
+  let response = input(prompt)
+  redraw
+  let trimmed = substitute(response, '^\s*\(.\{-}\)\s*$', '\1', '')
+  if empty(trimmed)
+    echo 'cancelled'
+    return
+  endif
+  if tolower(trimmed) ==# 'general'
+    call vimfluency#reset_path()
+  else
+    call vimfluency#set_path(trimmed)
+  endif
+  let id = get(b:vf_list_line_to_id, line('.'), '')
+  call s:rebuild_dashboard_keeping_pinpoint(id)
 endfunction
 
 " Render the hover panel buffer: two celeration charts side-by-side.
@@ -4250,8 +4413,8 @@ function! s:dashboard_render_profile(mapping, row, registry, sessions, cols) abo
   let today_count = get(by_day, today_str, 0)
   let streak = s:dashboard_streak(by_day, today_str)
 
-  let banner = s:pad_right(printf('─ Vim Fluency ─── Path: General  │  %d sessions logged | %s trained ',
-    \ session_count, s:format_duration(total_elapsed)), a:cols)
+  let banner = s:pad_right(printf('─ Vim Fluency ─── Path: %s  │  %d sessions logged | %s trained ',
+    \ s:format_path(s:effective_path()), session_count, s:format_duration(total_elapsed)), a:cols)
 
   let inner_w = a:cols - 2
   let panel_count = 4
