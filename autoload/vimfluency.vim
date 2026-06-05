@@ -259,19 +259,24 @@ function! vimfluency#reset_duration() abort
 endfunction
 
 " :VfSetPath <name>  — store the learner's current path/specialty.
-" No validation (the path data model is a later round); whatever
-" the learner types is saved verbatim.
+" Validates against the discovered paths registry; unknown ids
+" are rejected with a list of what's available.
 function! vimfluency#set_path(...) abort
   let raw = a:0 > 0 ? a:1 : ''
-  let p = substitute(raw, '^\s*\(.\{-}\)\s*$', '\1', '')
+  let p = tolower(substitute(raw, '^\s*\(.\{-}\)\s*$', '\1', ''))
   if empty(p)
     echo 'path cannot be empty (use :VfResetPath to go back to general)'
+    return
+  endif
+  let paths = vimfluency#discover_paths()
+  if !has_key(paths, p)
+    echo 'unknown path: ' . p . '  ·  available: ' . join(sort(keys(paths)), ', ')
     return
   endif
   let settings = s:load_settings()
   let settings.current_path = p
   call s:save_settings(settings)
-  echo 'path set to ' . s:format_path(p)
+  echo 'path set to ' . paths[p].name
 endfunction
 
 " :VfResetPath  — clear the path override (reverts to 'general').
@@ -313,6 +318,86 @@ endfunction
 function! vimfluency#complete(arglead, cmdline, cursorpos) abort
   let registry = vimfluency#discover_pinpoints()
   return filter(sort(keys(registry)), 'v:val =~# "^" . a:arglead')
+endfunction
+
+" Path discovery mirrors pinpoint discovery: every
+" autoload/vimfluency/paths/<id>.vim that exports #meta() shows up
+" in the returned dict, keyed by its declared id. Meta shape:
+"   { 'id', 'name', 'description', 'include_all', 'pinpoint_ids' }
+"
+" `include_all: 1` is the sentinel for the wildcard 'no curation'
+" path — s:filter_registry_by_path returns the full registry
+" unchanged. Without include_all, only the listed pinpoint_ids
+" survive the filter (ids that don't resolve to a current pinpoint
+" are silently dropped, so paths don't need lockstep updates when
+" pinpoints rename or retire).
+function! vimfluency#discover_paths() abort
+  let registry = {}
+  let files = globpath(&runtimepath, 'autoload/vimfluency/paths/*.vim', 0, 1)
+  for f in files
+    let mod = fnamemodify(f, ':t:r')
+    let meta_fn = 'vimfluency#paths#' . mod . '#meta'
+    try
+      execute 'runtime autoload/vimfluency/paths/' . mod . '.vim'
+      let MetaFn = function(meta_fn)
+      let info = MetaFn()
+      let info.module = mod
+      let registry[info.id] = info
+    catch
+      " skip malformed path files silently
+    endtry
+  endfor
+  return registry
+endfunction
+
+" Tab-completion for :VfSetPath.
+function! vimfluency#complete_path(arglead, cmdline, cursorpos) abort
+  let paths = vimfluency#discover_paths()
+  return filter(sort(keys(paths)), 'v:val =~? "^" . a:arglead')
+endfunction
+
+" Look up the current path's meta. When the stored slug doesn't
+" match any built-in path file, we synthesize a sensible default
+" so the rest of the runtime never has to special-case 'no such
+" path' — the synthesized record behaves like a no-op path with
+" include_all set (returns the full registry).
+function! s:current_path_meta() abort
+  let path_id = s:effective_path()
+  let paths = vimfluency#discover_paths()
+  if has_key(paths, path_id) | return paths[path_id] | endif
+  return {'id': path_id, 'name': s:format_path(path_id),
+    \ 'description': '', 'include_all': 1, 'pinpoint_ids': []}
+endfunction
+
+" Return the subset of `registry` that the current path covers.
+function! s:filter_registry_by_path(registry) abort
+  let meta = s:current_path_meta()
+  if get(meta, 'include_all', 0) | return a:registry | endif
+  let filtered = {}
+  for id in get(meta, 'pinpoint_ids', [])
+    if has_key(a:registry, id) | let filtered[id] = a:registry[id] | endif
+  endfor
+  return filtered
+endfunction
+
+" :VfPaths — list the built-in paths plus the current selection.
+function! vimfluency#list_paths() abort
+  let paths = vimfluency#discover_paths()
+  let current = s:effective_path()
+  let registry = vimfluency#discover_pinpoints()
+  for id in sort(keys(paths))
+    let meta = paths[id]
+    let marker = id ==# current ? '▶' : ' '
+    let scope = get(meta, 'include_all', 0)
+      \ ? printf('all %d drills', len(registry))
+      \ : printf('%d drills', len(s:filter_registry_by_path(registry)))
+    if id !=# current && !get(meta, 'include_all', 0)
+      " Compute size against this specific path, not the current one.
+      let scope = printf('%d drills', len(filter(copy(get(meta, 'pinpoint_ids', [])),
+        \ 'has_key(registry, v:val)')))
+    endif
+    echo printf('%s %-15s  %-20s  (%s)', marker, id, meta.name, scope)
+  endfor
 endfunction
 
 " Human-readable family labels for navigator display. Mirrors the
@@ -3924,7 +4009,11 @@ function! vimfluency#dashboard() abort
 endfunction
 
 function! s:show_dashboard(registry, sessions) abort
-  let view = s:build_list_view(a:registry, a:sessions, {})
+  " Filter the registry to the current path. The dashboard is a
+  " curated view; :Vf <id> / :VfLearn <id> still work on every
+  " pinpoint regardless of which path is active.
+  let path_registry = s:filter_registry_by_path(a:registry)
+  let view = s:build_list_view(path_registry, a:sessions, {})
   let split = s:split_view(view)
   let cols = &columns
 
@@ -3992,8 +4081,8 @@ function! s:show_dashboard(registry, sessions) abort
   call cursor(first_line, 1)
   let b:vf_dashboard_last_row = first_line
 
-  call s:dashboard_render_hover(mapping, first_line, a:registry, a:sessions, cols)
-  call s:dashboard_render_profile(mapping, first_line, a:registry, a:sessions, cols)
+  call s:dashboard_render_hover(mapping, first_line, path_registry, a:sessions, cols)
+  call s:dashboard_render_profile(mapping, first_line, path_registry, a:sessions, cols)
 
   augroup VfDashboard
     autocmd!
@@ -4026,8 +4115,9 @@ function! s:dashboard_on_cursor_moved() abort
   " training, not while the dashboard is open, so this is cheap.
   let registry = vimfluency#discover_pinpoints()
   let sessions = s:load_sessions_grouped()
-  call s:dashboard_render_hover(b:vf_list_line_to_id, row, registry, sessions, &columns)
-  call s:dashboard_render_profile(b:vf_list_line_to_id, row, registry, sessions, &columns)
+  let path_registry = s:filter_registry_by_path(registry)
+  call s:dashboard_render_hover(b:vf_list_line_to_id, row, path_registry, sessions, &columns)
+  call s:dashboard_render_profile(b:vf_list_line_to_id, row, path_registry, sessions, &columns)
 endfunction
 
 function! s:dashboard_cleanup() abort
@@ -4046,8 +4136,9 @@ endfunction
 " mapping as the initial setup in s:show_dashboard).
 function! s:rebuild_dashboard_keeping_pinpoint(id) abort
   let registry = vimfluency#discover_pinpoints()
+  let path_registry = s:filter_registry_by_path(registry)
   let sessions = s:load_sessions_grouped()
-  let view = s:build_list_view(registry, sessions, get(b:, 'vf_list_expanded', {}),
+  let view = s:build_list_view(path_registry, sessions, get(b:, 'vf_list_expanded', {}),
     \ get(b:, 'vf_list_sort_col', ''), get(b:, 'vf_list_sort_desc', 0))
   let split = s:split_view(view)
 
@@ -4074,8 +4165,8 @@ function! s:rebuild_dashboard_keeping_pinpoint(id) abort
   call cursor(landing, 1)
   let b:vf_dashboard_last_row = landing
 
-  call s:dashboard_render_hover(mapping, landing, registry, sessions, &columns)
-  call s:dashboard_render_profile(mapping, landing, registry, sessions, &columns)
+  call s:dashboard_render_hover(mapping, landing, path_registry, sessions, &columns)
+  call s:dashboard_render_profile(mapping, landing, path_registry, sessions, &columns)
 endfunction
 
 " A → prompt to set or reset the aim for the hovered pinpoint.
@@ -4127,21 +4218,22 @@ function! vimfluency#dashboard_set_duration() abort
   call vimfluency#list_set_duration()
 endfunction
 
-" P → prompt to set the current path. Empty input cancels;
-" 'general' (or :VfResetPath) reverts to the default. The path
-" displays in the banner; it doesn't filter anything yet.
+" P → prompt to set the current path. Tab-completes from the
+" discovered paths registry. Empty cancels; 'general' resets.
 function! vimfluency#dashboard_set_path() abort
   let cur = s:effective_path()
-  let prompt = printf('current path [%s] (text = set, Esc = cancel): ',
-    \ s:format_path(cur))
-  let response = input(prompt)
+  let paths = vimfluency#discover_paths()
+  let available = join(sort(keys(paths)), ', ')
+  let prompt = printf('current path [%s] · available: %s (Tab completes, Esc = cancel): ',
+    \ cur, available)
+  let response = input(prompt, '', 'customlist,vimfluency#complete_path')
   redraw
-  let trimmed = substitute(response, '^\s*\(.\{-}\)\s*$', '\1', '')
+  let trimmed = tolower(substitute(response, '^\s*\(.\{-}\)\s*$', '\1', ''))
   if empty(trimmed)
     echo 'cancelled'
     return
   endif
-  if tolower(trimmed) ==# 'general'
+  if trimmed ==# 'general'
     call vimfluency#reset_path()
   else
     call vimfluency#set_path(trimmed)
@@ -4413,8 +4505,12 @@ function! s:dashboard_render_profile(mapping, row, registry, sessions, cols) abo
   let today_count = get(by_day, today_str, 0)
   let streak = s:dashboard_streak(by_day, today_str)
 
-  let banner = s:pad_right(printf('─ Vim Fluency ─── Path: %s  │  %d sessions logged | %s trained ',
-    \ s:format_path(s:effective_path()), session_count, s:format_duration(total_elapsed)), a:cols)
+  let path_meta = s:current_path_meta()
+  let path_scope = get(path_meta, 'include_all', 0)
+    \ ? '' : printf(' (%d drills)', total_pinpoints)
+  let banner = s:pad_right(printf('─ Vim Fluency ─── Path: %s%s  │  %d sessions logged | %s trained ',
+    \ s:format_path(s:effective_path()), path_scope,
+    \ session_count, s:format_duration(total_elapsed)), a:cols)
 
   let inner_w = a:cols - 2
   let panel_count = 4
