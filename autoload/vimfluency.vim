@@ -4054,7 +4054,7 @@ function! s:show_dashboard(registry, sessions) abort
   let b:vf_list_sort_desc = 0
   let b:vf_dashboard_tabnr = tabnr
   let b:vf_dashboard_prev_laststatus = &laststatus
-  let &l:statusline = ' Vim Fluency dashboard   [L=Learn  T=Train  C=Chart  A=Aim  D=Duration  P=Path  q=close]'
+  let &l:statusline = ' Vim Fluency dashboard   [L=Learn  T=Train  C=Chart  A=Aim  D=Duration  P=Path  B=Breakdown  q=close]'
   set laststatus=2
 
   " --- Window 2: profile aggregates at the very top ---
@@ -4066,6 +4066,15 @@ function! s:show_dashboard(registry, sessions) abort
   silent! execute 'keepalt file vf-dashboard-profile'
   let profile_bufnr = bufnr('%')
   let &l:statusline = ' '
+
+  " Keybindings on the profile window: q / <Esc> jump back to the
+  " table. j/k/etc work natively, so we just need the way out.
+  " Stored as buffer-local so they don't leak when the dashboard
+  " closes. The table window is found by its buffer name (the same
+  " buffer-local `vf_dashboard_*` vars only exist on the table).
+  nnoremap <buffer> <silent> q    :call vimfluency#dashboard_return_to_table()<CR>
+  nnoremap <buffer> <silent> <Esc> :call vimfluency#dashboard_return_to_table()<CR>
+  nnoremap <buffer> <silent> B    :call vimfluency#dashboard_return_to_table()<CR>
 
   " --- Window 3: hovered-drill panels between profile and table ---
   " From the table window, `aboveleft new` opens a window above it
@@ -4107,6 +4116,7 @@ function! s:show_dashboard(registry, sessions) abort
   nnoremap <buffer> <silent> A :call vimfluency#dashboard_set_aim()<CR>
   nnoremap <buffer> <silent> D :call vimfluency#dashboard_set_duration()<CR>
   nnoremap <buffer> <silent> P :call vimfluency#dashboard_set_path()<CR>
+  nnoremap <buffer> <silent> B :call vimfluency#dashboard_inspect_last_session()<CR>
   nnoremap <buffer> <silent> q :call vimfluency#close_summary()<CR>
   nnoremap <buffer> <silent> j :call vimfluency#list_move('next')<CR>
   nnoremap <buffer> <silent> k :call vimfluency#list_move('prev')<CR>
@@ -4248,6 +4258,41 @@ function! vimfluency#dashboard_set_path() abort
   endif
   let id = get(b:vf_list_line_to_id, line('.'), '')
   call s:rebuild_dashboard_keeping_pinpoint(id)
+endfunction
+
+" `B` action from the table: drop the cursor into the profile
+" window with the view scrolled to the top of the LAST SESSION
+" panel so the learner can move down with j/k to reach commands /
+" prereqs that overflow the window. The profile buffer carries the
+" full breakdown — only the visible slice changes here.
+function! vimfluency#dashboard_inspect_last_session() abort
+  if !exists('b:vf_dashboard_profile_bufnr') | return | endif
+  let profile_bufnr = b:vf_dashboard_profile_bufnr
+  for win in range(1, winnr('$'))
+    if winbufnr(win) == profile_bufnr
+      execute win . 'wincmd w'
+      " Row 3 = first line of the LAST SESSION panel (banner +
+      " blank spacer occupy rows 1-2). Land on the title row so
+      " the learner sees what they're scrolling.
+      keepjumps call cursor(3, 1)
+      normal! zt
+      return
+    endif
+  endfor
+endfunction
+
+" Inverse of dashboard_inspect_last_session: return the cursor to
+" the dashboard's table window. Bound to q / <Esc> / B from the
+" profile window so any of the three feels natural.
+function! vimfluency#dashboard_return_to_table() abort
+  let table_bufnr = bufnr('vf-dashboard-table')
+  if table_bufnr <= 0 | return | endif
+  for win in range(1, winnr('$'))
+    if winbufnr(win) == table_bufnr
+      execute win . 'wincmd w'
+      return
+    endif
+  endfor
 endfunction
 
 " Render the hover panel buffer: two celeration charts side-by-side.
@@ -4490,12 +4535,13 @@ function! s:dashboard_last_session_breakdown_panel(id, registry, sessions, w, h)
     endif
   endif
 
-  " Body loop reserves the last row of the panel for the bottom
-  " border. `a:h` is the requested total panel rows (top + body/pad
-  " + bottom), so body stops once `len(lines)` reaches `a:h - 1` and
-  " the bottom border becomes row `a:h`.
+  " LAST SESSION renders the *full* body — no truncation. Drills with
+  " more commands / prereqs than fit in PROFILE_HEIGHT push the panel
+  " below the visible window; the user reaches them by pressing `B`
+  " to jump into the profile window and scrolling (j/k). The right-
+  " side DRILLS SUMMARY panel is padded with blanks by the caller so
+  " the two panel columns stay row-aligned.
   for r in body
-    if len(lines) >= a:h - 1 | break | endif
     call add(lines, '│' . s:pad_right(r, a:w - 2) . '│')
   endfor
   while len(lines) < a:h - 1 | call add(lines, '│' . repeat(' ', a:w - 2) . '│') | endwhile
@@ -4628,11 +4674,17 @@ function! s:dashboard_render_profile(mapping, row, registry, sessions, cols) abo
   let right_lines = s:dashboard_drills_summary_panel(
     \ at_aim, climbing, not_started, total_pinpoints,
     \ fastest, slowest, right_w, panel_h)
-  while len(left_lines)  < panel_h | call add(left_lines,  '') | endwhile
-  while len(right_lines) < panel_h | call add(right_lines, '') | endwhile
+  " Both panels render at least panel_h rows. If LAST SESSION grew
+  " past panel_h (long command list / multiple prereqs), pad the
+  " right panel with blanks so the rows still line up — the user
+  " scrolls the profile window via the B key to reach the extra
+  " LAST SESSION rows.
+  let total_h = max([len(left_lines), len(right_lines), panel_h])
+  while len(left_lines)  < total_h | call add(left_lines,  '') | endwhile
+  while len(right_lines) < total_h | call add(right_lines, '') | endwhile
 
   let lines = [banner, '']
-  for i in range(panel_h)
+  for i in range(total_h)
     let l = ' ' . s:pad_right(left_lines[i], left_w) . repeat(' ', gap) . s:pad_right(right_lines[i], right_w)
     call add(lines, s:pad_right(l, a:cols))
   endfor
@@ -4756,6 +4808,13 @@ function! s:dashboard_write_buffer(bufnr, lines) abort
       silent! %delete _
       call setline(1, a:lines)
       setlocal nomodifiable nomodified
+      " Reset scroll: the profile buffer can be taller than the
+      " profile window (when LAST SESSION has prereqs + many
+      " commands). After re-rendering we want the window scrolled
+      " to line 1 so the next hover-driven update starts from the
+      " top rather than wherever the user previously scrolled to.
+      keepjumps call cursor(1, 1)
+      normal! zt
       break
     endif
   endfor
