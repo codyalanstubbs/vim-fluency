@@ -4505,9 +4505,16 @@ function! s:dashboard_render_profile(mapping, row, registry, sessions, cols) abo
   let today_count = get(by_day, today_str, 0)
   let streak = s:dashboard_streak(by_day, today_str)
 
-  let path_meta = s:current_path_meta()
-  let path_scope = get(path_meta, 'include_all', 0)
-    \ ? '' : printf(' (%d drills)', total_pinpoints)
+  " Banner: path name, then '(at_aim / total drills fluent · X%)'.
+  " The same shape renders for include_all paths (e.g. General),
+  " so the learner always sees their fluency progress alongside
+  " whichever curriculum they're currently on. Pct is rounded.
+  let fluent_pct = total_pinpoints > 0
+    \ ? float2nr(at_aim * 100.0 / total_pinpoints + 0.5)
+    \ : 0
+  let path_scope = total_pinpoints > 0
+    \ ? printf(' (%d/%d drills fluent · %d%%)', at_aim, total_pinpoints, fluent_pct)
+    \ : ''
   let banner = s:pad_right(printf('─ Vim Fluency ─── Path: %s%s  │  %d sessions logged | %s trained ',
     \ s:format_path(s:effective_path()), path_scope,
     \ session_count, s:format_duration(total_elapsed)), a:cols)
