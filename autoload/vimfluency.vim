@@ -3996,16 +3996,17 @@ endfunction
 "   vf-dashboard-table    (interactive — cursor + key bindings)
 " ─────────────────────────────────────────────────────────────────
 
-" Profile window height: tall enough to fit LAST SESSION + commands
-" sub-table (top border, 2 summary rows, 'commands:' header, column
-" header, up to 5 command rows, bottom border = ~10) and DRILLS
-" SUMMARY (top, 3 status rows, spacer, FASTEST, NEEDS WORK, bottom
-" = 8). Drills with more than 5 commands get truncated at the body
-" loop's break; drills with fewer leave blank padding above the
-" bottom border. The blank-spacer row + statusline cost is added by
-" s:dashboard_render_profile.
-let s:DASHBOARD_PROFILE_HEIGHT = 13
-let s:DASHBOARD_HOVER_HEIGHT = 15
+" Dashboard window dimensions. The banner buffer holds the one-line
+" 'Vim Fluency — Path: ... status counts ... sessions trained'
+" header (1 content row + its statusline). The hover buffer hosts
+" the two side-by-side celeration charts and absorbs the vertical
+" space freed by the removal of the old profile / DRILLS SUMMARY
+" row. The last-session buffer is a vertical side panel to the
+" right of the table at the bottom of the screen; its width is
+" tuned to fit the breakdown (drill id title + commands sub-table).
+let s:DASHBOARD_BANNER_HEIGHT = 1
+let s:DASHBOARD_HOVER_HEIGHT = 28
+let s:DASHBOARD_LAST_SESSION_WIDTH = 60
 
 function! vimfluency#dashboard() abort
   let registry = vimfluency#discover_pinpoints()
@@ -4057,28 +4058,23 @@ function! s:show_dashboard(registry, sessions) abort
   let &l:statusline = ' Vim Fluency dashboard   [L=Learn  T=Train  C=Chart  A=Aim  D=Duration  P=Path  B=Breakdown  q=close]'
   set laststatus=2
 
-  " --- Window 2: profile aggregates at the very top ---
+  " --- Window 2: banner at the very top (1 content row) ---
+  " The banner row holds the path + fluency + sessions/trained stats.
+  " It's its own window so the hover charts below can grow into the
+  " space without the table needing to know banner mechanics.
   topleft new
-  execute 'resize ' . s:DASHBOARD_PROFILE_HEIGHT
+  execute 'resize ' . s:DASHBOARD_BANNER_HEIGHT
   setlocal buftype=nofile bufhidden=wipe noswapfile nobuflisted
   setlocal nonumber norelativenumber nowrap signcolumn=no
   setlocal winfixheight nocursorline
-  silent! execute 'keepalt file vf-dashboard-profile'
-  let profile_bufnr = bufnr('%')
+  silent! execute 'keepalt file vf-dashboard-banner'
+  let banner_bufnr = bufnr('%')
   let &l:statusline = ' '
 
-  " Keybindings on the profile window: q / <Esc> jump back to the
-  " table. j/k/etc work natively, so we just need the way out.
-  " Stored as buffer-local so they don't leak when the dashboard
-  " closes. The table window is found by its buffer name (the same
-  " buffer-local `vf_dashboard_*` vars only exist on the table).
-  nnoremap <buffer> <silent> q    :call vimfluency#dashboard_return_to_table()<CR>
-  nnoremap <buffer> <silent> <Esc> :call vimfluency#dashboard_return_to_table()<CR>
-  nnoremap <buffer> <silent> B    :call vimfluency#dashboard_return_to_table()<CR>
-
-  " --- Window 3: hovered-drill panels between profile and table ---
-  " From the table window, `aboveleft new` opens a window above it
-  " (between profile and table) with a fresh buffer.
+  " --- Window 3: hovered-drill chart row between banner and table ---
+  " Now tall enough to be the visual centerpiece of the dashboard —
+  " absorbs the vertical space the old profile / DRILLS SUMMARY
+  " row used to take.
   call win_gotoid(table_winid)
   aboveleft new
   execute 'resize ' . s:DASHBOARD_HOVER_HEIGHT
@@ -4089,17 +4085,39 @@ function! s:show_dashboard(registry, sessions) abort
   let hover_bufnr = bufnr('%')
   let &l:statusline = ' '
 
+  " --- Window 4: LAST SESSION side panel beside the table ---
+  " A vertical split on the right of the table. The drill-specific
+  " breakdown (date / rate / aim / eff, prereqs, per-command
+  " sub-table) lives here and updates as the table's cursor moves.
+  call win_gotoid(table_winid)
+  execute 'rightbelow vertical ' . s:DASHBOARD_LAST_SESSION_WIDTH . 'new'
+  setlocal buftype=nofile bufhidden=wipe noswapfile nobuflisted
+  setlocal nonumber norelativenumber nowrap signcolumn=no
+  setlocal winfixwidth nocursorline
+  silent! execute 'keepalt file vf-dashboard-last-session'
+  let last_session_bufnr = bufnr('%')
+  let &l:statusline = ' [j/k=scroll  q/Esc/B=back to table] '
+
+  " Keybindings on the last-session window: q / <Esc> / B jump back
+  " to the table. Stored buffer-local so they don't leak when the
+  " dashboard closes.
+  nnoremap <buffer> <silent> q    :call vimfluency#dashboard_return_to_table()<CR>
+  nnoremap <buffer> <silent> <Esc> :call vimfluency#dashboard_return_to_table()<CR>
+  nnoremap <buffer> <silent> B    :call vimfluency#dashboard_return_to_table()<CR>
+
   " Return to the table window — that's where the cursor lives.
   call win_gotoid(table_winid)
   let b:vf_dashboard_hover_bufnr = hover_bufnr
-  let b:vf_dashboard_profile_bufnr = profile_bufnr
+  let b:vf_dashboard_banner_bufnr = banner_bufnr
+  let b:vf_dashboard_last_session_bufnr = last_session_bufnr
 
   let first_line = empty(pinpoint_rows) ? 2 : pinpoint_rows[0]
   call cursor(first_line, 1)
   let b:vf_dashboard_last_row = first_line
 
   call s:dashboard_render_hover(mapping, first_line, path_registry, a:sessions, cols)
-  call s:dashboard_render_profile(mapping, first_line, path_registry, a:sessions, cols)
+  call s:dashboard_render_banner(path_registry, a:sessions, cols)
+  call s:dashboard_render_last_session(mapping, first_line, path_registry, a:sessions)
 
   augroup VfDashboard
     autocmd!
@@ -4131,15 +4149,19 @@ function! s:dashboard_on_cursor_moved() abort
   let b:vf_dashboard_last_row = row
   " Re-fetch registry + sessions; the JSONL log only grows during
   " training, not while the dashboard is open, so this is cheap.
+  " The banner is hovering-independent (aggregates over everything),
+  " but training totals do change as the JSONL grows, so we
+  " re-render it here too — cheap enough to keep this path simple.
   let registry = vimfluency#discover_pinpoints()
   let sessions = s:load_sessions_grouped()
   let path_registry = s:filter_registry_by_path(registry)
   call s:dashboard_render_hover(b:vf_list_line_to_id, row, path_registry, sessions, &columns)
-  call s:dashboard_render_profile(b:vf_list_line_to_id, row, path_registry, sessions, &columns)
+  call s:dashboard_render_banner(path_registry, sessions, &columns)
+  call s:dashboard_render_last_session(b:vf_list_line_to_id, row, path_registry, sessions)
 endfunction
 
 function! s:dashboard_cleanup() abort
-  for name in ['vf-dashboard-hover', 'vf-dashboard-profile']
+  for name in ['vf-dashboard-hover', 'vf-dashboard-banner', 'vf-dashboard-last-session']
     let b = bufnr(name)
     if b > 0 | silent! execute 'bwipeout! ' . b | endif
   endfor
@@ -4184,7 +4206,8 @@ function! s:rebuild_dashboard_keeping_pinpoint(id) abort
   let b:vf_dashboard_last_row = landing
 
   call s:dashboard_render_hover(mapping, landing, path_registry, sessions, &columns)
-  call s:dashboard_render_profile(mapping, landing, path_registry, sessions, &columns)
+  call s:dashboard_render_banner(path_registry, sessions, &columns)
+  call s:dashboard_render_last_session(mapping, landing, path_registry, sessions)
 endfunction
 
 " A → prompt to set or reset the aim for the hovered pinpoint.
@@ -4263,18 +4286,20 @@ endfunction
 " `B` action from the table: drop the cursor into the profile
 " window with the view scrolled to the top of the LAST SESSION
 " panel so the learner can move down with j/k to reach commands /
-" prereqs that overflow the window. The profile buffer carries the
-" full breakdown — only the visible slice changes here.
+" prereqs that overflow the window. The LAST SESSION buffer is the
+" side panel beside the table — its full breakdown is rendered
+" without truncation; only the visible slice changes here.
 function! vimfluency#dashboard_inspect_last_session() abort
-  if !exists('b:vf_dashboard_profile_bufnr') | return | endif
-  let profile_bufnr = b:vf_dashboard_profile_bufnr
+  if !exists('b:vf_dashboard_last_session_bufnr') | return | endif
+  let bufnr = b:vf_dashboard_last_session_bufnr
   for win in range(1, winnr('$'))
-    if winbufnr(win) == profile_bufnr
+    if winbufnr(win) == bufnr
       execute win . 'wincmd w'
-      " Row 3 = first line of the LAST SESSION panel (banner +
-      " blank spacer occupy rows 1-2). Land on the title row so
-      " the learner sees what they're scrolling.
-      keepjumps call cursor(3, 1)
+      " Row 1 is the LAST SESSION title (the buffer now starts
+      " straight into the panel — no banner / blank spacer ahead
+      " of it). Land on the title so the learner sees what they're
+      " scrolling.
+      keepjumps call cursor(1, 1)
       normal! zt
       return
     endif
@@ -4283,7 +4308,7 @@ endfunction
 
 " Inverse of dashboard_inspect_last_session: return the cursor to
 " the dashboard's table window. Bound to q / <Esc> / B from the
-" profile window so any of the three feels natural.
+" LAST SESSION window so any of the three feels natural.
 function! vimfluency#dashboard_return_to_table() abort
   let table_bufnr = bufnr('vf-dashboard-table')
   if table_bufnr <= 0 | return | endif
@@ -4549,38 +4574,9 @@ function! s:dashboard_last_session_breakdown_panel(id, registry, sessions, w, h)
   return lines
 endfunction
 
-" DRILLS SUMMARY — merges the old STATUS / FASTEST / NEEDS WORK
-" panels into one wide panel that sits on the right side of the
-" profile row, directly above the DRILLS PER DAY chart.
-function! s:dashboard_drills_summary_panel(at_aim, climbing, not_started, total, fastest, slowest, w, h) abort
-  let lines = [s:panel_box_top('DRILLS SUMMARY', a:w)]
-  call add(lines, '│' . s:pad_right(printf(' ✓ at aim        %3d / %d', a:at_aim, a:total), a:w - 2) . '│')
-  call add(lines, '│' . s:pad_right(printf(' ▶ climbing      %3d / %d', a:climbing, a:total), a:w - 2) . '│')
-  call add(lines, '│' . s:pad_right(printf(' ○ not started   %3d / %d', a:not_started, a:total), a:w - 2) . '│')
-  call add(lines, '│' . repeat(' ', a:w - 2) . '│')
-  if !empty(a:fastest)
-    call add(lines, '│' . s:pad_right(printf(' FASTEST     %s   %s/min  (%d%% of aim)',
-      \ a:fastest.id, string(s:round1(a:fastest.rate)),
-      \ float2nr(a:fastest.ratio * 100)), a:w - 2) . '│')
-  else
-    call add(lines, '│' . s:pad_right(' FASTEST     (no data yet)', a:w - 2) . '│')
-  endif
-  if !empty(a:slowest)
-    call add(lines, '│' . s:pad_right(printf(' NEEDS WORK  %s   %s/min  (%d%% of aim)',
-      \ a:slowest.id, string(s:round1(a:slowest.rate)),
-      \ float2nr(a:slowest.ratio * 100)), a:w - 2) . '│')
-  else
-    call add(lines, '│' . s:pad_right(' NEEDS WORK  (no data yet)', a:w - 2) . '│')
-  endif
-  while len(lines) < a:h - 1 | call add(lines, '│' . repeat(' ', a:w - 2) . '│') | endwhile
-  call add(lines, s:panel_box_bottom(a:w))
-  return lines
-endfunction
-
-" Render the profile panel buffer: dashboard banner at the very
-" top, then four panels side-by-side. The first panel (LAST SESSION)
-" is the only one that changes with the hovered row; the other three
-" are aggregates over the whole training history.
+" Render the one-line banner: path name, drills-fluent fraction,
+" at-aim / climbing / not-started status counts, then the global
+" session totals.
 "
 " Session totals (total_sessions, total_elapsed) iterate over every
 " entry in a:sessions, NOT just those that match a pinpoint in the
@@ -4588,11 +4584,10 @@ endfunction
 " pinpoint ids (e.g. 'insert_basic', 'discriminate_find_vs_till'),
 " and those still count as real training time the learner spent
 " even though the slug no longer maps to anything live.
-function! s:dashboard_render_profile(mapping, row, registry, sessions, cols) abort
+function! s:dashboard_render_banner(registry, sessions, cols) abort
   let aim_overrides = get(s:load_settings(), 'aims', {})
   let at_aim = 0 | let climbing = 0 | let not_started = 0
   let total_pinpoints = len(a:registry)
-  let by_rate = []  " [{id, ratio, rate, aim}] for non-empty pinpoints
 
   for [id, m] in items(a:registry)
     let runs = get(a:sessions, id, [])
@@ -4602,94 +4597,68 @@ function! s:dashboard_render_profile(mapping, row, registry, sessions, cols) abo
     elseif status ==# 'climbing'    | let climbing += 1
     else                            | let not_started += 1
     endif
-    let usable = filter(copy(runs), 'get(v:val, "frequency_per_min", 0) > 0')
-    if !empty(usable)
-      let last = usable[-1]
-      let rate = last.frequency_per_min
-      if eff_aim > 0
-        call add(by_rate, {'id': id, 'ratio': rate * 1.0 / eff_aim,
-          \ 'rate': rate, 'aim': eff_aim})
-      endif
-    endif
   endfor
 
-  " Aggregate over EVERY logged session — including sessions whose
-  " pinpoint id no longer exists in the registry. See the function
-  " docstring for the reasoning.
   let total_elapsed = 0.0
   let session_count = 0
-  let by_day = {}
   for runs in values(a:sessions)
     for s in runs
       let total_elapsed += get(s, 'elapsed_seconds', 0)
       let session_count += 1
-      let day = strpart(get(s, 'timestamp', ''), 0, 10)
-      if !empty(day)
-        let by_day[day] = get(by_day, day, 0) + 1
-      endif
     endfor
   endfor
 
-  call sort(by_rate, {a, b -> a.ratio < b.ratio ? 1 : (a.ratio > b.ratio ? -1 : 0)})
-  let fastest = empty(by_rate) ? {} : by_rate[0]
-  let slowest = empty(by_rate) ? {} : by_rate[-1]
-
-  let days_back = 14
-  let today_str = strftime('%Y-%m-%d')
-  let today_count = get(by_day, today_str, 0)
-  let streak = s:dashboard_streak(by_day, today_str)
-
-  " Banner: path name, then '(at_aim / total drills fluent · X%)'.
-  " The same shape renders for include_all paths (e.g. General),
-  " so the learner always sees their fluency progress alongside
-  " whichever curriculum they're currently on. Pct is rounded.
   let fluent_pct = total_pinpoints > 0
     \ ? float2nr(at_aim * 100.0 / total_pinpoints + 0.5)
     \ : 0
   let path_scope = total_pinpoints > 0
     \ ? printf(' (%d/%d drills fluent · %d%%)', at_aim, total_pinpoints, fluent_pct)
     \ : ''
-  let banner = s:pad_right(printf('─ Vim Fluency ─── Path: %s%s  │  %d sessions logged | %s trained ',
-    \ s:format_path(s:effective_path()), path_scope,
+  let status_block = printf('✓ %d  ▶ %d  ○ %d',
+    \ at_aim, climbing, not_started)
+  let banner = s:pad_right(printf(
+    \ '─ Vim Fluency ─── Path: %s%s  │  %s  │  %d sessions | %s trained ',
+    \ s:format_path(s:effective_path()), path_scope, status_block,
     \ session_count, s:format_duration(total_elapsed)), a:cols)
 
-  " Two panels side-by-side at 1/2 width each. Left = LAST SESSION
-  " + breakdown for the hovered drill (above the HOVERED chart in
-  " the hover row). Right = DRILLS SUMMARY (above the DRILLS PER
-  " DAY chart). The half-width split matches the hover row's
-  " column split so the four panels line up vertically.
-  let inner_w = a:cols - 2
-  let gap = 3
-  let left_w = (inner_w - gap) / 2
-  let right_w = inner_w - gap - left_w
+  call s:dashboard_write_buffer(
+    \ get(b:, 'vf_dashboard_banner_bufnr', -1), [banner])
+endfunction
 
+" Render the LAST SESSION side panel (right of the table). Reuses
+" s:dashboard_last_session_breakdown_panel for the box shape; the
+" panel renders the *full* breakdown — no truncation — and the
+" learner reaches commands / prereqs that fall below the visible
+" window by pressing B (which drops the cursor into this buffer
+" with the title scrolled to the top).
+function! s:dashboard_render_last_session(mapping, row, registry, sessions) abort
+  let bufnr = get(b:, 'vf_dashboard_last_session_bufnr', -1)
+  if bufnr <= 0 | return | endif
   let hovered_id = get(a:mapping, a:row, '')
-  " Window has PROFILE_HEIGHT rows including the statusline, so the
-  " buffer content area is PROFILE_HEIGHT - 1. Subtract banner +
-  " blank spacer (2 more rows) to get the per-panel row budget.
-  let panel_h = s:DASHBOARD_PROFILE_HEIGHT - 3
-
-  let left_lines = s:dashboard_last_session_breakdown_panel(
-    \ hovered_id, a:registry, a:sessions, left_w, panel_h)
-  let right_lines = s:dashboard_drills_summary_panel(
-    \ at_aim, climbing, not_started, total_pinpoints,
-    \ fastest, slowest, right_w, panel_h)
-  " Both panels render at least panel_h rows. If LAST SESSION grew
-  " past panel_h (long command list / multiple prereqs), pad the
-  " right panel with blanks so the rows still line up — the user
-  " scrolls the profile window via the B key to reach the extra
-  " LAST SESSION rows.
-  let total_h = max([len(left_lines), len(right_lines), panel_h])
-  while len(left_lines)  < total_h | call add(left_lines,  '') | endwhile
-  while len(right_lines) < total_h | call add(right_lines, '') | endwhile
-
-  let lines = [banner, '']
-  for i in range(total_h)
-    let l = ' ' . s:pad_right(left_lines[i], left_w) . repeat(' ', gap) . s:pad_right(right_lines[i], right_w)
-    call add(lines, s:pad_right(l, a:cols))
+  " Panel width is the side-panel width minus a one-column gutter on
+  " either side (matches the rest of the dashboard's `gap` aesthetic).
+  let w = s:DASHBOARD_LAST_SESSION_WIDTH - 2
+  " Size the panel to fill the visible window so the bottom border
+  " sits at the window's bottom edge — without this, short drills
+  " leave the box closing mid-window and the rest of the panel
+  " looking empty. We fall back to a small minimum if we can't
+  " find the window (the buffer renders before the window settles
+  " on first show). Long drills (more rows than the window holds)
+  " overflow past the bottom and are scrollable via B + j/k.
+  let win_h = 6
+  for win in range(1, winnr('$'))
+    if winbufnr(win) == bufnr
+      let win_h = max([winheight(win), 6])
+      break
+    endif
   endfor
-
-  call s:dashboard_write_buffer(get(b:, 'vf_dashboard_profile_bufnr', -1), lines)
+  let lines = s:dashboard_last_session_breakdown_panel(
+    \ hovered_id, a:registry, a:sessions, w, win_h)
+  let padded = []
+  for l in lines
+    call add(padded, ' ' . l)
+  endfor
+  call s:dashboard_write_buffer(bufnr, padded)
 endfunction
 
 " Drills-per-day celeration chart: training session count per day
