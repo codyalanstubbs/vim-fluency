@@ -1498,15 +1498,33 @@ function! s:next_item() abort
   let item = {}
   let attempts = 0
   let cur_canon = s:session.kind ==# 'mode_switch' ? s:mode_canonical(mode(1)) : ''
+  " Anti-streak guard: reject candidates whose expected_motion would
+  " make the streak of identical commands hit 3. Pinpoints randomize
+  " each call independently — without this, a 2-command drill rolls
+  " 4-5 of the same command in a row often enough to feel mechanical,
+  " especially when the on-screen scenario is static (save/quit).
+  " The constraint relaxes after STREAK_GIVEUP attempts so degenerate
+  " filter combinations (e.g. only=:w on a multi-cmd drill) still
+  " return an item.
+  let recent = get(s:session, 'recent_motions', [])
+  let STREAK_GIVEUP = 50
   while attempts < 100
     let item = GenFn()
+    let cand = get(item, 'expected_motion', '')
     let filter_ok = empty(s:session.only_filter)
-      \ || index(s:session.only_filter, get(item, 'expected_motion', '')) >= 0
+      \ || index(s:session.only_filter, cand) >= 0
     " mode_switch needs target != current (otherwise the user has
     " nothing to do, and we don't want the same target twice in a row).
     let mode_ok = s:session.kind !=# 'mode_switch'
       \ || get(item, 'target_mode_canon', '') !=# cur_canon
-    if filter_ok && mode_ok
+    " Streak check is the LAST gate so the explicit filters win. Two
+    " identical motions queued → reject a third. Skipped past
+    " STREAK_GIVEUP so we can't infinite-loop on a sole-survivor.
+    let streak_ok = attempts >= STREAK_GIVEUP
+      \ || len(recent) < 2
+      \ || cand !=# recent[-1]
+      \ || cand !=# recent[-2]
+    if filter_ok && mode_ok && streak_ok
       break
     endif
     let attempts += 1
@@ -1517,6 +1535,12 @@ function! s:next_item() abort
     call vimfluency#stop('filter_error')
     return
   endif
+  " Push the chosen motion onto the recent-history ring (cap at 2 —
+  " we only need the last two for the streak check).
+  let recent = get(s:session, 'recent_motions', [])
+  call add(recent, get(item, 'expected_motion', ''))
+  if len(recent) > 2 | call remove(recent, 0, len(recent) - 3) | endif
+  let s:session.recent_motions = recent
   let s:session.current_item = item
   let s:session.item_started_at = reltime()
   let s:session.current_item_motions = 0
