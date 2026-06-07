@@ -4096,14 +4096,17 @@ function! s:show_dashboard(registry, sessions) abort
   setlocal winfixwidth nocursorline
   silent! execute 'keepalt file vf-dashboard-last-session'
   let last_session_bufnr = bufnr('%')
-  let &l:statusline = ' [j/k=scroll  q/Esc/B=back to table] '
+  let &l:statusline = ' [j/k=scroll  J/<CR>=jump to prereq  q/Esc/B=back to table] '
 
   " Keybindings on the last-session window: q / <Esc> / B jump back
-  " to the table. Stored buffer-local so they don't leak when the
-  " dashboard closes.
+  " to the table. J / <CR> on a prereq line jumps the table cursor
+  " to that prereq's row. Stored buffer-local so they don't leak
+  " when the dashboard closes.
   nnoremap <buffer> <silent> q    :call vimfluency#dashboard_return_to_table()<CR>
   nnoremap <buffer> <silent> <Esc> :call vimfluency#dashboard_return_to_table()<CR>
   nnoremap <buffer> <silent> B    :call vimfluency#dashboard_return_to_table()<CR>
+  nnoremap <buffer> <silent> J    :call vimfluency#dashboard_jump_to_prereq()<CR>
+  nnoremap <buffer> <silent> <CR> :call vimfluency#dashboard_jump_to_prereq()<CR>
 
   " Return to the table window — that's where the cursor lives.
   call win_gotoid(table_winid)
@@ -4318,6 +4321,44 @@ function! vimfluency#dashboard_return_to_table() abort
       return
     endif
   endfor
+endfunction
+
+" J / <CR> from the LAST SESSION pane: if the cursor is on a prereq
+" line, switch to the table window and move its cursor to that
+" prereq's row. The render path stores the buffer-line → prereq-id
+" map on b:vf_dashboard_prereq_map; we look up the current line and
+" then re-use the table's existing line→id mapping to find the
+" target row. Errors when the path filter excludes the prereq from
+" the visible table (e.g. the user is on Foundational but the
+" prereq lives in a different path).
+function! vimfluency#dashboard_jump_to_prereq() abort
+  let prereq_map = get(b:, 'vf_dashboard_prereq_map', {})
+  let prereq_id = get(prereq_map, line('.'), '')
+  if empty(prereq_id)
+    echo 'cursor is not on a prereq line'
+    return
+  endif
+
+  let table_bufnr = bufnr('vf-dashboard-table')
+  if table_bufnr <= 0 | return | endif
+  let table_winid = -1
+  for win in range(1, winnr('$'))
+    if winbufnr(win) == table_bufnr
+      execute win . 'wincmd w'
+      let table_winid = win_getid()
+      break
+    endif
+  endfor
+  if table_winid < 0 | return | endif
+
+  let mapping = get(b:, 'vf_list_line_to_id', {})
+  for [k, v] in items(mapping)
+    if v ==# prereq_id
+      call cursor(str2nr(k), 1)
+      return
+    endif
+  endfor
+  echo printf('prereq %s not in current path — try changing path with P', prereq_id)
 endfunction
 
 " Render the hover panel buffer: two celeration charts side-by-side.
@@ -4574,7 +4615,7 @@ function! s:dashboard_last_session_breakdown_panel(id, registry, sessions, w, h)
     call add(lines, '│' . s:pad_right(' (no row hovered)', a:w - 2) . '│')
     while len(lines) < a:h - 1 | call add(lines, '│' . repeat(' ', a:w - 2) . '│') | endwhile
     call add(lines, s:panel_box_bottom(a:w))
-    return lines
+    return {'lines': lines, 'prereq_map': {}}
   endif
   let runs = get(a:sessions, a:id, [])
   let usable = filter(copy(runs), 'get(v:val, "frequency_per_min", 0) > 0')
@@ -4600,10 +4641,16 @@ function! s:dashboard_last_session_breakdown_panel(id, registry, sessions, w, h)
   endif
 
   " Prereqs sub-block — one line per prereq with its current status
-  " icon, matching the :VfList B-breakdown formatting.
+  " icon, matching the :VfList B-breakdown formatting. Track each
+  " prereq line's body index so the renderer can build a buffer-line
+  " → prereq-id map for the J keystroke (jump to prereq in table).
   let meta = a:registry[a:id]
   let prereqs = filter(copy(get(meta, 'prereqs', [])),
     \ 'has_key(a:registry, v:val)')
+  " body index → prereq id; populated only when prereqs are listed.
+  " Initialized at function scope so the post-build map-construction
+  " loop runs cleanly even when no prereqs exist.
+  let body_prereq_lines = {}
   if !empty(prereqs)
     call add(body, ' prereqs:')
     let aim_overrides = get(s:load_settings(), 'aims', {})
@@ -4613,6 +4660,7 @@ function! s:dashboard_last_session_breakdown_panel(id, registry, sessions, w, h)
       let p_aim = get(aim_overrides, p, get(p_meta, 'aim', 0))
       let p_status = s:status_from_sessions(p_aim, p_runs)
       call add(body, printf('   %s %s', s:status_icon(p_status), p))
+      let body_prereq_lines[len(body) - 1] = p
     endfor
   endif
 
@@ -4640,17 +4688,24 @@ function! s:dashboard_last_session_breakdown_panel(id, registry, sessions, w, h)
   endif
 
   " LAST SESSION renders the *full* body — no truncation. Drills with
-  " more commands / prereqs than fit in PROFILE_HEIGHT push the panel
-  " below the visible window; the user reaches them by pressing `B`
-  " to jump into the profile window and scrolling (j/k). The right-
-  " side DRILLS SUMMARY panel is padded with blanks by the caller so
-  " the two panel columns stay row-aligned.
+  " more commands / prereqs than fit in the side panel push the
+  " bottom below the visible window; the user reaches them by
+  " pressing `B` to jump into the panel and scrolling (j/k).
+  "
+  " Build the prereq line→id map keyed on the line index INSIDE this
+  " returned list (so the caller doesn't need to know about the
+  " 'box_top + body' offset arithmetic). Body item i lives at
+  " lines[i + 1] because lines[0] is the top border.
+  let prereq_map = {}
+  for [bi, p] in items(body_prereq_lines)
+    let prereq_map[str2nr(bi) + 1] = p
+  endfor
   for r in body
     call add(lines, '│' . s:pad_right(r, a:w - 2) . '│')
   endfor
   while len(lines) < a:h - 1 | call add(lines, '│' . repeat(' ', a:w - 2) . '│') | endwhile
   call add(lines, s:panel_box_bottom(a:w))
-  return lines
+  return {'lines': lines, 'prereq_map': prereq_map}
 endfunction
 
 " Render the one-line banner: path name, drills-fluent fraction,
@@ -4731,13 +4786,22 @@ function! s:dashboard_render_last_session(mapping, row, registry, sessions) abor
       break
     endif
   endfor
-  let lines = s:dashboard_last_session_breakdown_panel(
+  let result = s:dashboard_last_session_breakdown_panel(
     \ hovered_id, a:registry, a:sessions, w, win_h)
   let padded = []
-  for l in lines
+  for l in result.lines
     call add(padded, ' ' . l)
   endfor
   call s:dashboard_write_buffer(bufnr, padded)
+  " Stash the buffer-line → prereq-id map on the last-session buffer
+  " so J (jump-to-prereq) can resolve the cursor row to an id without
+  " re-parsing the rendered text. Panel returns 0-indexed line numbers
+  " inside its own lines[] list; the buffer is 1-indexed, so shift +1.
+  let buffer_prereq_map = {}
+  for [k, p] in items(result.prereq_map)
+    let buffer_prereq_map[str2nr(k) + 1] = p
+  endfor
+  call setbufvar(bufnr, 'vf_dashboard_prereq_map', buffer_prereq_map)
 endfunction
 
 " Drills-per-day celeration chart: training session count per day
