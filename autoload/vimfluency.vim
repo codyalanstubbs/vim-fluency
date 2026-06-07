@@ -4321,10 +4321,10 @@ function! vimfluency#dashboard_return_to_table() abort
 endfunction
 
 " Render the hover panel buffer: two celeration charts side-by-side.
-" The hovered-drill chart is on the left (above LAST SESSION in the
-" profile panel); the daily-drills celeration chart is on the right
-" (above DAILY-related metrics there's nothing — the chart IS the
-" daily metric on its own).
+" DRILLS PER DAY (the at-a-glance "did I show up today" chart) lives
+" on the LEFT so it's the first chart the learner's eye lands on;
+" the hovered drill's STANDARD CELERATION CHART sits on the RIGHT
+" where the per-drill detail naturally trails the macro view.
 function! s:dashboard_render_hover(mapping, row, registry, sessions, cols) abort
   let id = get(a:mapping, a:row, '')
 
@@ -4333,10 +4333,8 @@ function! s:dashboard_render_hover(mapping, row, registry, sessions, cols) abort
   let right_w = inner_w - 3 - left_w
   let chart_h = s:DASHBOARD_HOVER_HEIGHT - 1
 
-  let hovered_lines = s:dashboard_chart_panel(id, a:registry, a:sessions, left_w, chart_h)
-
   " Aggregate daily counts across every logged session — same data
-  " model as the profile's session-count totals.
+  " model as the banner's session-count totals.
   let by_day = {}
   for runs in values(a:sessions)
     for s in runs
@@ -4348,14 +4346,16 @@ function! s:dashboard_render_hover(mapping, row, registry, sessions, cols) abort
   let today_str = strftime('%Y-%m-%d')
   let today_count = get(by_day, today_str, 0)
   let streak = s:dashboard_streak(by_day, today_str)
-  let daily_lines = s:dashboard_daily_chart_panel(by_day, days_back, today_count, streak, right_w, chart_h)
+  let daily_lines = s:dashboard_daily_chart_panel(by_day, days_back, today_count, streak, left_w, chart_h)
 
-  while len(hovered_lines) < chart_h | call add(hovered_lines, '') | endwhile
+  let hovered_lines = s:dashboard_chart_panel(id, a:registry, a:sessions, right_w, chart_h)
+
   while len(daily_lines) < chart_h | call add(daily_lines, '') | endwhile
+  while len(hovered_lines) < chart_h | call add(hovered_lines, '') | endwhile
 
   let lines = []
   for i in range(chart_h)
-    let l = ' ' . s:pad_right(hovered_lines[i], left_w) . '   ' . s:pad_right(daily_lines[i], right_w)
+    let l = ' ' . s:pad_right(daily_lines[i], left_w) . '   ' . s:pad_right(hovered_lines[i], right_w)
     call add(lines, s:pad_right(l, a:cols))
   endfor
 
