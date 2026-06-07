@@ -4402,16 +4402,48 @@ function! s:dashboard_chart_panel(id, registry, sessions, w, h) abort
   " labels still land cleanly at 100, 10, 1; the top of the chart
   " is the 10^2.5 boundary.
   "
+  " X-axis is calendar-date based (PT convention), matching :VfChart:
+  " one column per day, multi-session days stack at the same column,
+  " gaps render days with no training. When the trained-day span
+  " exceeds the available plot width, only the most recent days fit;
+  " older sessions scroll off the left edge — the dashboard SCC is
+  " an at-a-glance view, the full history lives in :VfChart.
+  "
   " Axes use box-drawing characters: │ for the y-axis line, ─ for
   " the x-axis line, └ at their meeting corner. Tick marks point
   " INWARD: ├ on the y-axis at each decade label, ┴ on the x-axis
-  " at the first and last data columns.
+  " at each labeled day. Errors plot as × at their error-rate row.
   let label_w = 4
   let plot_w = a:w - 5 - label_w
-  let plot_h = max([a:h - 5, 3])
-  let recent = len(usable) <= plot_w ? usable : usable[-plot_w :]
+  " Reserve one extra row vs the old layout for the MM-DD date row
+  " below the x-axis. plot_h shrinks by one to keep the panel total
+  " at h.
+  let plot_h = max([a:h - 6, 3])
   let log_bot = 0.0
   let log_top = 2.5
+  let cols_per_day = 1
+
+  " Bucket sessions by julian day and clip to the most-recent window
+  " that fits in plot_w. base_jul is the leftmost visible day.
+  let day_data = {}  " day_idx (0..n_days-1) → [{rate, errors}, …]
+  let n_days = 0
+  let base_jul = 0
+  if !empty(usable)
+    let last_jul = s:julian_from_iso(usable[-1].timestamp)
+    let first_jul = s:julian_from_iso(usable[0].timestamp)
+    let span_days = last_jul - first_jul + 1
+    let max_days = plot_w / cols_per_day
+    let n_days = min([span_days, max_days])
+    let base_jul = last_jul - n_days + 1
+    for s in usable
+      let day_idx = s:julian_from_iso(s.timestamp) - base_jul
+      if day_idx < 0 || day_idx >= n_days | continue | endif
+      if !has_key(day_data, day_idx) | let day_data[day_idx] = [] | endif
+      call add(day_data[day_idx], {
+        \ 'rate':   s.frequency_per_min,
+        \ 'errors': get(s, 'errors_per_min', 0)})
+    endfor
+  endif
 
   let aim_row = eff_aim > 0 ? s:dashboard_log_y(eff_aim, plot_h, log_bot, log_top) : -1
   " Iterate from the highest decade boundary that fits below log_top
@@ -4425,6 +4457,12 @@ function! s:dashboard_chart_panel(id, registry, sessions, w, h) abort
     let lg -= 1.0
   endwhile
 
+  " Plot rows. Each visible plot col c maps to day_idx = c/cols_per_day.
+  " Multi-session days lay down all their dots at the same column;
+  " distinct rates fall on distinct rows, identical rates collide
+  " (acceptable — the chart is a rate signal, not a session count).
+  " Errors render as × FIRST so the rate ● wins on collision (the
+  " rate is the headline metric; errors live on a separate per-row).
   for r in range(plot_h)
     let label = has_key(label_rows, r)
       \ ? printf('%' . label_w . 'd', label_rows[r])
@@ -4432,34 +4470,73 @@ function! s:dashboard_chart_panel(id, registry, sessions, w, h) abort
     let axis_char = has_key(label_rows, r) ? '├' : '│'
     let row_chars = []
     for c in range(plot_w)
-      if c < len(recent)
-        let rate = recent[c].frequency_per_min
-        let plotted_row = s:dashboard_log_y(rate, plot_h, log_bot, log_top)
-        if r == plotted_row
-          call add(row_chars, rate >= eff_aim ? '●' : '○')
-        elseif r == aim_row
-          call add(row_chars, '·')
-        else
-          call add(row_chars, ' ')
-        endif
-      else
-        call add(row_chars, r == aim_row ? '·' : ' ')
+      let day_idx = c / cols_per_day
+      let drawn = ' '
+      if c % cols_per_day == 0 && has_key(day_data, day_idx)
+        for entry in day_data[day_idx]
+          if entry.errors > 0
+            let erow = s:dashboard_log_y(entry.errors, plot_h, log_bot, log_top)
+            if r == erow | let drawn = '×' | endif
+          endif
+        endfor
+        for entry in day_data[day_idx]
+          let crow = s:dashboard_log_y(entry.rate, plot_h, log_bot, log_top)
+          if r == crow | let drawn = entry.rate >= eff_aim ? '●' : '○' | endif
+        endfor
       endif
+      if drawn ==# ' ' && r == aim_row | let drawn = '·' | endif
+      call add(row_chars, drawn)
     endfor
     call add(lines, '│ ' . label . axis_char . join(row_chars, '') . ' │')
   endfor
 
-  " X-axis line with corner + inward ticks at the data extremes.
-  let xaxis_chars = repeat(['─'], plot_w)
-  if len(recent) > 0
-    let xaxis_chars[0] = '┴'
-    let last_col = min([len(recent) - 1, plot_w - 1])
-    if last_col != 0 | let xaxis_chars[last_col] = '┴' | endif
+  " Compute labeled-day positions for x-axis ticks + MM-DD labels.
+  " Same stride logic as :VfChart: cap ~5 labels for the dashboard's
+  " narrower panel, with minimum spacing to keep 5-char MM-DD labels
+  " from overlapping.
+  let max_labels = 5
+  let min_spacing_days = (6 + cols_per_day - 1) / cols_per_day
+  let label_days = []
+  if n_days > 0
+    let raw_stride = (n_days + max_labels - 1) / max_labels
+    let stride = max([min_spacing_days, raw_stride])
+    let dd = 0
+    while dd < n_days
+      call add(label_days, dd)
+      let dd += stride
+    endwhile
+    if !empty(label_days) && label_days[-1] != n_days - 1
+      \ && (n_days - 1) - label_days[-1] >= min_spacing_days
+      call add(label_days, n_days - 1)
+    endif
   endif
+
+  " X-axis line with corner + inward ticks at every labeled day.
+  let xaxis_chars = repeat(['─'], plot_w)
+  for dd in label_days
+    let col = dd * cols_per_day
+    if col >= 0 && col < plot_w | let xaxis_chars[col] = '┴' | endif
+  endfor
   call add(lines, '│ ' . repeat(' ', label_w) . '└' . join(xaxis_chars, '') . ' │')
 
-  call add(lines, '│ ' . s:pad_right(printf('last %d sessions  ·  aim line: ·  ·  ·  ·  log y-axis (rate/min)',
-    \ len(recent)), label_w + 1 + plot_w) . ' │')
+  " X-axis date row: MM-DD left-aligned at each tick. Left-align
+  " (rather than centering on the tick) keeps the first label clear
+  " of the y-axis label column and matches :VfChart.
+  let xlabel = repeat([' '], plot_w)
+  for dd in label_days
+    let col = dd * cols_per_day
+    let date_str = s:iso_from_julian(base_jul + dd)[5:9]
+    if col >= 0 && col + 4 < plot_w
+      for i in range(5)
+        let xlabel[col + i] = date_str[i]
+      endfor
+    endif
+  endfor
+  call add(lines, '│ ' . repeat(' ', label_w + 1) . join(xlabel, '') . ' │')
+
+  call add(lines, '│ ' . s:pad_right(
+    \ '● corrects  ×  errors  ·  aim line  ·  log y (rate/min)',
+    \ label_w + 1 + plot_w) . ' │')
   call add(lines, s:panel_box_bottom(a:w))
   return lines
 endfunction
