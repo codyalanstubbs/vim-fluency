@@ -4513,21 +4513,19 @@ function! s:dashboard_chart_panel(id, registry, sessions, w, h) abort
   endif
 
   " X-axis line with corner + inward ticks at every labeled day.
-  " The rightmost 7 cells get overlaid with 'today →' — the arrow
-  " lands on the very last column so the chart's calendar anchor
-  " is self-evident from the axis itself rather than from a key
-  " row above the plot.
   let xaxis_chars = repeat(['─'], plot_w)
   for dd in label_days
     let col = dd * cols_per_day
     if col >= 0 && col < plot_w | let xaxis_chars[col] = '┴' | endif
   endfor
-  call s:overlay_today_marker(xaxis_chars, plot_w)
   call add(lines, '│ ' . repeat(' ', label_w) . '└' . join(xaxis_chars, '') . ' │')
 
   " X-axis date row: MM-DD left-aligned at each tick. Left-align
   " (rather than centering on the tick) keeps the first label clear
-  " of the y-axis label column and matches :VfChart.
+  " of the y-axis label column and matches :VfChart. The rightmost
+  " 7 cells get overlaid with 'today →' — the arrow lands on the
+  " very last column so the chart's calendar anchor is declared by
+  " the axis itself rather than by a separate key-row footnote.
   let xlabel = repeat([' '], plot_w)
   for dd in label_days
     let col = dd * cols_per_day
@@ -4538,6 +4536,7 @@ function! s:dashboard_chart_panel(id, registry, sessions, w, h) abort
       endfor
     endif
   endfor
+  call s:overlay_today_marker(xlabel, plot_w)
   call add(lines, '│ ' . repeat(' ', label_w + 1) . join(xlabel, '') . ' │')
 
   call add(lines, s:panel_box_bottom(a:w))
@@ -4839,7 +4838,6 @@ function! s:dashboard_daily_chart_panel(by_day, days_back, today_count, streak, 
     let col = col_for_day[dd]
     if col >= 0 && col < plot_w | let xaxis_chars[col] = '┴' | endif
   endfor
-  call s:overlay_today_marker(xaxis_chars, plot_w)
   call add(lines, '│ ' . repeat(' ', label_w) . '└' . join(xaxis_chars, '') . ' │')
 
   let xlabel = repeat([' '], plot_w)
@@ -4852,6 +4850,7 @@ function! s:dashboard_daily_chart_panel(by_day, days_back, today_count, streak, 
       endfor
     endif
   endfor
+  call s:overlay_today_marker(xlabel, plot_w)
   call add(lines, '│ ' . repeat(' ', label_w + 1) . join(xlabel, '') . ' │')
 
   call add(lines, s:panel_box_bottom(a:w))
@@ -4900,17 +4899,17 @@ function! s:dashboard_write_buffer(bufnr, lines) abort
   call win_gotoid(cur_winid)
 endfunction
 
-" Overlay 'today →' on the rightmost cells of an x-axis char list.
+" Overlay 'today →' on the rightmost cells of an x-axis label list.
 " The arrow lands on the very last column (plot_w - 1); the word
 " 'today' sits to its left, separated by a space. Replaces whatever
-" was there before (axis dashes / tick marks) — by design, since
-" today is the calendar anchor and visually owns the right edge.
-function! s:overlay_today_marker(xaxis_chars, plot_w) abort
+" was there before — by design, since today is the calendar anchor
+" and visually owns the right edge.
+function! s:overlay_today_marker(cells, plot_w) abort
   let marker = ['t', 'o', 'd', 'a', 'y', ' ', '→']
   let start = a:plot_w - len(marker)
   if start < 0 | return | endif
   for i in range(len(marker))
-    let a:xaxis_chars[start + i] = marker[i]
+    let a:cells[start + i] = marker[i]
   endfor
 endfunction
 
