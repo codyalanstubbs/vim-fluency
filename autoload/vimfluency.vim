@@ -4740,10 +4740,11 @@ function! s:dashboard_render_last_session(mapping, row, registry, sessions) abor
 endfunction
 
 " Drills-per-day celeration chart: training session count per day
-" plotted on a log y-axis. Same visual shape as the hovered-drill
-" chart so the two panels read consistently. Days with zero training
-" don't get a dot (log scale can't represent 0) — the gap itself is
-" the cue.
+" plotted on a log y-axis. Mirrors the SCC's x-axis style — calendar
+" anchored to today on the right, MM-DD labels at strided ticks,
+" same footer convention — so the two charts read as a pair.
+" Days with zero training don't get a dot (log scale can't represent
+" 0) — the gap itself is the cue.
 function! s:dashboard_daily_chart_panel(by_day, days_back, today_count, streak, w, h) abort
   let title = printf('DRILLS PER DAY (last %dd)', a:days_back)
   let lines = [s:panel_box_top(title, a:w)]
@@ -4754,26 +4755,38 @@ function! s:dashboard_daily_chart_panel(by_day, days_back, today_count, streak, 
 
   let label_w = 4
   let plot_w = a:w - 5 - label_w
-  let plot_h = max([a:h - 5, 3])
+  " Reserve one row vs the old layout for the MM-DD date row below
+  " the x-axis, matching the SCC. plot_h shrinks by one to keep the
+  " panel total at h.
+  let plot_h = max([a:h - 6, 3])
 
+  " Walk the day window from oldest (i=0) to today (i=n_days-1).
+  " Anchor today to the right edge (col plot_w - 1); leftmost day
+  " sits at col 0. Use julian day math so the date lookup matches
+  " what the SCC does — by_day is keyed on YYYY-MM-DD.
+  let today_jul = s:julian_from_iso(strftime('%Y-%m-%d'))
+  let n_days = a:days_back
+  let base_jul = today_jul - n_days + 1
+  let cols_per_day = n_days > 1 ? (plot_w - 1) * 1.0 / (n_days - 1) : 0.0
+  let col_for_day = []
   let counts = []
-  for i in range(a:days_back - 1, 0, -1)
-    let day = strftime('%Y-%m-%d', localtime() - i * 86400)
-    call add(counts, get(a:by_day, day, 0))
+  for i in range(n_days)
+    " float2nr(round(...)) lands the rightmost day flush at plot_w-1
+    " (today) and the leftmost at col 0 — float2nr alone truncates,
+    " which leaves today one column shy of the edge.
+    call add(col_for_day, n_days > 1
+      \ ? float2nr(round(i * cols_per_day)) : 0)
+    call add(counts, get(a:by_day, s:iso_from_julian(base_jul + i), 0))
   endfor
 
-  " Same fixed bounds as the hovered-drill chart (1..~316). The
-  " unit here is sessions-per-day rather than rate/min, but the
-  " SCC philosophy is one y-axis everywhere — a day with 30
-  " sessions reads at the same vertical position regardless of
-  " which chart you're looking at.
+  " Same fixed bounds as the SCC (1..~316). The unit here is
+  " sessions-per-day rather than rate/min, but the SCC philosophy
+  " is one y-axis everywhere — a day with 30 sessions reads at the
+  " same vertical position regardless of which chart you're
+  " looking at.
   let log_bot = 0.0
   let log_top = 2.5
 
-  " Iterate from the highest decade boundary that fits below log_top
-  " down through every integer log10 step in range. Without floor()
-  " here, a non-integer log_top (e.g. 2.5) produces labels at the
-  " half-decades (316, 32, 3) instead of the round powers of 10.
   let label_rows = {}
   let lg = floor(log_top)
   while lg >= log_bot
@@ -4781,22 +4794,13 @@ function! s:dashboard_daily_chart_panel(by_day, days_back, today_count, streak, 
     let lg -= 1.0
   endwhile
 
-  " Place day-column anchors evenly across plot_w. With days_back=14
-  " and plot_w >> 14 there's room to space the columns out; we
-  " just centre each day in its slot.
-  let col_per_day = plot_w * 1.0 / a:days_back
-  let col_for_day = []
-  for i in range(a:days_back)
-    call add(col_for_day, float2nr(i * col_per_day + col_per_day / 2.0))
-  endfor
-
   for r in range(plot_h)
     let label = has_key(label_rows, r)
       \ ? printf('%' . label_w . 'd', label_rows[r])
       \ : repeat(' ', label_w)
     let axis_char = has_key(label_rows, r) ? '├' : '│'
     let row_chars = repeat([' '], plot_w)
-    for day_i in range(a:days_back)
+    for day_i in range(n_days)
       let n = counts[day_i]
       if n <= 0 | continue | endif
       let plotted_row = s:dashboard_log_y(n * 1.0, plot_h, log_bot, log_top)
@@ -4808,19 +4812,42 @@ function! s:dashboard_daily_chart_panel(by_day, days_back, today_count, streak, 
     call add(lines, '│ ' . label . axis_char . join(row_chars, '') . ' │')
   endfor
 
-  " X-axis line with corner + inward ticks at the first and last
-  " day positions (14 days ago and today).
+  " Same right-anchored stride walk as the SCC. Today (day_i =
+  " n_days - 1) sits flush at plot_w - 1, so its 5-char label
+  " would overflow — the 'right edge = today' footer note carries
+  " the convention.
+  let max_labels = 4
+  let raw_stride = (n_days + max_labels - 1) / max_labels
+  let stride = max([2, raw_stride])
+  let label_days = []
+  let dd = n_days - 1
+  while dd >= 0
+    let col = col_for_day[dd]
+    if col + 5 <= plot_w | call add(label_days, dd) | endif
+    let dd -= stride
+  endwhile
+
   let xaxis_chars = repeat(['─'], plot_w)
-  let first_col = col_for_day[0]
-  let last_col = col_for_day[a:days_back - 1]
-  if first_col < plot_w | let xaxis_chars[first_col] = '┴' | endif
-  if last_col < plot_w && last_col != first_col
-    let xaxis_chars[last_col] = '┴'
-  endif
+  for dd in label_days
+    let col = col_for_day[dd]
+    if col >= 0 && col < plot_w | let xaxis_chars[col] = '┴' | endif
+  endfor
   call add(lines, '│ ' . repeat(' ', label_w) . '└' . join(xaxis_chars, '') . ' │')
 
-  call add(lines, '│ ' . s:pad_right(printf('%dd ago' . repeat(' ',
-    \ max([plot_w - 13, 0])) . 'today', a:days_back),
+  let xlabel = repeat([' '], plot_w)
+  for dd in label_days
+    let col = col_for_day[dd]
+    let date_str = s:iso_from_julian(base_jul + dd)[5:9]
+    if col + 4 < plot_w
+      for i in range(5)
+        let xlabel[col + i] = date_str[i]
+      endfor
+    endif
+  endfor
+  call add(lines, '│ ' . repeat(' ', label_w + 1) . join(xlabel, '') . ' │')
+
+  call add(lines, '│ ' . s:pad_right(
+    \ '● drills/day  ·  log y  ·  right edge = today',
     \ label_w + 1 + plot_w) . ' │')
   call add(lines, s:panel_box_bottom(a:w))
   return lines
