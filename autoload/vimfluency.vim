@@ -4379,14 +4379,15 @@ function! s:dashboard_chart_panel(id, registry, sessions, w, h) abort
     \ : printf('STANDARD CELERATION CHART: %s', a:id)
   let lines = [s:panel_box_top(title, a:w)]
 
-  let status = s:status_from_sessions(eff_aim, runs)
-  let last_rate = empty(usable) ? 0 : usable[-1].frequency_per_min
-  let icon = status ==# 'at_aim' ? '✓'
-    \ : status ==# 'climbing' ? '▶'
-    \ : '○'
-  let summary = printf(' %s  aim %d/min  ·  last %s/min',
-    \ icon, eff_aim, empty(usable) ? '—' : string(s:round1(last_rate)))
-  call add(lines, '│' . s:pad_right(summary, a:w - 2) . '│')
+  " Key row sits where the old 'aim X/min · last Y/min' summary
+  " lived. The aim/last numbers were redundant with the drills
+  " table + LAST SESSION breakdown; the key row now carries the
+  " chart's symbol vocabulary instead. 'log y' starts at column 2,
+  " which puts the 'y' character directly above the y-axis (col 6
+  " inside the box with label_w = 4) so the label visually attaches
+  " to the axis it describes.
+  let key = ' log y rate/min  ·  ● corrects  ·  × errors  ·  · aim line  ·  → today'
+  call add(lines, '│' . s:pad_right(key, a:w - 2) . '│')
 
   " The chart frame (y-axis + x-axis + tick marks + decade labels +
   " aim line) renders even when there are no usable sessions yet —
@@ -4415,10 +4416,9 @@ function! s:dashboard_chart_panel(id, registry, sessions, w, h) abort
   " at each labeled day. Errors plot as × at their error-rate row.
   let label_w = 4
   let plot_w = a:w - 5 - label_w
-  " Reserve one extra row vs the old layout for the MM-DD date row
-  " below the x-axis. plot_h shrinks by one to keep the panel total
-  " at h.
-  let plot_h = max([a:h - 6, 3])
+  " Non-plot rows: top border + key row + x-axis line + MM-DD label
+  " row + bottom border = 5.
+  let plot_h = max([a:h - 5, 3])
   let log_bot = 0.0
   let log_top = 2.5
   let cols_per_day = 1
@@ -4535,9 +4535,6 @@ function! s:dashboard_chart_panel(id, registry, sessions, w, h) abort
   endfor
   call add(lines, '│ ' . repeat(' ', label_w + 1) . join(xlabel, '') . ' │')
 
-  call add(lines, '│ ' . s:pad_right(
-    \ '● corrects  ×  errors  ·  aim line  ·  log y  ·  right edge = today',
-    \ label_w + 1 + plot_w) . ' │')
   call add(lines, s:panel_box_bottom(a:w))
   return lines
 endfunction
@@ -4746,19 +4743,24 @@ endfunction
 " Days with zero training don't get a dot (log scale can't represent
 " 0) — the gap itself is the cue.
 function! s:dashboard_daily_chart_panel(by_day, days_back, today_count, streak, w, h) abort
-  let title = printf('DRILLS PER DAY (last %dd)', a:days_back)
+  " Title carries the live stats inline — today's count and streak
+  " — separated by │ the same way the top-of-dashboard banner
+  " groups its sub-statistics. Frees the row below the title for
+  " the chart's key (legend).
+  let title = printf('DRILLS PER DAY (last %dd)  │  today: %d  │  streak: %d day%s',
+    \ a:days_back, a:today_count, a:streak, a:streak == 1 ? '' : 's')
   let lines = [s:panel_box_top(title, a:w)]
 
-  let summary = printf(' today: %d  ·  streak: %d day%s',
-    \ a:today_count, a:streak, a:streak == 1 ? '' : 's')
-  call add(lines, '│' . s:pad_right(summary, a:w - 2) . '│')
+  " Key row — same structural slot the SCC uses, and 'log y' starts
+  " at column 2 so the 'y' character sits directly above the y-axis.
+  let key = ' log y drills/day  ·  ● = a day''s count  ·  → today'
+  call add(lines, '│' . s:pad_right(key, a:w - 2) . '│')
 
   let label_w = 4
   let plot_w = a:w - 5 - label_w
-  " Reserve one row vs the old layout for the MM-DD date row below
-  " the x-axis, matching the SCC. plot_h shrinks by one to keep the
-  " panel total at h.
-  let plot_h = max([a:h - 6, 3])
+  " Non-plot rows: top border + key row + x-axis line + MM-DD label
+  " row + bottom border = 5.
+  let plot_h = max([a:h - 5, 3])
 
   " Walk the day window from oldest (i=0) to today (i=n_days-1).
   " Anchor today to the right edge (col plot_w - 1); leftmost day
@@ -4846,9 +4848,6 @@ function! s:dashboard_daily_chart_panel(by_day, days_back, today_count, streak, 
   endfor
   call add(lines, '│ ' . repeat(' ', label_w + 1) . join(xlabel, '') . ' │')
 
-  call add(lines, '│ ' . s:pad_right(
-    \ '● drills/day  ·  log y  ·  right edge = today',
-    \ label_w + 1 + plot_w) . ' │')
   call add(lines, s:panel_box_bottom(a:w))
   return lines
 endfunction
@@ -4899,7 +4898,12 @@ endfunction
 
 function! s:panel_box_top(title, w) abort
   let title_padded = ' ' . a:title . ' '
-  let dashes = repeat('─', max([a:w - len(title_padded) - 2, 0]))
+  " strdisplaywidth (not len()) so multi-byte glyphs in the title —
+  " ✓, ▶, │ — count as their on-screen cell width instead of their
+  " UTF-8 byte count. Without this the dash run is too short and the
+  " box's right edge slides left every time we land a UTF-8 char in
+  " the title.
+  let dashes = repeat('─', max([a:w - strdisplaywidth(title_padded) - 2, 0]))
   return '┌' . title_padded . dashes . '┐'
 endfunction
 
