@@ -1,14 +1,31 @@
-" force_quit_ex_vs_normal_zq — Discriminate :q! vs ZQ. Same as T0.3c (Ex vs normal-mode
-" shortcut) but for force-quit. ZQ is to :q! what ZZ is to :wq.
+" force_quit_ex_vs_normal_zq — Discriminate :q! vs ZQ. Same EFFECT
+" (discard changes and quit), different SYNTAX. ZQ is to :q! what ZZ
+" is to :wq.
 "
-" Training shape: recall kind, binary discrimination.
+" Training shape: recall kind, binary discrimination. Both items show
+" a modified buffer ('throw the changes away' is what's happening);
+" the GOAL line tells the learner which form to use:
+"   "Discard changes and quit using `:`"      → :q!
+"   "Discard changes and quit (no command line)" → ZQ
 "
-" Cheat-defense: the two answers share no common substring.
+" Cheat-defense:
+"   - The two answers share no common substring.
+"   - Snippets rotate so the screen stays visually active.
 
-let s:items = [
-  \ {'answer': ':q!', 'prompt': 'force quit (Ex command)'},
-  \ {'answer': 'ZQ',  'prompt': 'force quit (normal-mode)'},
-  \ ]
+let s:GOALS = {
+  \ ':q!': [
+  \   'Discard changes and quit using `:` (the Ex command).',
+  \   'Open the command line; force-quit there.',
+  \   'Use the Ex command form to throw away changes and exit.',
+  \   ],
+  \ 'ZQ': [
+  \   'Discard changes and quit (no command line — use the normal-mode shortcut).',
+  \   'Force-quit using the two-keystroke normal-mode shortcut.',
+  \   'Discard changes and exit without opening the command line.',
+  \   ],
+  \ }
+
+let s:CMDS = [':q!', 'ZQ']
 
 function! vimfluency#pinpoints#force_quit_ex_vs_normal_zq#meta() abort
   return {'id': 'force_quit_ex_vs_normal_zq', 'name': 'discriminate :q! vs ZQ',
@@ -22,19 +39,25 @@ function! s:rand(n) abort
 endfunction
 
 function! vimfluency#pinpoints#force_quit_ex_vs_normal_zq#generate() abort
-  let pick = s:items[s:rand(len(s:items))]
+  let cmd = s:CMDS[s:rand(len(s:CMDS))]
+  let goals = s:GOALS[cmd]
+  let goal = goals[s:rand(len(goals))]
+  let status = vimfluency#scenarios#modified_status(1 + s:rand(5))
+  let snippet = vimfluency#scenarios#snippet()
   return {
     \ 'lines': [],
     \ 'start': [1, 1],
     \ 'target': [1, 1],
-    \ 'prompt': ['Type the keystrokes to:', '', '    ' . pick.prompt],
-    \ 'expected_answer': pick.answer,
-    \ 'expected_motion': pick.answer,
-    \ 'optimal_motions': len(pick.answer),
+    \ 'prompt': vimfluency#scenarios#compose(status, snippet, goal),
+    \ 'expected_answer': cmd,
+    \ 'expected_motion': cmd,
+    \ 'optimal_motions': len(cmd),
     \ }
 endfunction
 
 function! vimfluency#pinpoints#force_quit_ex_vs_normal_zq#lesson() abort
+  let snippet = vimfluency#scenarios#snippet()
+  let status = vimfluency#scenarios#modified_status(3)
   return [
     \ {'kind': 'show', 'lines': [], 'cursor': [1, 1],
     \  'prompt': [
@@ -43,18 +66,18 @@ function! vimfluency#pinpoints#force_quit_ex_vs_normal_zq#lesson() abort
     \    ':q! is the Ex-command form (! is the force flag).',
     \    'ZQ is the normal-mode shortcut (mirrors ZZ for save+quit).',
     \    '',
+    \    'Both items show a modified buffer; the Goal tells you which form:',
+    \    '  Goal: Discard changes and quit using `:`           →  :q!',
+    \    '  Goal: Discard changes and quit (no command line)   →  ZQ',
+    \    '',
     \    'Press <Space> to begin.']},
     \ {'kind': 'try', 'lines': [],
     \  'expected_answer': ':q!', 'expected_motion': ':q!', 'optimal_motions': 3,
-    \  'prompt': [
-    \    'Ex-command form for force-quit.',
-    \    '',
-    \    '    force quit (Ex command)']},
+    \  'prompt': vimfluency#scenarios#compose(
+    \    status, snippet, 'Discard changes and quit using `:` (the Ex command).')},
     \ {'kind': 'try', 'lines': [],
     \  'expected_answer': 'ZQ', 'expected_motion': 'ZQ', 'optimal_motions': 2,
-    \  'prompt': [
-    \    'Normal-mode shortcut for force-quit.',
-    \    '',
-    \    '    force quit (normal-mode)']},
+    \  'prompt': vimfluency#scenarios#compose(
+    \    status, snippet, 'Discard changes and quit (no command line — use the normal-mode shortcut).')},
     \ ]
 endfunction
