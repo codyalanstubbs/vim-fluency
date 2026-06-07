@@ -4423,27 +4423,27 @@ function! s:dashboard_chart_panel(id, registry, sessions, w, h) abort
   let log_top = 2.5
   let cols_per_day = 1
 
-  " Bucket sessions by julian day and clip to the most-recent window
-  " that fits in plot_w. base_jul is the leftmost visible day.
+  " Bucket sessions by julian day. The x-axis is anchored to TODAY:
+  " the rightmost column is today's date, and days extend backward
+  " to fill plot_w. This makes 'have I trained recently?' immediately
+  " visible — a gap on the right edge means the learner hasn't shown
+  " up today; a dot at the right edge means they have. Sessions
+  " older than the visible window scroll off the LEFT edge.
+  " Always render the full window even with no sessions, so an
+  " untrained drill shows the same frame the trained ones do.
+  let max_days = plot_w / cols_per_day
+  let today_jul = s:julian_from_iso(strftime('%Y-%m-%d'))
+  let n_days = max_days
+  let base_jul = today_jul - n_days + 1
   let day_data = {}  " day_idx (0..n_days-1) → [{rate, errors}, …]
-  let n_days = 0
-  let base_jul = 0
-  if !empty(usable)
-    let last_jul = s:julian_from_iso(usable[-1].timestamp)
-    let first_jul = s:julian_from_iso(usable[0].timestamp)
-    let span_days = last_jul - first_jul + 1
-    let max_days = plot_w / cols_per_day
-    let n_days = min([span_days, max_days])
-    let base_jul = last_jul - n_days + 1
-    for s in usable
-      let day_idx = s:julian_from_iso(s.timestamp) - base_jul
-      if day_idx < 0 || day_idx >= n_days | continue | endif
-      if !has_key(day_data, day_idx) | let day_data[day_idx] = [] | endif
-      call add(day_data[day_idx], {
-        \ 'rate':   s.frequency_per_min,
-        \ 'errors': get(s, 'errors_per_min', 0)})
-    endfor
-  endif
+  for s in usable
+    let day_idx = s:julian_from_iso(s.timestamp) - base_jul
+    if day_idx < 0 || day_idx >= n_days | continue | endif
+    if !has_key(day_data, day_idx) | let day_data[day_idx] = [] | endif
+    call add(day_data[day_idx], {
+      \ 'rate':   s.frequency_per_min,
+      \ 'errors': get(s, 'errors_per_min', 0)})
+  endfor
 
   let aim_row = eff_aim > 0 ? s:dashboard_log_y(eff_aim, plot_h, log_bot, log_top) : -1
   " Iterate from the highest decade boundary that fits below log_top
@@ -4493,22 +4493,23 @@ function! s:dashboard_chart_panel(id, registry, sessions, w, h) abort
   " Compute labeled-day positions for x-axis ticks + MM-DD labels.
   " Same stride logic as :VfChart: cap ~5 labels for the dashboard's
   " narrower panel, with minimum spacing to keep 5-char MM-DD labels
-  " from overlapping.
+  " from overlapping. Anchor the walk from the RIGHT (today) so today
+  " gets a labeled tick whenever stride permits; the leftmost end of
+  " the window only gets a label when stride lands cleanly there.
+  " Stop adding labels once one would overflow plot_w (its 5-char
+  " text wouldn't fit between the tick and the right border).
   let max_labels = 5
   let min_spacing_days = (6 + cols_per_day - 1) / cols_per_day
   let label_days = []
   if n_days > 0
     let raw_stride = (n_days + max_labels - 1) / max_labels
     let stride = max([min_spacing_days, raw_stride])
-    let dd = 0
-    while dd < n_days
-      call add(label_days, dd)
-      let dd += stride
+    let dd = n_days - 1
+    while dd >= 0
+      let col = dd * cols_per_day
+      if col + 5 <= plot_w | call add(label_days, dd) | endif
+      let dd -= stride
     endwhile
-    if !empty(label_days) && label_days[-1] != n_days - 1
-      \ && (n_days - 1) - label_days[-1] >= min_spacing_days
-      call add(label_days, n_days - 1)
-    endif
   endif
 
   " X-axis line with corner + inward ticks at every labeled day.
@@ -4535,7 +4536,7 @@ function! s:dashboard_chart_panel(id, registry, sessions, w, h) abort
   call add(lines, '│ ' . repeat(' ', label_w + 1) . join(xlabel, '') . ' │')
 
   call add(lines, '│ ' . s:pad_right(
-    \ '● corrects  ×  errors  ·  aim line  ·  log y (rate/min)',
+    \ '● corrects  ×  errors  ·  aim line  ·  log y  ·  right edge = today',
     \ label_w + 1 + plot_w) . ' │')
   call add(lines, s:panel_box_bottom(a:w))
   return lines
