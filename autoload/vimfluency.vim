@@ -3293,6 +3293,14 @@ function! s:learn_install_autocmds() abort
       " (mirrors the training). No autocmds needed — handlers fire via the
       " buffer-local mappings.
       call s:install_recall_maps()
+    elseif kind ==# 'command'
+      " Command lessons capture credits through the buffer-local maps
+      " installed per-frame by s:render_command_item / the command
+      " branches of s:learn_render_frame and s:learn_test_next — same
+      " story as the training path. No CursorMoved autocmds: the cue
+      " is keystroke-based, and s:learn_on_change would crash on
+      " frame.target lookups since command-kind try frames don't
+      " carry one.
     else
       " TextChanged is needed for the test phase on editing-kind pinpoints
       " where dw/db etc. modify the buffer without necessarily firing
