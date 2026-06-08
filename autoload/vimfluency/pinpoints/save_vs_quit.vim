@@ -1,23 +1,21 @@
 " save_vs_quit — Discriminate :w vs :q. Foundation pair: which command
 " matches which intent.
 "
-" Training shape: recall kind, binary discrimination. Each item picks
-" one of the two commands, builds a realistic buffer scenario via
-" vimfluency#scenarios (status header + code/text snippet + goal
-" line), the learner reads the goal and types the answer. Auto-credits
-" on exact match.
+" Training shape: kind 'command' — the learner sees a realistic
+" snippet with a status header ('modified · 3 unsaved changes' or
+" 'clean · no unsaved changes') and a goal line, then types the
+" matching vim command. The Ex-command capture (input()-based fake
+" cmdline) makes it FEEL like real cmdline without quitting vim.
+" Free-operant: a wrong command echoes a hint; the learner keeps
+" going. No '> ' answer line.
 "
 " Cheat-defense:
 "   - modified=YES is only ever paired with :w (you can't :q a dirty
 "     buffer in real vim — it errors out); modified=NO is only ever
-"     paired with :q. So the status header is a load-bearing
-"     discrimination cue, not decoration. The "cheat" of always typing
-"     :w when modified and :q when clean is the correct behavioral
-"     rule in real vim, which is the point.
-"   - Snippet content rotates per item from a shared pool — keeps the
-"     screen visually active so the learner re-engages with each item
-"     rather than pattern-matching the static prompt of the old version.
-"   - The two answers are non-overlapping strings; no prefix collision.
+"     paired with :q. The 'cheat' of mapping status → command is the
+"     correct behavioral rule, which is the point.
+"   - Snippets rotate per item from a shared pool — keeps the screen
+"     visually active so the learner re-engages with each item.
 
 let s:GOALS = {
   \ ':w': [
@@ -35,11 +33,8 @@ let s:GOALS = {
 let s:CMDS = [':w', ':q']
 
 function! vimfluency#pinpoints#save_vs_quit#meta() abort
-  " Binary discrimination is cognitively lighter than the original
-  " 5-way pinpoint; aim sits a tick higher than the catalog's
-  " original T0.3 baseline. Starting guess.
   return {'id': 'save_vs_quit', 'name': 'discriminate :w vs :q',
-    \ 'aim': 40, 'allowed_keys': ':wq', 'kind': 'recall',
+    \ 'aim': 40, 'allowed_keys': ':wq', 'kind': 'command',
     \ 'prereqs': [], 'keys': ':w/:q', 'family': 'survival',
     \ 'test_sequence': [':w', ':q']}
 endfunction
@@ -55,12 +50,13 @@ function! vimfluency#pinpoints#save_vs_quit#generate() abort
   let status = cmd ==# ':w'
     \ ? vimfluency#scenarios#modified_status(1 + s:rand(5))
     \ : vimfluency#scenarios#clean_status()
-  let snippet = vimfluency#scenarios#snippet()
   return {
     \ 'lines': [],
     \ 'start': [1, 1],
     \ 'target': [1, 1],
-    \ 'prompt': vimfluency#scenarios#compose(status, snippet, goal),
+    \ 'snippet': vimfluency#scenarios#snippet(),
+    \ 'status_text': status,
+    \ 'goal': goal,
     \ 'expected_answer': cmd,
     \ 'expected_motion': cmd,
     \ 'optimal_motions': len(cmd),
@@ -68,11 +64,9 @@ function! vimfluency#pinpoints#save_vs_quit#generate() abort
 endfunction
 
 function! vimfluency#pinpoints#save_vs_quit#lesson() abort
-  " Lesson keeps the parallel-rule-statement shape but switches the
-  " try frames to the new scenario rendering so the learner sees the
-  " same kind of cue the training will give them. Both try frames
-  " reuse the same snippet — focuses the learner's eye on the
-  " status header + goal as the moving parts.
+  " Show frames keep the parallel rule statements; try frames carry
+  " snippet/status_text/goal so the lesson try phase renders the same
+  " live-buffer scenario the training will give.
   let snippet = vimfluency#scenarios#snippet()
   return [
     \ {'kind': 'show', 'lines': [], 'cursor': [1, 1],
@@ -88,13 +82,13 @@ function! vimfluency#pinpoints#save_vs_quit#lesson() abort
     \    'Press <Space> to begin.']},
     \ {'kind': 'try', 'lines': [],
     \  'expected_answer': ':w', 'expected_motion': ':w', 'optimal_motions': 2,
-    \  'prompt': vimfluency#scenarios#compose(
-    \    vimfluency#scenarios#modified_status(3), snippet,
-    \    'Save your work and keep editing.')},
+    \  'snippet': snippet,
+    \  'status_text': vimfluency#scenarios#modified_status(3),
+    \  'goal': 'Save your work and keep editing.'},
     \ {'kind': 'try', 'lines': [],
     \  'expected_answer': ':q', 'expected_motion': ':q', 'optimal_motions': 2,
-    \  'prompt': vimfluency#scenarios#compose(
-    \    vimfluency#scenarios#clean_status(), snippet,
-    \    "You're done reading. Close the file.")},
+    \  'snippet': snippet,
+    \  'status_text': vimfluency#scenarios#clean_status(),
+    \  'goal': "You're done reading. Close the file."},
     \ ]
 endfunction

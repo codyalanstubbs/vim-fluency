@@ -2,15 +2,8 @@
 " (discard changes and quit), different SYNTAX. ZQ is to :q! what ZZ
 " is to :wq.
 "
-" Training shape: recall kind, binary discrimination. Both items show
-" a modified buffer ('throw the changes away' is what's happening);
-" the GOAL line tells the learner which form to use:
-"   "Discard changes and quit using `:`"      → :q!
-"   "Discard changes and quit (no command line)" → ZQ
-"
-" Cheat-defense:
-"   - The two answers share no common substring.
-"   - Snippets rotate so the screen stays visually active.
+" Training shape: kind 'command'. Both items sit on a modified buffer;
+" the GOAL line specifies which form to use.
 
 let s:GOALS = {
   \ ':q!': [
@@ -29,7 +22,7 @@ let s:CMDS = [':q!', 'ZQ']
 
 function! vimfluency#pinpoints#force_quit_ex_vs_normal_zq#meta() abort
   return {'id': 'force_quit_ex_vs_normal_zq', 'name': 'discriminate :q! vs ZQ',
-    \ 'aim': 35, 'allowed_keys': ':q!ZQ', 'kind': 'recall',
+    \ 'aim': 35, 'allowed_keys': ':q!ZQ', 'kind': 'command',
     \ 'prereqs': [], 'keys': ':q!/ZQ', 'family': 'survival',
     \ 'test_sequence': [':q!', 'ZQ']}
 endfunction
@@ -42,13 +35,13 @@ function! vimfluency#pinpoints#force_quit_ex_vs_normal_zq#generate() abort
   let cmd = s:CMDS[s:rand(len(s:CMDS))]
   let goals = s:GOALS[cmd]
   let goal = goals[s:rand(len(goals))]
-  let status = vimfluency#scenarios#modified_status(1 + s:rand(5))
-  let snippet = vimfluency#scenarios#snippet()
   return {
     \ 'lines': [],
     \ 'start': [1, 1],
     \ 'target': [1, 1],
-    \ 'prompt': vimfluency#scenarios#compose(status, snippet, goal),
+    \ 'snippet': vimfluency#scenarios#snippet(),
+    \ 'status_text': vimfluency#scenarios#modified_status(1 + s:rand(5)),
+    \ 'goal': goal,
     \ 'expected_answer': cmd,
     \ 'expected_motion': cmd,
     \ 'optimal_motions': len(cmd),
@@ -57,7 +50,7 @@ endfunction
 
 function! vimfluency#pinpoints#force_quit_ex_vs_normal_zq#lesson() abort
   let snippet = vimfluency#scenarios#snippet()
-  let status = vimfluency#scenarios#modified_status(3)
+  let status  = vimfluency#scenarios#modified_status(3)
   return [
     \ {'kind': 'show', 'lines': [], 'cursor': [1, 1],
     \  'prompt': [
@@ -73,11 +66,11 @@ function! vimfluency#pinpoints#force_quit_ex_vs_normal_zq#lesson() abort
     \    'Press <Space> to begin.']},
     \ {'kind': 'try', 'lines': [],
     \  'expected_answer': ':q!', 'expected_motion': ':q!', 'optimal_motions': 3,
-    \  'prompt': vimfluency#scenarios#compose(
-    \    status, snippet, 'Discard changes and quit using `:` (the Ex command).')},
+    \  'snippet': snippet, 'status_text': status,
+    \  'goal': 'Discard changes and quit using `:` (the Ex command).'},
     \ {'kind': 'try', 'lines': [],
     \  'expected_answer': 'ZQ', 'expected_motion': 'ZQ', 'optimal_motions': 2,
-    \  'prompt': vimfluency#scenarios#compose(
-    \    status, snippet, 'Discard changes and quit (no command line — use the normal-mode shortcut).')},
+    \  'snippet': snippet, 'status_text': status,
+    \  'goal': 'Discard changes and quit (no command line — use the normal-mode shortcut).'},
     \ ]
 endfunction

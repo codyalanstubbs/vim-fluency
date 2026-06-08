@@ -1559,6 +1559,11 @@ function! s:next_item() abort
     let s:session.advancing = 0
     return
   endif
+  if s:session.kind ==# 'command'
+    call s:render_command_item(item)
+    let s:session.advancing = 0
+    return
+  endif
   if s:session.kind ==# 'mode'
     call s:render_mode_item(item)
     let s:session.advancing = 0
@@ -1646,6 +1651,12 @@ function! s:install_autocmds() abort
     " autocmds — there's no live "editing area" to watch. Tab still
     " skips, so the existing skip path stays consistent.
     call s:install_recall_maps()
+    return
+  endif
+  if s:session.kind ==# 'command'
+    " Same story for command kind: ':', ZZ, ZQ, <Tab> are all
+    " buffer-local mappings installed per-render. No autocmds to
+    " hook here.
     return
   endif
   if s:session.kind ==# 'mode_switch'
@@ -1998,6 +2009,125 @@ function! s:recall_check_match() abort
   " Learn: mark frame complete, update test-phase streak, repaint header.
   let s:session.frame_complete = 1
   if s:session.phase ==# 'test'
+    let s:session.last_item_motions = s:session.test_motion_count
+    let s:session.last_item_optimal = get(item, 'optimal_motions', 1)
+    if s:session.last_item_motions <= s:session.last_item_optimal
+      let s:session.streak += 1
+      let s:session.wrongs = 0
+    else
+      let s:session.streak = 0
+      let s:session.wrongs += 1
+    endif
+  endif
+  call s:learn_render_complete()
+endfunction
+
+" -----------------------------------------------------------------
+" Command kind — live-buffer Ex/normal-mode command capture
+"
+" The learner reads a status header + goal above a realistic
+" code/text snippet and types the matching vim command (Ex form
+" like :wq or normal-mode shortcut like ZZ). We intercept the
+" keystrokes via buffer-local mappings so the command never
+" actually executes — vim doesn't quit, the snippet doesn't get
+" written, but the LEARNER's experience is "I pressed :wq<Enter>
+" and the screen advanced." Free-operant: wrong commands echo a
+" hint and the learner keeps going without an auto-fail.
+" -----------------------------------------------------------------
+
+" Render a command item. Header (status + goal + divider) above the
+" snippet; cursor parks in the snippet area. Buffer is nomodifiable
+" so the learner can't accidentally edit the "file" they're staring
+" at. Command capture mappings are installed every render — they're
+" buffer-local but the buffer is reused across items, so re-mapping
+" is a no-op once they're in place.
+function! s:render_command_item(item) abort
+  let snippet     = get(a:item, 'snippet', [])
+  let status_text = get(a:item, 'status_text', '')
+  let goal        = get(a:item, 'goal', '')
+  let header = [
+    \ '─── status: ' . status_text . ' ───',
+    \ 'Goal: ' . goal,
+    \ repeat('─', 60),
+    \ ]
+  let s:session.header_offset = len(header)
+  setlocal modifiable
+  silent! %delete _
+  call setline(1, header + snippet)
+  setlocal nomodifiable nomodified
+  call cursor(len(header) + 1, 1)
+  call s:install_command_maps()
+  redraw
+endfunction
+
+" Buffer-local key intercepts. ':' opens our fake cmdline (input())
+" so the user feels like they're typing an Ex command but vim never
+" sees it as one to execute. ZZ / ZQ are captured as normal-mode
+" shortcuts the same way real vim sees them. Tab skips; <C-c>
+" inside input() cancels cleanly.
+function! s:install_command_maps() abort
+  nnoremap <buffer> <silent> : :call <SID>command_fake_cmdline()<CR>
+  nnoremap <buffer> <silent> ZZ :call <SID>command_check('ZZ')<CR>
+  nnoremap <buffer> <silent> ZQ :call <SID>command_check('ZQ')<CR>
+  nnoremap <buffer> <silent> <Tab> :call <SID>skip()<CR>
+endfunction
+
+" input('-style fake cmdline. The leading ':' prompt makes it look
+" visually identical to real vim cmdline. Empty input (user pressed
+" <CR> or <Esc> without typing) silently aborts — same as cancelling
+" a real :w typo.
+function! s:command_fake_cmdline() abort
+  let cmd = input(':')
+  redraw
+  if empty(cmd) | return | endif
+  " Escape hatch: :VfQuit always passes through to the real handler
+  " so the learner can stop the drill even though every other ':'
+  " command gets captured rather than executed.
+  if cmd =~# '^VfQuit\>'
+    execute cmd
+    return
+  endif
+  call s:command_check(':' . cmd)
+endfunction
+
+" Credit-or-reject for a typed command. Counts every attempt's
+" keystrokes against the motion total so multi-attempt items
+" register the inefficiency (per-motion stats stay honest).
+" Branches on mode/phase like s:recall_check_match.
+function! s:command_check(typed) abort
+  let s:session.current_item_motions
+    \ = get(s:session, 'current_item_motions', 0) + len(a:typed)
+  let mode = get(s:session, 'mode', 'train')
+  if mode ==# 'train'
+    let item = s:session.current_item
+  elseif get(s:session, 'phase', '') ==# 'test'
+    let item = s:session.current_test_item
+    let s:session.test_motion_count
+      \ = get(s:session, 'test_motion_count', 0) + len(a:typed)
+  else
+    let frame = s:session.frames[s:session.frame_idx]
+    if frame.kind !=# 'try' | return | endif
+    let item = frame
+  endif
+  let expected = get(item, 'expected_motion', '')
+  if a:typed !=# expected
+    redraw
+    echohl WarningMsg
+    echo printf('  typed %s — check the Goal and try again', a:typed)
+    echohl None
+    return
+  endif
+
+  if mode ==# 'train'
+    call s:credit_item()
+    return
+  endif
+
+  " Lesson: same frame-complete + streak update path the recall
+  " match uses, so the lesson runner can advance / repaint without
+  " caring whether the answer arrived via cnoremap or input().
+  let s:session.frame_complete = 1
+  if get(s:session, 'phase', '') ==# 'test'
     let s:session.last_item_motions = s:session.test_motion_count
     let s:session.last_item_optimal = get(item, 'optimal_motions', 1)
     if s:session.last_item_motions <= s:session.last_item_optimal
@@ -2910,12 +3040,17 @@ function! s:learn_show_frame() abort
   let is_mode = kind ==# 'mode'
   let is_mode_switch = kind ==# 'mode_switch'
   let is_recall = kind ==# 'recall'
+  let is_command = kind ==# 'command'
 
   " prompt may be a string or a list of lines — multi-line lets a
   " pinpoint wrap long instructions at a readable width instead of
-  " forcing a horizontal scroll.
-  let prompt_lines = type(frame.prompt) == v:t_list
-    \ ? copy(frame.prompt) : [frame.prompt]
+  " forcing a horizontal scroll. Command-kind try frames carry no
+  " prompt (their cue is the status header + goal rendered inline by
+  " the command-kind branch below); treat that case as empty.
+  let frame_prompt = get(frame, 'prompt', '')
+  let prompt_lines = type(frame_prompt) == v:t_list
+    \ ? copy(frame_prompt)
+    \ : (empty(frame_prompt) ? [] : [frame_prompt])
   let base_header = [s:learn_header_line(), ''] + prompt_lines + ['']
 
   if is_mode_switch
@@ -2992,6 +3127,38 @@ function! s:learn_show_frame() abort
       call setline(1, base_header)
       " Park cursor at the bottom blank header line so the block sits
       " on empty space rather than over a prompt char.
+      call cursor(len(base_header), 1)
+    endif
+    let s:session.advancing = 0
+    return
+  endif
+  if is_command
+    " Command lessons render the same live-buffer scenario the
+    " training does — status header + goal + snippet — for try
+    " frames; show frames stay static rule statements built from
+    " frame.prompt.
+    if frame.kind ==# 'try'
+      let snippet     = get(frame, 'snippet', [])
+      let status_text = get(frame, 'status_text', '')
+      let goal        = get(frame, 'goal', '')
+      let scene_header = [
+        \ '─── status: ' . status_text . ' ───',
+        \ 'Goal: ' . goal,
+        \ repeat('─', 60),
+        \ ]
+      let pre = [s:learn_header_line(), '']
+      let s:session.header_offset = len(pre) + len(scene_header)
+      setlocal modifiable
+      silent! %delete _
+      call setline(1, pre + scene_header + snippet)
+      setlocal nomodifiable nomodified
+      call cursor(len(pre) + len(scene_header) + 1, 1)
+      call s:install_command_maps()
+    else
+      setlocal modifiable
+      silent! %delete _
+      call setline(1, base_header)
+      setlocal nomodifiable nomodified
       call cursor(len(base_header), 1)
     endif
     let s:session.advancing = 0
@@ -3630,6 +3797,33 @@ function! s:learn_test_next() abort
     silent! %delete _
     call setline(1, lines)
     call cursor(s:session.input_row, len(s:session.input_prefix) + 1)
+    let s:session.advancing = 0
+    return
+  endif
+
+  if kind ==# 'command'
+    " Same live-buffer scenario rendering as the training path, with
+    " the lesson header line prepended so the learner sees their
+    " streak. test_motion_count is reset here so the streak math in
+    " s:command_check measures only THIS item's keystrokes.
+    let s:session.test_motion_count = 0
+    let snippet     = get(item, 'snippet', [])
+    let status_text = get(item, 'status_text', '')
+    let goal        = get(item, 'goal', '')
+    let pre = [s:learn_header_line(), '',
+      \ 'Apply the rule — read the buffer and type the right command.', '']
+    let scene_header = [
+      \ '─── status: ' . status_text . ' ───',
+      \ 'Goal: ' . goal,
+      \ repeat('─', 60),
+      \ ]
+    let s:session.header_offset = len(pre) + len(scene_header)
+    setlocal modifiable
+    silent! %delete _
+    call setline(1, pre + scene_header + snippet)
+    setlocal nomodifiable nomodified
+    call cursor(len(pre) + len(scene_header) + 1, 1)
+    call s:install_command_maps()
     let s:session.advancing = 0
     return
   endif

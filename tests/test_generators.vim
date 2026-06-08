@@ -652,7 +652,9 @@ endfunction
 " cursor returns to its start col after Esc). So they bypass
 " s:assert_common — they have their own shape invariants.
 
-" Common shape check for recall items.
+" Common shape check for recall items. The 'command' kind (save/quit
+" family) keeps the same answer/motion/optimal fields but renders via
+" snippet+status_text+goal instead of a prompt — accept either.
 function! s:assert_recall_common(id, item) abort
   let prefix = 'gen[' . a:id . ']: '
   let item = a:item
@@ -666,8 +668,11 @@ function! s:assert_recall_common(id, item) abort
   call Assert(has_key(item, 'optimal_motions')
     \ && item.optimal_motions > 0,
     \ prefix . 'optimal_motions positive')
-  call Assert(has_key(item, 'prompt'),
-    \ prefix . 'has prompt')
+  let has_prompt = has_key(item, 'prompt')
+  let has_command_shape = has_key(item, 'snippet')
+    \ && has_key(item, 'status_text') && has_key(item, 'goal')
+  call Assert(has_prompt || has_command_shape,
+    \ prefix . 'has prompt OR has snippet+status_text+goal')
 endfunction
 
 " T0.3a–d — save/quit binary discrimination pinpoints. Each one
