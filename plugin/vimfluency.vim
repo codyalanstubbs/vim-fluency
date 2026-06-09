@@ -4,9 +4,10 @@
 if exists('g:loaded_vimfluency') | finish | endif
 let g:loaded_vimfluency = 1
 
-if v:version < 801
+" rand() needs patch 8.1.2342, so version alone isn't enough.
+if v:version < 801 || !exists('*rand')
   echohl WarningMsg
-  echom 'vimfluency requires Vim 8.1 or later'
+  echom 'vimfluency requires Vim 8.1 or later (with rand(), patch 8.1.2342)'
   echohl None
   finish
 endif

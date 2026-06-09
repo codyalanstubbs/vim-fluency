@@ -13,11 +13,9 @@ COMMANDS                                                        *vf-commands*
 :Vf {id} [seconds] [only=motion[,motion...]]                          *:Vf*
     Start a training on pinpoint {id} for [seconds] (default 60, or
     your :VfSetDuration override). Use Tab to skip an item, :VfQuit
-    to end early. When the session ends, the summary screen offers
-    three shortcuts:
-        C    open the celeration :VfChart for this pinpoint
-        L    return to :VfList
-        q or <Enter>   close the summary tab
+    to end early. When the session ends, the runner opens (or
+    rebuilds) :VfDashboard with the cursor on the just-trained
+    pinpoint, so the LAST SESSION pane shows the fresh stats.
 
     `only=` filters the generator to only produce items where the
     canonical answer is one of the listed motions. Example:
@@ -114,9 +112,36 @@ COMMANDS                                                        *vf-commands*
                    stroke_rate = last_rate / stroke_count (a fairness
                    lens for comparing 1-key and multi-key commands)
     stroke_count is derived from the command string (shift counts as
-    its own keystroke, so `q!` = 3 and `:wq` = 4); a pinpoint can
-    declare `stroke_counts: {motion → N}` in meta() to override the
-    derived count for a specific command.
+    its own keystroke, and Ex commands add one for the trailing
+    <Enter>, so `q!` = 3 and `:wq` = 5); a pinpoint can declare
+    `stroke_counts: {motion → N}` in meta() to override the derived
+    count for a specific command.
+
+:VfDashboard [id]                                            *:VfDashboard*
+    Open the multi-panel dashboard: a one-line banner (current path,
+    status counts, sessions trained), a hover panel showing celeration
+    charts for the drill under the cursor, the interactive pinpoint
+    table, and a LAST SESSION side panel with the hovered drill's most
+    recent breakdown (date / rate / aim / efficiency, prereqs,
+    per-command sub-table). The table rows and j/k navigation work
+    like :VfList; the hover and LAST SESSION panels refresh as the
+    cursor moves. The table is filtered to the current path (see
+    :VfSetPath); :Vf {id} and :VfLearn {id} still accept every
+    pinpoint regardless of path. Optional [id] lands the cursor on
+    that row — every training session also ends here, on the
+    just-trained pinpoint. If a dashboard tab is already open it is
+    reused and rebuilt in place rather than duplicated. Keys on the
+    table window:
+        L T C A D     same as :VfList (Learn, Train, Chart, Aim,
+                      Duration)
+        P             prompt to switch the learning path (Tab
+                      completes; 'general' or :VfResetPath reverts)
+        B             jump into the LAST SESSION panel to scroll a
+                      breakdown that overflows the window
+        q             close the dashboard
+    Inside the LAST SESSION panel: j/k scroll, J or <CR> on a prereq
+    line jumps the table cursor to that prereq's row, and q, <Esc>,
+    or B return to the table.
 
 :VfQuit                                                          *:VfQuit*
     End the active session, write its log entry, restore the window layout.
@@ -175,6 +200,29 @@ COMMANDS                                                        *vf-commands*
 :VfResetDuration                                        *:VfResetDuration*
     Clear the personal default duration override (revert to 60s).
 
+:VfSetPath {name}                                            *:VfSetPath*
+    Store the current learning path. A path is a curated subset of
+    the pinpoint registry (defined by a file under
+    autoload/vimfluency/paths/) that filters what :VfDashboard shows.
+        :VfSetPath foundational
+    Tab-completion offers the discovered paths; unknown names are
+    rejected with the list of what's available. The selection
+    persists in settings.json as `current_path`. Built-in paths:
+        general        every shipped pinpoint, no curation (default)
+        foundational   survival skills + basic motion — mode
+                       switching, positional inserts, save/quit,
+                       undo, hjkl, line edges, word motion
+    Path ids listed in a path file but not (or no longer) in the
+    registry are silently dropped, so paths survive pinpoint renames.
+
+:VfResetPath                                               *:VfResetPath*
+    Clear the path selection, reverting to 'general'.
+
+:VfPaths                                                       *:VfPaths*
+    List the available paths, one per line: a ▶ marker on the current
+    selection, the path id, its display name, and how many shipped
+    drills it covers.
+
 ==============================================================================
 LOG AND SETTINGS                                                     *vf-log*
 
@@ -184,9 +232,17 @@ Each session appends one JSON line to:
 
 Fields per record: timestamp, pinpoint_id, pinpoint_name, aim,
 duration_seconds, elapsed_seconds, items_correct, items_skipped,
-frequency_per_min, end_reason, items. The recorded `aim` is the
+items_hit, frequency_per_min, hits_per_min, miss_per_min,
+errors_per_min, total_motions, total_optimal_motions, efficiency_pct,
+end_reason, only_filter, per_motion, items. The recorded `aim` is the
 EFFECTIVE aim at training time (the user override if one is set,
-otherwise the pinpoint's meta.aim default).
+otherwise the pinpoint's meta.aim default). items_hit counts correct
+items solved with no wasted motions (actual ≤ optimal); hits_per_min /
+miss_per_min are the SCC-convention rates derived from hits, wasted
+motions, and skips. errors_per_min is wasted motions (total minus
+optimal, clamped at 0) per minute. per_motion maps each
+expected_motion to {correct, time_seconds, rate_per_min, avg_motions,
+avg_optimal}; items is the full per-item log.
 
 User settings live alongside the log in:
     $XDG_DATA_HOME/vimfluency/settings.json
@@ -194,29 +250,34 @@ User settings live alongside the log in:
 with the shape:
     {
       "aims":             {<pinpoint_id>: <integer rate per minute>},
-      "default_duration": <integer seconds>
+      "default_duration": <integer seconds>,
+      "current_path":     <path id>
     }
 
-Set and clear via :VfSetAim and :VfSetDuration; the file is rewritten
-on each change. A missing or malformed file is treated as "no
-overrides" so neither :VfList nor :Vf ever errors on a fresh install.
+Set and clear via :VfSetAim, :VfSetDuration, and :VfSetPath; the file
+is rewritten on each change. A missing or malformed file is treated as
+"no overrides" so neither :VfList nor :Vf ever errors on a fresh
+install.
 
 ==============================================================================
 ADDING A PINPOINT                                              *vf-pinpoints*
 
-Drop a file at  autoload/vimfluency/pinpoints/p<NAME>.vim  defining:
+Drop a file at  autoload/vimfluency/pinpoints/<slug>.vim  defining:
 
-    function! vimfluency#pinpoints#p<NAME>#meta() abort
+    function! vimfluency#pinpoints#<slug>#meta() abort
         return {'id': '...', 'name': '...', 'aim': N, 'allowed_keys': '...'}
     endfunction
 
-    function! vimfluency#pinpoints#p<NAME>#generate() abort
+    function! vimfluency#pinpoints#<slug>#generate() abort
         return {'lines': [...], 'start': [row, col], 'target': [row, col]}
     endfunction
 
-The leading 'p' is required because vim autoload segments cannot start
-with a digit. {id} is a free-form string and is what users type.
+{slug} is a descriptive snake_case identifier starting with a letter
+(e.g. move_single_char_left_right) — it is both the filename minus
+.vim and the {id} users type after :Vf.
 Rows and cols are 1-indexed (vim convention).
+'allowed_keys' is advisory documentation of the intended key set; the
+runner does not restrict input with it.
 
 TRAINING KINDS                                                    *vf-kinds*
 
@@ -249,6 +310,40 @@ meta() may declare a `kind` field:
         (post-Esc buffer state), and `target` (post-Esc cursor pos
         in normal mode). Runner credits on InsertLeave when all
         three match.
+
+    mode_switch
+        Mode-change production training (the switch_mode_* family).
+        Item declares `target_mode_canon` — one of n, i, v, r, c
+        (visual char/line/block collapse to v; Replace variants to
+        r; command-line variants to c). Runner credits the moment
+        vim's canonical mode matches the target (via ModeChanged on
+        vim 8.2+, or 50ms mode() polling on 8.1). The next item's
+        target is generated with a no-repeat constraint (target !=
+        current mode).
+
+    command
+        Ex / normal-mode command training (e.g., :wq vs ZZ). Item
+        declares a code `snippet` plus a `goal` rendered as a
+        comment line above it; the buffer is nomodifiable. Buffer-
+        local mappings capture ':' (a fake cmdline via input()) and
+        the ZZ / ZQ shortcuts, so the command is checked but never
+        executed — vim doesn't quit, the snippet isn't written.
+        Credits when the typed command equals `expected_motion`;
+        wrong commands echo a hint and the learner retries
+        (free-operant). :VfQuit typed at the fake cmdline still
+        passes through and ends the session.
+
+    visual_motion
+        Charwise visual-selection training (the visual_select_*
+        family, e.g., vh / vj / vk / vl). Item adds
+        `expected_selection_start`, `expected_selection_end`, and
+        `expected_sub_mode` (default 'v'; sub-modes are deliberately
+        NOT collapsed — v-family drills discriminate them). Runner
+        credits when mode(1) equals the expected sub-mode AND the
+        selection anchor (getpos('v')) and cursor match the expected
+        range, counting the v keystroke toward the motion total,
+        then drops the learner back to normal mode so the next item
+        starts clean.
 
 ==============================================================================
 REQUIREMENTS                                                       *vf-reqs*

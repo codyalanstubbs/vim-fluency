@@ -35,6 +35,9 @@ tests/                                  vim-headless test runner
 Each `autoload/vimfluency/pinpoints/p<ID>.vim` must export:
 
 - `vimfluency#pinpoints#p<ID>#meta()` → `{id, name, aim, allowed_keys, prereqs}`
+  (`allowed_keys` is advisory documentation of the intended key set —
+  the runner never reads or enforces it, and encodings vary across
+  pinpoints; don't build logic on it without normalizing first)
 - `vimfluency#pinpoints#p<ID>#generate()` → `{lines, start, target, expected_motion, optimal_motions}`
 - `vimfluency#pinpoints#p<ID>#lesson()` → list of show/try frames (optional)
 
@@ -100,7 +103,7 @@ lesson buffer (header rows above the content). In the training buffer, vim's
 removes the line entirely because the header rows above it satisfy vim's
 minimum-1-line rule, leaving zero content rows. The runner's
 `getline(header_offset+1, '$')` returns `[]`, no match against `['']`, the
-frame never advances. See `discriminate_delete_char_vs_line.vim` for a worked-around example: items
+frame never advances. See `delete_char_vs_line.vim` for a worked-around example: items
 use a 2-line buffer so any `dd` leaves a survivor line that satisfies the
 target check in either context. Future pinpoints that delete entire lines
 should follow the same pattern.
@@ -190,7 +193,13 @@ the whitespace-listchars pattern.
 
 - Training: `vf-<id>`
 - Lesson: `vf-lesson-<id>`
-- Summary: `vf-summary-<id>`
+- List: `vf-list` (data) + `vf-list-header` (sticky header)
+- Chart: `vf-chart-<id>` / `vf-chart-zoom-<id>`
+- Dashboard: `vf-dashboard-table`, `vf-dashboard-banner`,
+  `vf-dashboard-hover`, `vf-dashboard-last-session`
+
+(No standalone summary buffer anymore — sessions end by landing on the
+trained pinpoint's row in `:VfDashboard`.)
 
 **Avoid slashes** — vim's `pathshorten()` truncates path-like names when the
 tabline is cramped (`vimfluency://summary/1A.1` → `t//s/1A.1`).
@@ -209,16 +218,23 @@ the full items_log. View with `:VfHistory` or `jq` from the shell.
 When adding a pinpoint, add property tests in `tests/test_generators.vim`
 covering its `optimal_motions` formula and `expected_motion` set.
 
-**Note:** current tests cover generators (unit-level). The 2026-04-30
-motion-count regression (vim's deferred autocmd fire after in-handler
-`cursor()` inflated motion counts on every item transition) was a *runner*
-bug — generator tests wouldn't have caught it. A `feedkeys`-based runner
-integration test is the natural extension.
+**Note:** `tests/test_runner.vim` is a 9-test runner integration suite.
+Because `-Es` batch mode has no event loop, it drives the state machine
+via explicit `cursor()` + `doautocmd CursorMoved` rather than `feedkeys`.
+Coverage: the 2026-04-30 motion-count regression (deferred autocmd fire
+after in-handler `cursor()` inflated counts on every item transition —
+a *runner* bug generator tests couldn't catch), free-operant behavior
+(wrong motion records but doesn't auto-advance), Tab skip, per-motion
+accounting, editing-kind credit, JSONL record shape, per-item event
+streams, and the visual_motion mode gate. Caveat: vim's real
+deferred-autocmd timing is *simulated* (a manual CursorMoved fire at
+item-start position), not exercised natively.
 
 ## Adding a new pinpoint (checklist)
 
 1. Create `autoload/vimfluency/pinpoints/p<ID>.vim`
 2. Define `meta()` with `id`, `name`, `aim` (starting guess), `allowed_keys`
+   (advisory only — see the pinpoint contract note)
 3. **Cheat analysis first** — document at top of file, then write `generate()`
 4. Include `expected_motion` and `optimal_motions` in the returned item
 5. Define `lesson()` if the motion needs teaching (most do)

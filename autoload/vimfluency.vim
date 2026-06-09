@@ -561,13 +561,6 @@ function! s:last_date_from_sessions(sessions) abort
   return empty(s) ? '' : strpart(get(s, 'timestamp', ''), 0, 10)
 endfunction
 
-function! s:status_label(status) abort
-  if a:status ==# 'at_aim'       | return '✓ at aim'
-  elseif a:status ==# 'climbing' | return '▶ climbing'
-  else                           | return '○ not started'
-  endif
-endfunction
-
 " Just the bullet glyph, for the leading-column variant in :VfList.
 function! s:status_icon(status) abort
   if a:status ==# 'at_aim'       | return '✓'
@@ -979,6 +972,28 @@ function! vimfluency#list() abort
   if empty(registry)
     echo 'no pinpoints built — see CATALOG.md'
     return
+  endif
+  " Reuse an open list if there is one — a second vf-list tab would
+  " cross-wire the shared machinery: the `keepalt file vf-list` rename
+  " fails silently on the duplicate, and bufnr('vf-list-header') in
+  " s:apply_view / cleanup resolves to the FIRST list's header.
+  let list_bufnr = bufnr('vf-list')
+  if list_bufnr > 0
+    for t in range(1, tabpagenr('$'))
+      if index(tabpagebuflist(t), list_bufnr) >= 0
+        execute 'tabnext ' . t
+        for win in range(1, winnr('$'))
+          if winbufnr(win) == list_bufnr
+            execute win . 'wincmd w'
+            break
+          endif
+        endfor
+        call s:apply_view(s:build_list_view(registry,
+          \ s:load_sessions_grouped(), get(b:, 'vf_list_expanded', {}),
+          \ get(b:, 'vf_list_sort_col', ''), get(b:, 'vf_list_sort_desc', 0)))
+        return
+      endif
+    endfor
   endif
   let view = s:build_list_view(registry, s:load_sessions_grouped(), {})
   call s:show_list_buffer(view)
@@ -1438,6 +1453,10 @@ function! vimfluency#start(...) abort
   endif
   let id = positional[0]
   " Duration precedence: explicit arg > user's global default > 60s.
+  if len(positional) >= 2 && positional[1] !~# '^[1-9]\d*$'
+    echo 'duration must be a positive number of seconds, got: ' . positional[1]
+    return
+  endif
   let duration = len(positional) >= 2
     \ ? str2nr(positional[1])
     \ : s:effective_duration()
@@ -1514,7 +1533,9 @@ endfunction
 function! vimfluency#statusline() abort
   if empty(s:session) | return '' | endif
   let elapsed = reltimefloat(reltime(s:session.started_at))
-  let remaining = max([0, s:session.duration - elapsed])
+  " No max() here: Floats in max()/min() need vim 9.1 (E805 before).
+  let remaining = s:session.duration - elapsed
+  if remaining < 0 | let remaining = 0.0 | endif
   let rate = elapsed > 0 ? s:session.items_correct * 60.0 / elapsed : 0.0
   let filter_tag = empty(get(s:session, 'only_filter', []))
     \ ? '' : ' [only=' . join(s:session.only_filter, ',') . ']'
@@ -1715,7 +1736,9 @@ function! s:install_autocmds() abort
       endif
       autocmd CmdlineEnter : call s:on_cmdline_enter_train()
     augroup END
-    cnoremap <buffer> <CR> <C-c>
+    " Escape hatch: :VfQuit executes for real so the learner can end
+    " the session — every other ex command is cancelled.
+    cnoremap <buffer> <expr> <CR> getcmdtype() ==# ':' && getcmdline() =~# '^VfQuit\>' ? "\<CR>" : "\<C-c>"
     nnoremap <buffer> <silent> <Tab> :call <SID>skip()<CR>
     return
   endif
@@ -2166,6 +2189,9 @@ endfunction
 function! s:command_fake_cmdline() abort
   let cmd = input(':')
   redraw
+  " The session timer keeps ticking while input() is pending — the
+  " session may have ended (stop on timeout) before input returned.
+  if empty(s:session) | return | endif
   if empty(cmd) | return | endif
   " Escape hatch: :VfQuit always passes through to the real handler
   " so the learner can stop the drill even though every other ':'
@@ -2182,6 +2208,7 @@ endfunction
 " register the inefficiency (per-motion stats stay honest).
 " Branches on mode/phase like s:recall_check_match.
 function! s:command_check(typed) abort
+  if empty(s:session) | return | endif
   let s:session.current_item_motions
     \ = get(s:session, 'current_item_motions', 0) + len(a:typed)
   let mode = get(s:session, 'mode', 'train')
@@ -2376,6 +2403,9 @@ endfunction
 " s:install_autocmds), not per-press.
 function! s:on_cmdline_enter_train() abort
   if empty(s:session) | return | endif
+  " Global autocmd — never credit (or repaint) from another window,
+  " where setline() would clobber a real buffer.
+  if win_getid() != get(s:session, 'you_win', -1) | return | endif
   if get(s:session, 'advancing', 0) | return | endif
   let target = get(s:session.current_item, 'target_mode_canon', '')
   if target !=# 'c' | return | endif
@@ -2386,6 +2416,9 @@ endfunction
 
 function! s:check_mode_for_credit(...) abort
   if empty(s:session) | return | endif
+  " Global autocmd / polling timer — never credit (or repaint) from
+  " another window, where setline() would clobber a real buffer.
+  if win_getid() != get(s:session, 'you_win', -1) | return | endif
   if get(s:session, 'advancing', 0) | return | endif
   let canon = s:mode_canonical(mode(1))
   let target = get(s:session.current_item, 'target_mode_canon', '')
@@ -2413,6 +2446,9 @@ endfunction
 " user is already in Normal.
 function! s:on_cmdline_enter_learn() abort
   if empty(s:session) | return | endif
+  " Global autocmd — never credit from another window (see the
+  " training twin above).
+  if win_getid() != get(s:session, 'you_win', -1) | return | endif
   if get(s:session, 'advancing', 0) | return | endif
   if get(s:session, 'frame_complete', 0) | return | endif
 
@@ -2437,6 +2473,9 @@ endfunction
 " doesn't have to <Esc>+Space their way out of every credited frame.
 function! s:check_mode_for_learn_credit(...) abort
   if empty(s:session) | return | endif
+  " Global autocmd / polling timer — never credit from another window
+  " (see the training twin above).
+  if win_getid() != get(s:session, 'you_win', -1) | return | endif
   if get(s:session, 'advancing', 0) | return | endif
   if get(s:session, 'frame_complete', 0) | return | endif
 
@@ -2463,6 +2502,7 @@ function! s:check_mode_for_learn_credit(...) abort
       \ 'optimal_motions', 1)
     if s:session.last_item_motions <= s:session.last_item_optimal
       let s:session.streak += 1
+      let s:session.wrongs = 0
     else
       let s:session.streak = 0
       let s:session.wrongs += 1
@@ -2664,7 +2704,12 @@ function! s:repos_cursor_post_esc(...) abort
 endfunction
 
 function! s:skip() abort
-  if empty(s:session) || s:session.advancing | return | endif
+  " Train-only: lessons share the recall/command key maps that bind
+  " <Tab> here, but a learn session has none of the fields below.
+  if empty(s:session) || get(s:session, 'mode', 'train') !=# 'train'
+    return
+  endif
+  if s:session.advancing | return | endif
   let item = s:session.current_item
   let s:session.items_skipped += 1
   let actual = s:session.current_item_motions
@@ -2714,7 +2759,11 @@ function! vimfluency#stop(reason) abort
   call s:stop_mode_polling()
   silent! augroup VfTrain | autocmd! | augroup END
 
-  let elapsed = min([reltimefloat(reltime(s:session.started_at)), s:session.duration * 1.0])
+  " No min() here: Floats in max()/min() need vim 9.1 (E805 before).
+  let elapsed = reltimefloat(reltime(s:session.started_at))
+  if elapsed > s:session.duration
+    let elapsed = s:session.duration * 1.0
+  endif
   let rate = elapsed > 0 ? s:session.items_correct * 60.0 / elapsed : 0.0
 
   " Per-motion summary: items_correct(motion) × 60 / sum_of_time(motion)
@@ -2780,7 +2829,15 @@ function! vimfluency#stop(reason) abort
     \ 'per_motion': per_motion_out,
     \ 'items': s:session.items_log,
     \ }
-  call writefile([json_encode(record)], vimfluency#log_dir() . '/sessions.jsonl', 'a')
+  " A failed write must not abort teardown — the session would stay
+  " marked active with the tab open and laststatus unrestored.
+  try
+    call writefile([json_encode(record)], vimfluency#log_dir() . '/sessions.jsonl', 'a')
+  catch
+    echohl WarningMsg
+    echom 'vimfluency: could not write session log: ' . v:exception
+    echohl None
+  endtry
 
   " Post-session return-to-dashboard flow. The standalone summary
   " buffer is gone — every session ends by landing the cursor on the
@@ -2791,37 +2848,30 @@ function! vimfluency#stop(reason) abort
   " otherwise it opens a new one.
   let prev_laststatus = s:session.prev_laststatus
   let prev_ttimeoutlen = get(s:session, 'prev_ttimeoutlen', &ttimeoutlen)
-  let tabnr = s:session.tabnr
+  let you_win = get(s:session, 'you_win', -1)
   let pinpoint_id = record.pinpoint_id
   let s:session = {}
 
-  silent! execute 'tabclose ' . tabnr
+  " Resolve the tab by window id at close time — the tab NUMBER captured
+  " at setup goes stale if the user opens/closes tabs mid-session.
+  let tabnr = win_id2tabwin(you_win)[0]
+  if tabnr > 0
+    silent! execute 'tabclose ' . tabnr
+  endif
   let &laststatus = prev_laststatus
   let &ttimeoutlen = prev_ttimeoutlen
   call vimfluency#dashboard(pinpoint_id)
 endfunction
 
+" Close the list/chart/dashboard tab the cursor is in. b:vf_summary_tabnr
+" is only a sentinel marking the buffer as ours — the mapping that calls
+" this is buffer-local, so the CURRENT tab is always the right one to
+" close (stored tab numbers go stale when other tabs open/close).
 function! vimfluency#close_summary() abort
   if exists('b:vf_summary_tabnr')
-    let tabnr = b:vf_summary_tabnr
     let prev_ls = b:vf_summary_prev_laststatus
-    let prev_ttl = get(b:, 'vf_summary_prev_ttimeoutlen', &ttimeoutlen)
-    silent! execute 'tabclose ' . tabnr
+    silent! tabclose
     let &laststatus = prev_ls
-    let &ttimeoutlen = prev_ttl
-  endif
-endfunction
-
-" Post-session shortcuts: from the summary, jump straight to the
-" celeration chart for the pinpoint you just trained, or back to
-" :VfList. Closes the summary tab first so we don't leave it behind.
-function! vimfluency#summary_action(action) abort
-  let id = get(b:, 'vf_summary_pinpoint_id', '')
-  call vimfluency#close_summary()
-  if a:action ==# 'chart' && !empty(id)
-    call vimfluency#chart(id)
-  elseif a:action ==# 'list'
-    call vimfluency#list()
   endif
 endfunction
 
@@ -2848,14 +2898,19 @@ function! vimfluency#history(...) abort
   for line in readfile(log_path)
     if empty(line) | continue | endif
     try
-      call add(records, json_decode(line))
+      let rec = json_decode(line)
+      " A JSON-valid line that isn't a session record (hand-edited
+      " log, older schema) must not crash the whole listing.
+      if type(rec) == type({}) && has_key(rec, 'pinpoint_id')
+        call add(records, rec)
+      endif
     catch
       " skip malformed line
     endtry
   endfor
 
   if !empty(filter_id)
-    call filter(records, 'v:val.pinpoint_id ==# filter_id')
+    call filter(records, 'get(v:val, "pinpoint_id", "") ==# filter_id')
     if empty(records)
       echo 'no sessions for pinpoint ' . filter_id
       return
@@ -2882,11 +2937,14 @@ function! vimfluency#history(...) abort
     \ len(records), len(groups))
   for pid in sort(order)
     let g = groups[pid]
-    let aim = g[0].aim
-    let name = g[0].pinpoint_name
+    " Defensive field access: older or hand-edited records may lack
+    " fields, and numbers may round-trip as Number or Float — the
+    " 1.0* / float2nr coercions keep printf's %f and %d happy.
+    let aim = float2nr(1.0 * get(g[0], 'aim', 0))
+    let name = get(g[0], 'pinpoint_name', pid)
     let n = len(g)
-    let first_rate = g[0].frequency_per_min
-    let last_rate = g[-1].frequency_per_min
+    let first_rate = 1.0 * get(g[0], 'frequency_per_min', 0)
+    let last_rate = 1.0 * get(g[-1], 'frequency_per_min', 0)
 
     let header = printf(' %s — %s   aim %d/min   n=%d', pid, name, aim, n)
     if n >= 2 && first_rate > 0
@@ -2896,11 +2954,13 @@ function! vimfluency#history(...) abort
     echo ''
     echo header
     for r in g
-      let ts = substitute(r.timestamp, 'T', ' ', '')
+      let ts = substitute(get(r, 'timestamp', ''), 'T', ' ', '')
+      let rrate = 1.0 * get(r, 'frequency_per_min', 0)
       echo printf('   %s  %5.1f/min  %s  correct %2d  skipped %d',
-        \ ts, r.frequency_per_min,
-        \ s:rate_bar(r.frequency_per_min, aim),
-        \ r.items_correct, r.items_skipped)
+        \ ts, rrate,
+        \ s:rate_bar(rrate, aim),
+        \ float2nr(1.0 * get(r, 'items_correct', 0)),
+        \ float2nr(1.0 * get(r, 'items_skipped', 0)))
     endfor
   endfor
 endfunction
@@ -2964,7 +3024,6 @@ function! vimfluency#learn(...) abort
     \ 'last_item_motions': 0,
     \ 'last_item_optimal': 0,
     \ 'current_test_item': {},
-    \ 'prev_laststatus': &laststatus,
     \ 'prev_ttimeoutlen': &ttimeoutlen,
     \ 'target_match_id': -1,
     \ 'deletion_match_id': -1,
@@ -2985,6 +3044,7 @@ endfunction
 function! s:learn_setup_window() abort
   tabnew
   let s:session.tabnr = tabpagenr()
+  let s:session.you_win = win_getid()
   setlocal buftype=nofile bufhidden=wipe noswapfile nobuflisted
   setlocal nonumber norelativenumber nowrap signcolumn=no
   setlocal list listchars=trail:·,nbsp:·
@@ -3287,7 +3347,9 @@ function! s:learn_install_autocmds() abort
     " Defang <CR> in cmdline mode so any text the user types after ':'
     " can't execute as an ex command against the lesson buffer. See
     " s:on_cmdline_enter_learn for the full cmdline flow.
-    cnoremap <buffer> <CR> <C-c>
+    " Escape hatch: :VfQuit executes for real so the learner can end
+    " the session — every other ex command is cancelled.
+    cnoremap <buffer> <expr> <CR> getcmdtype() ==# ':' && getcmdline() =~# '^VfQuit\>' ? "\<CR>" : "\<C-c>"
   endif
   augroup VfLearn
     autocmd!
@@ -3991,8 +4053,11 @@ function! vimfluency#learn_stop() abort
   call s:stop_learn_auto_advance()
   let id = s:session.id
   let prev_ttl = get(s:session, 'prev_ttimeoutlen', &ttimeoutlen)
-  if has_key(s:session, 'tabnr')
-    silent! execute 'tabclose ' . s:session.tabnr
+  " Resolve the tab by window id at close time — the tab NUMBER captured
+  " at setup goes stale if the user opens/closes tabs mid-session.
+  let tabnr = win_id2tabwin(get(s:session, 'you_win', -1))[0]
+  if tabnr > 0
+    silent! execute 'tabclose ' . tabnr
   endif
   let &ttimeoutlen = prev_ttl
   let s:session = {}
@@ -4124,7 +4189,14 @@ endfunction
 function! s:render_chart(id, sessions, bounds) abort
   let n = len(a:sessions)
   let pinpoint_name = a:sessions[0].pinpoint_name
-  let aim = a:sessions[0].aim
+  " Current effective aim (override-aware), not the aim recorded in
+  " the OLDEST session — after :VfSetAim the chart's aim line and
+  " caption would otherwise disagree with the dashboard. Ids without
+  " a registry entry (test fixtures) fall back to the recorded aim.
+  let registry = vimfluency#discover_pinpoints()
+  let aim = has_key(registry, a:id)
+    \ ? s:effective_aim(a:id, registry[a:id])
+    \ : a:sessions[0].aim
   let base_jul = s:julian_from_iso(a:sessions[0].timestamp)
   let last_jul = s:julian_from_iso(a:sessions[-1].timestamp)
   let n_days = last_jul - base_jul + 1
@@ -4317,6 +4389,11 @@ let s:DASHBOARD_BANNER_HEIGHT = 1
 let s:DASHBOARD_HOVER_HEIGHT = 28
 let s:DASHBOARD_LAST_SESSION_WIDTH = 60
 
+" Hover-panel data cache: registry + grouped sessions, filled when the
+" dashboard is (re)built and dropped on close. Hover repaints on every
+" j/k — re-parsing sessions.jsonl there is the wrong cost model.
+let s:dashboard_cache = {}
+
 " :VfDashboard [pinpoint_id]. Optional id lands the cursor on that
 " row (matching :Vf <id> / training-end auto-return). If a dashboard
 " tab already exists, switch to it and rebuild in place rather than
@@ -4389,8 +4466,10 @@ function! s:show_dashboard(registry, sessions, ...) abort
   let b:vf_list_expanded = {}
   let b:vf_list_sort_col = ''
   let b:vf_list_sort_desc = 0
-  let b:vf_dashboard_tabnr = tabnr
-  let b:vf_dashboard_prev_laststatus = &laststatus
+  " Same b:vf_summary_* names the list/chart buffers use, so the q
+  " mapping's vimfluency#close_summary() works here too.
+  let b:vf_summary_tabnr = tabnr
+  let b:vf_summary_prev_laststatus = &laststatus
   let &l:statusline = ' Vim Fluency dashboard   [L=Learn  T=Train  C=Chart  A=Aim  D=Duration  P=Path  B=Breakdown  q=close]'
   set laststatus=2
 
@@ -4463,6 +4542,7 @@ function! s:show_dashboard(registry, sessions, ...) abort
   endif
   call cursor(first_line, 1)
   let b:vf_dashboard_last_row = first_line
+  let s:dashboard_cache = {'registry': a:registry, 'sessions': a:sessions}
 
   call s:dashboard_render_hover(mapping, first_line, path_registry, a:sessions, cols)
   call s:dashboard_render_banner(path_registry, a:sessions, cols)
@@ -4496,13 +4576,20 @@ function! s:dashboard_on_cursor_moved() abort
   let row = line('.')
   if row == get(b:, 'vf_dashboard_last_row', -1) | return | endif
   let b:vf_dashboard_last_row = row
-  " Re-fetch registry + sessions; the JSONL log only grows during
-  " training, not while the dashboard is open, so this is cheap.
-  " The banner is hovering-independent (aggregates over everything),
-  " but training totals do change as the JSONL grows, so we
-  " re-render it here too — cheap enough to keep this path simple.
-  let registry = vimfluency#discover_pinpoints()
-  let sessions = s:load_sessions_grouped()
+  " Registry + sessions come from the cache filled at dashboard
+  " build/rebuild time. Nothing the JSONL log records changes while
+  " the dashboard is open (training rebuilds the dashboard, which
+  " refreshes the cache), and re-parsing the whole log — records
+  " embed full items_log — on every j/k makes hovering sluggish as
+  " the log grows.
+  if empty(s:dashboard_cache)
+    let s:dashboard_cache = {
+      \ 'registry': vimfluency#discover_pinpoints(),
+      \ 'sessions': s:load_sessions_grouped(),
+      \ }
+  endif
+  let registry = s:dashboard_cache.registry
+  let sessions = s:dashboard_cache.sessions
   let path_registry = s:filter_registry_by_path(registry)
   call s:dashboard_render_hover(b:vf_list_line_to_id, row, path_registry, sessions, &columns)
   call s:dashboard_render_banner(path_registry, sessions, &columns)
@@ -4515,6 +4602,8 @@ function! s:dashboard_cleanup() abort
     if b > 0 | silent! execute 'bwipeout! ' . b | endif
   endfor
   silent! autocmd! VfDashboard
+  " Cached sessions embed every item log — don't hold them after close.
+  let s:dashboard_cache = {}
 endfunction
 
 " Rebuild the dashboard table + panels after a settings change
@@ -4527,6 +4616,7 @@ function! s:rebuild_dashboard_keeping_pinpoint(id) abort
   let registry = vimfluency#discover_pinpoints()
   let path_registry = s:filter_registry_by_path(registry)
   let sessions = s:load_sessions_grouped()
+  let s:dashboard_cache = {'registry': registry, 'sessions': sessions}
   let view = s:build_list_view(path_registry, sessions, get(b:, 'vf_list_expanded', {}),
     \ get(b:, 'vf_list_sort_col', ''), get(b:, 'vf_list_sort_desc', 0))
   let split = s:split_view(view)
@@ -5410,10 +5500,6 @@ function! s:pad_right(s, w) abort
     return result . repeat(' ', a:w - width)
   endif
   return a:s . repeat(' ', a:w - l)
-endfunction
-
-function! s:round1(f) abort
-  return float2nr(a:f * 10 + 0.5) / 10.0
 endfunction
 
 function! s:format_duration(seconds) abort

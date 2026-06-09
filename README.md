@@ -1,6 +1,6 @@
 # Vim Fluency
 
-A vim plugin for behavioral-fluency training sessions on vim motion pinpoints. Runs inside vim itself — no simulator divergence, you're using real vim. Project home: vimfluency.com.
+A vim plugin for behavioral-fluency training sessions on vim pinpoints. Runs inside vim itself — no simulator divergence, you're using real vim. Project home: vimfluency.com.
 
 ## Install
 
@@ -20,33 +20,57 @@ For the "every server" use case: `scp -r vim-fluency/ user@host:~/.vim/pack/vimf
 ## Use
 
 ```
-:VfList                  " show installed pinpoints
-:Vf 1A.1                 " 60-second training on hjkl
-:Vf 1A.1 30              " 30 seconds
-:VfQuit                  " end early; log + summary printed
+:VfDashboard                            " home view: drill table, charts, last session
+:VfList                                 " flat table of installed pinpoints
+:VfLearn move_to_char_forward_backward  " DI-style lesson, hands off to training
+:Vf move_single_char_up_down_left_right       " 60-second training
+:Vf move_single_char_up_down_left_right 30    " 30 seconds
+:Vf move_to_line_edges_all only=g_,^    " drill only the listed motions
+:VfQuit                                 " end early; session logged
+:VfHistory                              " prior sessions with rate bars
+:VfChart {id}                           " Standard Celeration Chart (text, semi-log)
+:VfChartZoom {id}                       " same, zoomed to one decade
 ```
 
-Tab key skips the current item. The session opens its own tab page; ending closes it.
+Settings commands: `:VfSetAim` / `:VfResetAim` (per-pinpoint aim override),
+`:VfSetDuration` / `:VfResetDuration` (global default duration),
+`:VfSetPath` / `:VfResetPath` / `:VfPaths` (curated learning paths).
+`:help vimfluency` documents all of them.
+
+Tab skips the current item. Sessions open their own tab page and end by
+landing on the just-trained pinpoint in `:VfDashboard`.
 
 ## How it works
 
-A session opens a new tab with a single buffer. The target cell is highlighted in green directly in that buffer; your cursor moves through it normally. Autocommands on `CursorMoved`/`TextChanged` watch the buffer; when (line content, cursor position) matches the target, the item is logged correct and the next item loads.
+A training opens a new tab with a single buffer. The target cell is highlighted in green directly in that buffer; your cursor moves through it normally. Autocommands on `CursorMoved`/`TextChanged` watch the buffer; when (line content, cursor position) matches the target, the item is logged correct and the next item loads.
 
 Because it's real vim, every keystroke is interpreted natively — no need to maintain a parallel command dispatcher.
 
-For motion-only pinpoints, the target cell is enough — the buffer content doesn't change. For editing pinpoints (`delete`-family, etc.), where the target lines differ from the start lines, this single-pane display will need a "before" reference somewhere (popup, virtual text, or split). Address that when the first editing pinpoint lands.
+Beyond cursor-only motion drills, pinpoints declare a `kind` for other
+behaviors: `editing` (operators like `x`, `dd`, `dw` — credit when the buffer
+matches the post-edit state), `mode` (round-trip through insert),
+`mode_switch` (mode changes), `command` (Ex/normal commands like `:wq` vs
+`ZZ`, captured without executing), `recall` (type the answer), and
+`visual_motion` (visual selections like `vh`/`vj`). See `:help vf-kinds`.
+
+## Measurement
+
+Every item is labeled with its canonical motion and an optimal motion count.
+The runner tracks per-motion rates, total vs. optimal motions, and wasted
+motions (the celeration chart's errors line). End-of-session stats land in
+the dashboard's LAST SESSION pane; `:VfChart` plots corrects and errors per
+session against the aim.
 
 ## Logs
 
-JSONL appended to `$XDG_DATA_HOME/vimfluency/sessions.jsonl` (or `~/.local/share/vimfluency/sessions.jsonl`). One line per session. Substrate for the (not-yet-built) celeration chart.
+JSONL appended to `$XDG_DATA_HOME/vimfluency/sessions.jsonl` (or `~/.local/share/vimfluency/sessions.jsonl`). One line per session, including per-motion stats and the full item log. `:VfHistory` and `:VfChart` read from it; so can `jq`.
 
 ## Adding a pinpoint
 
-See `:help vf-pinpoints` or copy `autoload/vimfluency/pinpoints/move_single_char_up_down_left_right.vim` as a template. Two functions: `meta()` returns the pinpoint metadata; `generate()` returns one item.
+See `:help vf-pinpoints` or copy `autoload/vimfluency/pinpoints/move_single_char_up_down_left_right.vim` as a template. `meta()` returns the pinpoint metadata; `generate()` returns one item; an optional `lesson()` defines the `:VfLearn` walkthrough. 39 pinpoints shipped across the survival, motion, visual, delete, indent, and recall families — `CATALOG.md` is the shipped index.
 
-## v1 limits
+## Limits
 
-- **No keystroke counting.** Vim's autocmds fire post-aggregate (`5w` is one event), so individual keys aren't observable without taking over the input loop with `getchar()`. Rate is what's measured. A `getchar()` mode for keystroke-efficiency analysis can come later.
-- **No input restriction.** A pinpoint declares `allowed_keys` in its metadata, but the plugin doesn't currently remap forbidden keys. Honest measurement of what the user does. Can be added as opt-in later.
-- **Eleven pinpoints shipped** (1A.1 hjkl, 1A.2 line start/end, 1B.1 w/b, 1B.2 e/ge, 1C.1 find char, 1C.2 till char, 1C.3 repeat last find, 1C.4 discriminate f/t, 2.1 discriminate x vs dd, 2.2 discriminate >> vs <<, 4.1 delete with word motion). See `CATALOG.md` for the planned ~80.
+- **No raw keystroke counting.** Vim's autocmds fire post-aggregate (`5w` is one event), so the motion counts measure commands, not individual key presses. Stroke counts shown in breakdowns are derived from the command string.
+- **No input restriction.** A pinpoint declares `allowed_keys` in its metadata, but the plugin doesn't remap forbidden keys. Honest measurement of what the user does. Can be added as opt-in later.
 - **Vim 8.1+** required.

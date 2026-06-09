@@ -72,6 +72,18 @@ Cursor-only behaviors. No buffer change.
 | `move_to_till_backward` | 2-cell: `F{c}` (lands ON previous c) vs `T{c}` (lands ONE AFTER previous c) | S→K | 50 | — |
 | `move_to_till_forward_backward` | 4-way composite over `f`, `F`, `t`, `T` | Disc | 35 | `move_to_char_forward_backward`, `move_till_char_forward_backward`, `move_to_till_forward`, `move_to_till_backward` |
 
+## Visual family
+
+Charwise visual-mode selection behaviors (`v` + motion). Cursor-only
+in effect — the buffer doesn't change; credit requires being in the
+right visual sub-mode with the expected anchor + endpoint.
+
+| id (slug) | Behavior | Format | Aim | Prereqs |
+|---|---|---|---|---|
+| `visual_select_single_char_up_down_left_right` | `vh vj vk vl` — extend selection one cell (4-direction) | S→K | 50 | `visual_select_single_char_left_right`, `visual_select_single_char_up_down` |
+| `visual_select_single_char_left_right` | `vh vl` (narrower horizontal sibling) | S→K | 50 | `switch_mode_to_visual`, `move_single_char_left_right` |
+| `visual_select_single_char_up_down` | `vj vk` (narrower vertical sibling) | S→K | 50 | `switch_mode_to_visual`, `move_single_char_up_down` |
+
 ## Delete family
 
 Buffer-changing behaviors using the `d` operator. Slice-01 is the
@@ -96,8 +108,8 @@ broader drills) are designed but not yet built — see
 ## Text-object recall (legacy)
 
 These two are the May 14 recall-discrimination variants for inner
-quote text objects. They will be **replaced** when the runner grows a
-`visual` probe kind and slice-02 ships the proper `vi"`-style
+quote text objects. The runner's `visual_motion` kind now exists;
+these will be **replaced** when slice-02 ships the proper `vi"`-style
 behaviors. See
 `.strategy/catalog-v2/slice-02-quote-text-objects.md` for the
 post-pivot spec.
@@ -120,7 +132,8 @@ Active design (under exhaustive-hierarchy framework):
   text-object cells across `v/d/c/y`.
 
 Planned families (per `verb-families.md`):
-- `v/V` — visual mode foundation (`vh/vl/vj/vk`, `V/Vj/Vk`, mixed)
+- `V` — linewise visual extension (`V/Vj/Vk`, mixed; the charwise
+  `vh/vl/vj/vk` foundation is shipped — see Visual family above)
 - `c` — change family (mirrors `d` shape + insert-mode exit)
 - `y` — yank family (mirrors `d` shape, buffer unchanged)
 - `p` — paste family (`p/P`, `gp/gP`, `]p/]P`, count-prefix)
