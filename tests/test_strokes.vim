@@ -6,10 +6,13 @@
 " honest across single-key and multi-key commands.
 
 " The examples the user explicitly walked through.
+" Ex commands (anything starting with ':') get +1 for the trailing
+" <Enter> that actually executes them, since the learner must press
+" it for any : command to run.
 call AssertEq(vimfluency#_test_command_strokes('q!'), 3,
   \ 'strokes: q! = q (1) + ! (shift+1 = 2) = 3')
-call AssertEq(vimfluency#_test_command_strokes(':wq'), 4,
-  \ 'strokes: :wq = : (shift+; = 2) + w (1) + q (1) = 4')
+call AssertEq(vimfluency#_test_command_strokes(':wq'), 5,
+  \ 'strokes: :wq = : (2) + w (1) + q (1) + <Enter> (1) = 5')
 
 " Single unshifted keys.
 call AssertEq(vimfluency#_test_command_strokes('h'), 1, 'strokes: h = 1')
@@ -29,8 +32,8 @@ call AssertEq(vimfluency#_test_command_strokes('g_'), 3,
   \ 'strokes: g_ = g (1) + _ (shift+- = 2) = 3')
 call AssertEq(vimfluency#_test_command_strokes('ZQ'), 4,
   \ 'strokes: ZQ = Z (shift+z) + Q (shift+q) = 4')
-call AssertEq(vimfluency#_test_command_strokes(':q!'), 5,
-  \ 'strokes: :q! = : (2) + q (1) + ! (2) = 5')
+call AssertEq(vimfluency#_test_command_strokes(':q!'), 6,
+  \ 'strokes: :q! = : (2) + q (1) + ! (2) + <Enter> (1) = 6')
 
 " <…> chords: each modifier letter is 1 stroke, plus the base key.
 call AssertEq(vimfluency#_test_command_strokes('<C-r>'), 2,

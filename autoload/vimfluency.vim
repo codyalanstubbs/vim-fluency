@@ -647,6 +647,12 @@ endfunction
 " right: <…> sequences are one chord, everything else is a sequence of
 " base characters. Auto-derived on every breakdown row; a pinpoint can
 " override per-command via meta()'s `stroke_counts: {motion → N}`.
+"
+" Ex commands (anything starting with ':') don't execute until the
+" learner presses <Enter>, so we add 1 for that trailing keystroke.
+" Without this, ':q!' counted as 5 strokes (:=2, q=1, !=2) but the
+" learner actually pressed 6 keys to run it — which the stroke-rate
+" column needs to know about to be honest.
 function! s:command_strokes(cmd) abort
   let n = 0
   let i = 0
@@ -663,6 +669,7 @@ function! s:command_strokes(cmd) abort
     let n += s:char_strokes(a:cmd[i])
     let i += 1
   endwhile
+  if !empty(a:cmd) && a:cmd[0] ==# ':' | let n += 1 | endif
   return n
 endfunction
 
@@ -2643,6 +2650,22 @@ function! vimfluency#stop(reason) abort
   let efficiency_pct = s:session.total_motions > 0
     \ ? s:session.total_optimal_motions * 100.0 / s:session.total_motions : 0.0
 
+  " Hits = correct items the learner solved with no wasted motions
+  " (actual ≤ optimal). Misses = wasted motions + skips, both treated
+  " as the same per-minute "miss" rate the SCC convention plots.
+  " Logged separately from items_correct so the dashboard can show
+  " hits_rate / miss_rate without recomputing from items_log.
+  let items_hit = 0
+  for it in s:session.items_log
+    if get(it, 'outcome', '') ==# 'correct'
+      \ && get(it, 'actual_motions', 0) <= get(it, 'optimal_motions', 0)
+      let items_hit += 1
+    endif
+  endfor
+  let hits_per_min = elapsed > 0 ? items_hit * 60.0 / elapsed : 0.0
+  let miss_per_min = elapsed > 0
+    \ ? (wasted + s:session.items_skipped) * 60.0 / elapsed : 0.0
+
   let record = {
     \ 'timestamp': strftime('%Y-%m-%dT%H:%M:%S'),
     \ 'pinpoint_id': s:session.id,
@@ -2652,7 +2675,10 @@ function! vimfluency#stop(reason) abort
     \ 'elapsed_seconds': s:round3(elapsed),
     \ 'items_correct': s:session.items_correct,
     \ 'items_skipped': s:session.items_skipped,
+    \ 'items_hit': items_hit,
     \ 'frequency_per_min': s:round3(rate),
+    \ 'hits_per_min': s:round3(hits_per_min),
+    \ 'miss_per_min': s:round3(miss_per_min),
     \ 'errors_per_min': s:round3(errors_per_min),
     \ 'total_motions': s:session.total_motions,
     \ 'total_optimal_motions': s:session.total_optimal_motions,
@@ -2664,104 +2690,23 @@ function! vimfluency#stop(reason) abort
     \ }
   call writefile([json_encode(record)], vimfluency#log_dir() . '/sessions.jsonl', 'a')
 
-  " Build summary as buffer lines (avoids vim's "press ENTER" gate
-  " that hits when too many :echo lines fire at once).
-  let aim = s:session.aim
-  let only_tag = empty(s:session.only_filter)
-    \ ? '' : ' [only=' . join(s:session.only_filter, ',') . ']'
-  let lines = []
-  call add(lines, printf('── %s — %s%s ──',
-    \ record.pinpoint_id, record.pinpoint_name, only_tag))
-  call add(lines, '')
-  call add(lines, printf('  duration:  %ss', string(record.elapsed_seconds)))
-  call add(lines, printf('  correct:   %d', record.items_correct))
-  call add(lines, printf('  skipped:   %d', record.items_skipped))
-  call add(lines, printf('  rate:      %s/min   aim %d/min',
-    \ string(record.frequency_per_min), aim))
-  if rate >= aim
-    call add(lines, '  AT AIM')
-  elseif rate > 0
-    call add(lines, printf('  gap:       %.1f/min  (%.1fx current rate)',
-      \ aim - rate, aim / rate))
-  endif
-  call add(lines, printf('  errors:    %s/min   (wasted motions; SCC errors line)',
-    \ string(s:round3(errors_per_min))))
-  if s:session.total_optimal_motions > 0
-    call add(lines, printf('  efficiency: %d%%        (%d motions for %d optimal)',
-      \ float2nr(efficiency_pct),
-      \ s:session.total_motions, s:session.total_optimal_motions))
-  endif
-  if !empty(per_motion_out)
-    call add(lines, '')
-    call add(lines, '  per motion:')
-    for motion in sort(keys(per_motion_out))
-      let m = per_motion_out[motion]
-      let slow = (max_motion_rate > 0 && m.rate_per_min < max_motion_rate * 0.5)
-      let noisy = (m.avg_optimal > 0 && m.avg_motions > m.avg_optimal * 1.5)
-      let marks = []
-      if slow | call add(marks, 'slow') | endif
-      if noisy | call add(marks, 'noisy') | endif
-      let marker = empty(marks) ? '' : '   ← ' . join(marks, ' + ')
-      call add(lines, printf('    %-4s  %3d items   %5.1f/min   %.1f avg motions%s',
-        \ motion, m.correct, m.rate_per_min, m.avg_motions, marker))
-    endfor
-  endif
-  call add(lines, '')
-  call add(lines, '  logged: ' . vimfluency#log_dir() . '/sessions.jsonl')
-  call add(lines, '')
-  call add(lines, '  Next:  C = open :VfChart  ·  L = back to :VfList  ·  q/<Enter> = close')
-
-  " Render into the (still-open) training buffer; user dismisses explicitly.
+  " Post-session return-to-dashboard flow. The standalone summary
+  " buffer is gone — every session ends by landing the cursor on the
+  " just-trained pinpoint in :VfDashboard, where the new LAST SESSION
+  " pane shows the fresh stats. If a dashboard tab is already open
+  " (e.g. the learner reached training via T from there),
+  " vimfluency#dashboard switches to it and rebuilds in place;
+  " otherwise it opens a new one.
   let prev_laststatus = s:session.prev_laststatus
   let prev_ttimeoutlen = get(s:session, 'prev_ttimeoutlen', &ttimeoutlen)
   let tabnr = s:session.tabnr
-  let target_id = s:session.target_match_id
-  let deletion_id = s:session.deletion_match_id
-  let waypoint_ids = get(s:session, 'waypoint_match_ids', [])
-  let you_win = get(s:session, 'you_win', 0)
+  let pinpoint_id = record.pinpoint_id
   let s:session = {}
 
-  if you_win > 0 && win_id2win(you_win) > 0
-    call win_gotoid(you_win)
-    if target_id != -1
-      silent! call matchdelete(target_id)
-    endif
-    for wid in waypoint_ids
-      silent! call matchdelete(wid)
-    endfor
-    if deletion_id != -1
-      silent! call matchdelete(deletion_id)
-    endif
-    setlocal modifiable
-    silent! %delete _
-    call setline(1, lines)
-    setlocal nomodifiable nomodified
-    silent! execute 'keepalt file vf-summary-' . record.pinpoint_id
-    " Force back to Normal so q/L/C bindings fire regardless of which
-    " mode the user was in when the timer expired. <C-\><C-n> is vim's
-    " universal "to Normal from anywhere" sequence.
-    silent! call feedkeys("\<C-\>\<C-n>", 'n')
-    let &l:statusline = ' session ended  [C=Chart  L=List  q=close]'
-    let b:vf_summary_tabnr = tabnr
-    let b:vf_summary_prev_laststatus = prev_laststatus
-    let b:vf_summary_prev_ttimeoutlen = prev_ttimeoutlen
-    " Remember which pinpoint this summary is for so C can open the
-    " right chart. L just opens :VfList — no pinpoint context needed.
-    let b:vf_summary_pinpoint_id = record.pinpoint_id
-    nnoremap <buffer> <silent> q :call vimfluency#close_summary()<CR>
-    nnoremap <buffer> <silent> <CR> :call vimfluency#close_summary()<CR>
-    nnoremap <buffer> <silent> C :call vimfluency#summary_action('chart')<CR>
-    nnoremap <buffer> <silent> L :call vimfluency#summary_action('list')<CR>
-    call cursor(1, 1)
-  else
-    " training window/tab is gone — fall back to echoing
-    silent! execute 'tabclose ' . tabnr
-    let &laststatus = prev_laststatus
-    let &ttimeoutlen = prev_ttimeoutlen
-    for line in lines
-      echo line
-    endfor
-  endif
+  silent! execute 'tabclose ' . tabnr
+  let &laststatus = prev_laststatus
+  let &ttimeoutlen = prev_ttimeoutlen
+  call vimfluency#dashboard(pinpoint_id)
 endfunction
 
 function! vimfluency#close_summary() abort
@@ -4223,16 +4168,43 @@ let s:DASHBOARD_BANNER_HEIGHT = 1
 let s:DASHBOARD_HOVER_HEIGHT = 28
 let s:DASHBOARD_LAST_SESSION_WIDTH = 60
 
-function! vimfluency#dashboard() abort
+" :VfDashboard [pinpoint_id]. Optional id lands the cursor on that
+" row (matching :Vf <id> / training-end auto-return). If a dashboard
+" tab already exists, switch to it and rebuild in place rather than
+" opening a duplicate.
+function! vimfluency#dashboard(...) abort
   let registry = vimfluency#discover_pinpoints()
   if empty(registry)
     echo 'no pinpoints built — see CATALOG.md'
     return
   endif
-  call s:show_dashboard(registry, s:load_sessions_grouped())
+  let target_id = a:0 > 0 ? a:1 : ''
+
+  " Reuse an open dashboard if there is one — switch to its tab and
+  " rebuild in place so the just-finished session shows up in LAST
+  " SESSION without a second dashboard tab piling up.
+  let table_bufnr = bufnr('vf-dashboard-table')
+  if table_bufnr > 0
+    for t in range(1, tabpagenr('$'))
+      let buflist = tabpagebuflist(t)
+      if index(buflist, table_bufnr) >= 0
+        execute 'tabnext ' . t
+        for win in range(1, winnr('$'))
+          if winbufnr(win) == table_bufnr
+            execute win . 'wincmd w'
+            call s:rebuild_dashboard_keeping_pinpoint(target_id)
+            return
+          endif
+        endfor
+      endif
+    endfor
+  endif
+
+  call s:show_dashboard(registry, s:load_sessions_grouped(), target_id)
 endfunction
 
-function! s:show_dashboard(registry, sessions) abort
+function! s:show_dashboard(registry, sessions, ...) abort
+  let target_id = a:0 > 0 ? a:1 : ''
   " Filter the registry to the current path. The dashboard is a
   " curated view; :Vf <id> / :VfLearn <id> still work on every
   " pinpoint regardless of which path is active.
@@ -4329,7 +4301,17 @@ function! s:show_dashboard(registry, sessions) abort
   let b:vf_dashboard_banner_bufnr = banner_bufnr
   let b:vf_dashboard_last_session_bufnr = last_session_bufnr
 
+  " Land on target_id when given (passed from :VfDashboard <id> or
+  " the post-training return path); fall back to the first pinpoint
+  " row otherwise.
   let first_line = empty(pinpoint_rows) ? 2 : pinpoint_rows[0]
+  if !empty(target_id)
+    for row in pinpoint_rows
+      if get(mapping, row, '') ==# target_id
+        let first_line = row | break
+      endif
+    endfor
+  endif
   call cursor(first_line, 1)
   let b:vf_dashboard_last_row = first_line
 
@@ -4822,9 +4804,20 @@ endfunction
 " prereqs list and per-command sub-table the :VfList B-breakdown
 " surfaces.
 function! s:dashboard_last_session_breakdown_panel(id, registry, sessions, w, h) abort
-  let title = empty(a:id)
+  let runs = empty(a:id) ? [] : get(a:sessions, a:id, [])
+  let usable = filter(copy(runs), 'get(v:val, "frequency_per_min", 0) > 0')
+  call sort(usable, {a, b -> a.timestamp ==# b.timestamp ? 0
+    \ : (a.timestamp <# b.timestamp ? -1 : 1)})
+
+  " Title carries the date of the last session (when available) so the
+  " learner sees recency at a glance; falls back to the plain title
+  " for untrained drills.
+  let last_date = empty(usable)
+    \ ? ''
+    \ : strpart(get(usable[-1], 'timestamp', ''), 0, 10)
+  let title = empty(last_date)
     \ ? 'LAST SESSION'
-    \ : printf('LAST SESSION: %s', a:id)
+    \ : printf('LAST SESSION: %s', last_date)
   let lines = [s:panel_box_top(title, a:w)]
   if empty(a:id) || !has_key(a:registry, a:id)
     call add(lines, '│' . s:pad_right(' (no row hovered)', a:w - 2) . '│')
@@ -4832,27 +4825,61 @@ function! s:dashboard_last_session_breakdown_panel(id, registry, sessions, w, h)
     call add(lines, s:panel_box_bottom(a:w))
     return {'lines': lines, 'prereq_map': {}}
   endif
-  let runs = get(a:sessions, a:id, [])
-  let usable = filter(copy(runs), 'get(v:val, "frequency_per_min", 0) > 0')
-  call sort(usable, {a, b -> a.timestamp ==# b.timestamp ? 0
-    \ : (a.timestamp <# b.timestamp ? -1 : 1)})
 
   let body = []
   if empty(usable)
     call add(body, ' (no sessions yet)')
   else
     let last = usable[-1]
-    let date = strpart(get(last, 'timestamp', ''), 0, 10)
-    let rate = string(s:round1(last.frequency_per_min))
-    let aim_val = get(last, 'aim', 0)
     let dur = get(last, 'elapsed_seconds', get(last, 'duration_seconds', 0))
+    let aim_val = get(last, 'aim', 0)
     let correct = get(last, 'items_correct', 0)
-    let errors = string(s:round1(get(last, 'errors_per_min', 0)))
-    let eff = get(last, 'efficiency_pct', 0)
-    call add(body, printf(' %s   rate %s/min   aim %d/min   eff %d%%',
-      \ date, rate, aim_val, float2nr(eff)))
-    call add(body, printf(' %d items in %ds   errors %s/min',
-      \ correct, float2nr(dur), errors))
+    let skipped = get(last, 'items_skipped', 0)
+    let total = correct + skipped
+    let wasted = max([0,
+      \ get(last, 'total_motions', 0) - get(last, 'total_optimal_motions', 0)])
+    let total_m = get(last, 'total_motions', 0)
+    let opt_m   = get(last, 'total_optimal_motions', 0)
+    let eff     = get(last, 'efficiency_pct', 0)
+
+    " Hits / miss rates: prefer the values logged at session-end. For
+    " older sessions that don't have those fields yet, recompute from
+    " items_log (a hit = correct + actual ≤ optimal) so the panel
+    " stays useful against historical data.
+    let hits_rate = get(last, 'hits_per_min', -1)
+    let miss_rate = get(last, 'miss_per_min', -1)
+    if hits_rate < 0 || miss_rate < 0
+      let items_log = get(last, 'items', [])
+      let hit_count = 0
+      for it in items_log
+        if get(it, 'outcome', '') ==# 'correct'
+          \ && get(it, 'actual_motions', 0) <= get(it, 'optimal_motions', 0)
+          let hit_count += 1
+        endif
+      endfor
+      let hits_rate = dur > 0 ? hit_count * 60.0 / dur : 0.0
+      let miss_rate = dur > 0 ? (wasted + skipped) * 60.0 / dur : 0.0
+    endif
+
+    " Two-column layout: 12-char label area (left-aligned) then the
+    " value. Numeric fields right-pad to widen the value column so the
+    " trailing descriptor parentheticals on hits_rate / miss_rate /
+    " efficiency line up vertically.
+    call add(body, printf('  %-12s%s', 'drill:',    a:id))
+    call add(body, printf('  %-12s%5.1fs', 'duration:', dur))
+    call add(body, '')
+    call add(body, printf('  %-12s%5.1f/min', 'aims_rate:', aim_val * 1.0))
+    call add(body, printf('  %-12s%5.1f/min  (correct / no wasted motions)',
+      \ 'hits_rate:', hits_rate))
+    call add(body, printf('  %-12s%5.1f/min  (wasted motions + skips)',
+      \ 'miss_rate:', miss_rate))
+    call add(body, '')
+    call add(body, printf('  %-12s%4d%%      (%d motions for %d optimal)',
+      \ 'efficiency:', float2nr(eff), total_m, opt_m))
+    call add(body, printf('  %-12s%4d', 'correct:',  correct))
+    call add(body, printf('  %-12s%4d', 'errors:',   wasted))
+    call add(body, printf('  %-12s%4d', 'skipped:',  skipped))
+    call add(body, printf('  %-12s%4d', 'total:',    total))
   endif
 
   " Prereqs sub-block — one line per prereq with its current status
