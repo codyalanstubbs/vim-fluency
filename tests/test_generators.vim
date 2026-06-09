@@ -669,10 +669,9 @@ function! s:assert_recall_common(id, item) abort
     \ && item.optimal_motions > 0,
     \ prefix . 'optimal_motions positive')
   let has_prompt = has_key(item, 'prompt')
-  let has_command_shape = has_key(item, 'snippet')
-    \ && has_key(item, 'status_text') && has_key(item, 'goal')
+  let has_command_shape = has_key(item, 'snippet') && has_key(item, 'goal')
   call Assert(has_prompt || has_command_shape,
-    \ prefix . 'has prompt OR has snippet+status_text+goal')
+    \ prefix . 'has prompt OR has snippet+goal')
 endfunction
 
 " T0.3a–d — save/quit binary discrimination pinpoints. Each one

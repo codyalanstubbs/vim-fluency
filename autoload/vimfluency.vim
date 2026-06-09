@@ -2042,18 +2042,17 @@ endfunction
 " buffer-local but the buffer is reused across items, so re-mapping
 " is a no-op once they're in place.
 function! s:render_command_item(item) abort
-  let snippet     = get(a:item, 'snippet', [])
-  let status_text = get(a:item, 'status_text', '')
-  let goal        = get(a:item, 'goal', '')
-  let header = [
-    \ '─── status: ' . status_text . ' ───',
-    \ 'Goal: ' . goal,
-    \ repeat('─', 60),
-    \ ]
+  let snippet = get(a:item, 'snippet', {'lines': [], 'comment': '#'})
+  let goal    = get(a:item, 'goal', '')
+  " Buffer is just the snippet with a single language-appropriate
+  " comment line at the top that states the goal. No status banner,
+  " no divider — the snippet is the scenario, the comment is the
+  " cue.
+  let header = [vimfluency#scenarios#goal_comment(snippet, goal)]
   let s:session.header_offset = len(header)
   setlocal modifiable
   silent! %delete _
-  call setline(1, header + snippet)
+  call setline(1, header + snippet.lines)
   setlocal nomodifiable nomodified
   call cursor(len(header) + 1, 1)
   call s:install_command_maps()
@@ -3134,23 +3133,18 @@ function! s:learn_show_frame() abort
   endif
   if is_command
     " Command lessons render the same live-buffer scenario the
-    " training does — status header + goal + snippet — for try
-    " frames; show frames stay static rule statements built from
-    " frame.prompt.
+    " training does — a single comment-line goal at the top of a
+    " realistic snippet — for try frames; show frames stay static
+    " rule statements built from frame.prompt.
     if frame.kind ==# 'try'
-      let snippet     = get(frame, 'snippet', [])
-      let status_text = get(frame, 'status_text', '')
-      let goal        = get(frame, 'goal', '')
-      let scene_header = [
-        \ '─── status: ' . status_text . ' ───',
-        \ 'Goal: ' . goal,
-        \ repeat('─', 60),
-        \ ]
+      let snippet = get(frame, 'snippet', {'lines': [], 'comment': '#'})
+      let goal    = get(frame, 'goal', '')
+      let scene_header = [vimfluency#scenarios#goal_comment(snippet, goal)]
       let pre = [s:learn_header_line(), '']
       let s:session.header_offset = len(pre) + len(scene_header)
       setlocal modifiable
       silent! %delete _
-      call setline(1, pre + scene_header + snippet)
+      call setline(1, pre + scene_header + snippet.lines)
       setlocal nomodifiable nomodified
       call cursor(len(pre) + len(scene_header) + 1, 1)
       call s:install_command_maps()
@@ -3815,20 +3809,15 @@ function! s:learn_test_next() abort
     " streak. test_motion_count is reset here so the streak math in
     " s:command_check measures only THIS item's keystrokes.
     let s:session.test_motion_count = 0
-    let snippet     = get(item, 'snippet', [])
-    let status_text = get(item, 'status_text', '')
-    let goal        = get(item, 'goal', '')
+    let snippet = get(item, 'snippet', {'lines': [], 'comment': '#'})
+    let goal    = get(item, 'goal', '')
     let pre = [s:learn_header_line(), '',
       \ 'Apply the rule — read the buffer and type the right command.', '']
-    let scene_header = [
-      \ '─── status: ' . status_text . ' ───',
-      \ 'Goal: ' . goal,
-      \ repeat('─', 60),
-      \ ]
+    let scene_header = [vimfluency#scenarios#goal_comment(snippet, goal)]
     let s:session.header_offset = len(pre) + len(scene_header)
     setlocal modifiable
     silent! %delete _
-    call setline(1, pre + scene_header + snippet)
+    call setline(1, pre + scene_header + snippet.lines)
     setlocal nomodifiable nomodified
     call cursor(len(pre) + len(scene_header) + 1, 1)
     call s:install_command_maps()

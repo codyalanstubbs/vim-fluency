@@ -1,21 +1,12 @@
-" force_quit_ex_vs_normal_zq — Discriminate :q! vs ZQ. Same EFFECT
-" (discard changes and quit), different SYNTAX. ZQ is to :q! what ZZ
-" is to :wq.
-"
-" Training shape: kind 'command'. Both items sit on a modified buffer;
-" the GOAL line specifies which form to use.
+" force_quit_ex_vs_normal_zq — Discriminate :q! vs ZQ. Same effect
+" (force quit), different syntax. The Goal text declares which form
+" the learner should use — minimal pair:
+"   :q!  →  'force quit Ex mode'
+"   ZQ   →  'force quit Normal mode'
 
 let s:GOALS = {
-  \ ':q!': [
-  \   'Discard changes and quit using `:` (the Ex command).',
-  \   'Open the command line; force-quit there.',
-  \   'Use the Ex command form to throw away changes and exit.',
-  \   ],
-  \ 'ZQ': [
-  \   'Discard changes and quit (no command line — use the normal-mode shortcut).',
-  \   'Force-quit using the two-keystroke normal-mode shortcut.',
-  \   'Discard changes and exit without opening the command line.',
-  \   ],
+  \ ':q!': 'force quit Ex mode',
+  \ 'ZQ':  'force quit Normal mode',
   \ }
 
 let s:CMDS = [':q!', 'ZQ']
@@ -33,15 +24,12 @@ endfunction
 
 function! vimfluency#pinpoints#force_quit_ex_vs_normal_zq#generate() abort
   let cmd = s:CMDS[s:rand(len(s:CMDS))]
-  let goals = s:GOALS[cmd]
-  let goal = goals[s:rand(len(goals))]
   return {
     \ 'lines': [],
     \ 'start': [1, 1],
     \ 'target': [1, 1],
     \ 'snippet': vimfluency#scenarios#snippet(),
-    \ 'status_text': vimfluency#scenarios#modified_status(1 + s:rand(5)),
-    \ 'goal': goal,
+    \ 'goal': s:GOALS[cmd],
     \ 'expected_answer': cmd,
     \ 'expected_motion': cmd,
     \ 'optimal_motions': len(cmd),
@@ -50,7 +38,6 @@ endfunction
 
 function! vimfluency#pinpoints#force_quit_ex_vs_normal_zq#lesson() abort
   let snippet = vimfluency#scenarios#snippet()
-  let status  = vimfluency#scenarios#modified_status(3)
   return [
     \ {'kind': 'show', 'lines': [], 'cursor': [1, 1],
     \  'prompt': [
@@ -59,18 +46,16 @@ function! vimfluency#pinpoints#force_quit_ex_vs_normal_zq#lesson() abort
     \    ':q! is the Ex-command form (! is the force flag).',
     \    'ZQ is the normal-mode shortcut (mirrors ZZ for save+quit).',
     \    '',
-    \    'Both items show a modified buffer; the Goal tells you which form:',
-    \    '  Goal: Discard changes and quit using `:`           →  :q!',
-    \    '  Goal: Discard changes and quit (no command line)   →  ZQ',
+    \    'Each item shows a snippet with the Goal as a code comment.',
+    \    '  Goal: force quit Ex mode      →  :q!',
+    \    '  Goal: force quit Normal mode  →  ZQ',
     \    '',
     \    'Press <Space> to begin.']},
     \ {'kind': 'try', 'lines': [],
     \  'expected_answer': ':q!', 'expected_motion': ':q!', 'optimal_motions': 3,
-    \  'snippet': snippet, 'status_text': status,
-    \  'goal': 'Discard changes and quit using `:` (the Ex command).'},
+    \  'snippet': snippet, 'goal': s:GOALS[':q!']},
     \ {'kind': 'try', 'lines': [],
     \  'expected_answer': 'ZQ', 'expected_motion': 'ZQ', 'optimal_motions': 2,
-    \  'snippet': snippet, 'status_text': status,
-    \  'goal': 'Discard changes and quit (no command line — use the normal-mode shortcut).'},
+    \  'snippet': snippet, 'goal': s:GOALS['ZQ']},
     \ ]
 endfunction
