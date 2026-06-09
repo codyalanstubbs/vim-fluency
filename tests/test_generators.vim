@@ -1385,6 +1385,44 @@ function! s:test_4_5() abort
   endfor
 endfunction
 
+" visual_select_single_char_up_down: vj vs vk. Foundational v-family
+" charwise pair on the vertical axis. Target on the same column as
+" start, target row = start ± 1, expected_sub_mode = 'v'.
+function! s:test_visual_select_single_char_up_down() abort
+  let GenFn = function('vimfluency#pinpoints#visual_select_single_char_up_down#generate')
+  let valid = ['vj', 'vk']
+  let seen = {}
+  let prefix = 'visual_select_single_char_up_down: '
+  for i in range(s:N)
+    let item = GenFn()
+    call AssertIn(item.expected_motion, valid,
+      \ prefix . 'expected_motion in {vj, vk}')
+    call AssertEq(item.target[1], item.start[1],
+      \ prefix . 'target col == start col (no horizontal component)')
+    let drow = item.target[0] - item.start[0]
+    call Assert(abs(drow) == 1,
+      \ prefix . 'drow in {-1,+1}, got ' . drow)
+    call AssertEq(item.optimal_motions, 2,
+      \ prefix . 'optimal_motions == 2 (v + direction)')
+    call AssertEq(item.expected_sub_mode, 'v',
+      \ prefix . 'expected_sub_mode == "v" (charwise)')
+    call AssertEq(item.expected_selection_start, item.start,
+      \ prefix . 'expected_selection_start == start (anchor at cursor)')
+    call AssertEq(item.expected_selection_end, item.target,
+      \ prefix . 'expected_selection_end == target')
+    if drow > 0
+      call AssertEq(item.expected_motion, 'vj', prefix . 'drow>0 → vj')
+    else
+      call AssertEq(item.expected_motion, 'vk', prefix . 'drow<0 → vk')
+    endif
+    let seen[item.expected_motion] = 1
+  endfor
+  for k in valid
+    call Assert(get(seen, k, 0) == 1,
+      \ prefix . k . ' appeared in samples')
+  endfor
+endfunction
+
 " visual_select_single_char_left_right: vh vs vl. Foundational v-family
 " charwise pair. Target on the same row as start, target column = start ± 1,
 " expected_sub_mode = 'v', selection start = start, selection end = target.
@@ -1460,3 +1498,4 @@ call s:test_4_3()
 call s:test_4_4()
 call s:test_4_5()
 call s:test_visual_select_single_char_left_right()
+call s:test_visual_select_single_char_up_down()

@@ -52,6 +52,8 @@ let s:expected = [
   \ {'id': 'delete_two_lines_down_up',             'prereqs': ['move_single_char_up_down']},
   \ {'id': 'visual_select_single_char_left_right',
   \   'prereqs': ['switch_mode_to_visual', 'move_single_char_left_right']},
+  \ {'id': 'visual_select_single_char_up_down',
+  \   'prereqs': ['switch_mode_to_visual', 'move_single_char_up_down']},
   \ ]
 
 let s:registry = vimfluency#discover_pinpoints()
