@@ -303,6 +303,34 @@ function! s:test_event_stream_editing() abort
   call s:cleanup()
 endfunction
 
+" --- 9) visual_motion mode gate ---------------------------------
+" Full integration of visual_motion can't run in batch (vim -Es is
+" stuck in Ex mode; mode(1) returns 'cv', not 'v', no matter what
+" :normal v does). Validate the half we CAN test: when mode() is
+" anything other than the item's expected_sub_mode, credit must
+" not fire even if the cursor sits exactly on the expected_selection_end.
+" That's the gate that prevents a coincidental cursor-at-anchor read
+" of getpos('v') from auto-crediting outside visual mode.
+function! s:test_visual_motion_mode_gate() abort
+  let g:vf_fixture_visual_items = [
+    \ {'lines': ['abcdefghij'], 'start': [1, 4], 'target': [1, 5],
+    \  'expected_selection_start': [1, 4],
+    \  'expected_selection_end': [1, 5],
+    \  'expected_sub_mode': 'v',
+    \  'expected_motion': 'vl', 'optimal_motions': 2},
+    \ ]
+  let g:vf_fixture_visual_idx = 0
+  call vimfluency#start('TEST.visual_motion', s:dur)
+  " Cursor at the expected selection END position. In batch mode we
+  " are NOT in visual mode (mode(1) returns 'cv', not 'v'), so the
+  " mode gate in s:on_change should prevent credit.
+  let st = vimfluency#_test_state()
+  call s:move(st.header_offset + 1, 5)
+  call AssertEq(st.items_correct, 0,
+    \ 'visual_motion: cursor at expected end with no visual mode → no credit')
+  call s:cleanup()
+endfunction
+
 call s:test_no_motion_count_inflation()
 call s:test_wrong_motion_free_operant()
 call s:test_tab_skip()
@@ -311,3 +339,4 @@ call s:test_editing_kind()
 call s:test_stop_persists_jsonl()
 call s:test_event_stream_motion()
 call s:test_event_stream_editing()
+call s:test_visual_motion_mode_gate()

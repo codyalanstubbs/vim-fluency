@@ -1385,6 +1385,44 @@ function! s:test_4_5() abort
   endfor
 endfunction
 
+" visual_select_single_char_left_right: vh vs vl. Foundational v-family
+" charwise pair. Target on the same row as start, target column = start ± 1,
+" expected_sub_mode = 'v', selection start = start, selection end = target.
+function! s:test_visual_select_single_char_left_right() abort
+  let GenFn = function('vimfluency#pinpoints#visual_select_single_char_left_right#generate')
+  let valid = ['vh', 'vl']
+  let seen = {}
+  let prefix = 'visual_select_single_char_left_right: '
+  for i in range(s:N)
+    let item = GenFn()
+    call AssertIn(item.expected_motion, valid,
+      \ prefix . 'expected_motion in {vh, vl}')
+    call AssertEq(item.target[0], item.start[0],
+      \ prefix . 'target row == start row (charwise, single line)')
+    let dcol = item.target[1] - item.start[1]
+    call Assert(abs(dcol) == 1,
+      \ prefix . 'dcol in {-1,+1}, got ' . dcol)
+    call AssertEq(item.optimal_motions, 2,
+      \ prefix . 'optimal_motions == 2 (v + direction)')
+    call AssertEq(item.expected_sub_mode, 'v',
+      \ prefix . 'expected_sub_mode == "v" (charwise)')
+    call AssertEq(item.expected_selection_start, item.start,
+      \ prefix . 'expected_selection_start == start (anchor at cursor)')
+    call AssertEq(item.expected_selection_end, item.target,
+      \ prefix . 'expected_selection_end == target')
+    if dcol > 0
+      call AssertEq(item.expected_motion, 'vl', prefix . 'dcol>0 → vl')
+    else
+      call AssertEq(item.expected_motion, 'vh', prefix . 'dcol<0 → vh')
+    endif
+    let seen[item.expected_motion] = 1
+  endfor
+  for k in valid
+    call Assert(get(seen, k, 0) == 1,
+      \ prefix . k . ' appeared in samples')
+  endfor
+endfunction
+
 call s:test_1A_1()
 call s:test_1A_2()
 call s:test_1B_1()
@@ -1421,3 +1459,4 @@ call s:test_1A_5()
 call s:test_4_3()
 call s:test_4_4()
 call s:test_4_5()
+call s:test_visual_select_single_char_left_right()

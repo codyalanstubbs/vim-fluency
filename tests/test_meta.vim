@@ -50,6 +50,8 @@ let s:expected = [
   \ {'id': 'delete_to_line_edges_beginning_end',   'prereqs': ['move_to_line_edges_beginning_end']},
   \ {'id': 'delete_single_char_left_right',        'prereqs': ['move_single_char_left_right']},
   \ {'id': 'delete_two_lines_down_up',             'prereqs': ['move_single_char_up_down']},
+  \ {'id': 'visual_select_single_char_left_right',
+  \   'prereqs': ['switch_mode_to_visual', 'move_single_char_left_right']},
   \ ]
 
 let s:registry = vimfluency#discover_pinpoints()

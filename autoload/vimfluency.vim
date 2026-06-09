@@ -1801,6 +1801,27 @@ function! s:on_change() abort
     call s:item_event({'kind': 'cursor', 'pos': cur_pos})
   endif
 
+  if s:session.kind ==# 'visual_motion'
+    " Credit when the learner is in the right visual sub-mode AND
+    " their selection's anchor + cursor positions match the item's
+    " expected range. getpos('v') is the visual-mode anchor (where v
+    " / V / Ctrl-V was pressed); outside visual mode it falls back to
+    " the cursor position, so the mode() gate MUST run first.
+    " s:mode_canonical is deliberately NOT called — v-family drills
+    " discriminate the sub-modes that the canonical collapses.
+    let expected_mode = get(item, 'expected_sub_mode', 'v')
+    if mode(1) ==# expected_mode
+      let v_pos = getpos('v')
+      let anchor = [v_pos[1] - header_offset, v_pos[2]]
+      let exp_start = get(item, 'expected_selection_start', item.start)
+      let exp_end   = get(item, 'expected_selection_end',   item.target)
+      if anchor == exp_start && cur_pos == exp_end
+        call s:credit_item()
+      endif
+    endif
+    return
+  endif
+
   if cur_lines ==# target_lines && cur_pos == item.target
     call s:credit_item()
   endif
