@@ -4624,7 +4624,7 @@ function! s:dashboard_chart_panel(id, registry, sessions, w, h) abort
   " which puts the 'y' character directly above the y-axis (col 6
   " inside the box with label_w = 4) so the label visually attaches
   " to the axis it describes.
-  let key = ' log y (y = n/min) | ● hits_rate | × miss_rate | ··· aim__rate'
+  let key = ' log y (y = n/min) | ●/○ hits_rate (● ≥ aim) | × miss_rate | ··· aim__rate'
   call add(lines, '│' . s:pad_right(key, a:w - 2) . '│')
 
   " The chart frame (y-axis + x-axis + tick marks + decade labels +
