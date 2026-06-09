@@ -4773,7 +4773,7 @@ function! s:dashboard_chart_panel(id, registry, sessions, w, h) abort
   " which puts the 'y' character directly above the y-axis (col 6
   " inside the box with label_w = 4) so the label visually attaches
   " to the axis it describes.
-  let key = ' log y (y = n/min) | ●/○ corrects (● ≥ aim) | × errors | ··· aim_rate'
+  let key = ' log y (y = n/min) | ●/○ cor_rate (● ≥ aim) | × err_rate | ··· aim_rate'
   call add(lines, '│' . s:pad_right(key, a:w - 2) . '│')
 
   " The chart frame (y-axis + x-axis + tick marks + decade labels +
@@ -5020,9 +5020,9 @@ function! s:dashboard_last_session_breakdown_panel(id, registry, sessions, w, h)
     call add(body, '')
     call add(body, printf('  %-12s%5.1f/min', 'aim_rate:', aim_val * 1.0))
     call add(body, printf('  %-12s%5.1f/min  (items reaching the target)',
-      \ 'corrects:', rate))
+      \ 'cor_rate:', rate))
     call add(body, printf('  %-12s%5.1f/min  (wasted motions)',
-      \ 'errors:', err_rate))
+      \ 'err_rate:', err_rate))
     call add(body, '')
     call add(body, printf('  %-12s%4d%%      (%d motions for %d optimal)',
       \ 'efficiency:', float2nr(eff), total_m, opt_m))
