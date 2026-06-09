@@ -4624,7 +4624,7 @@ function! s:dashboard_chart_panel(id, registry, sessions, w, h) abort
   " which puts the 'y' character directly above the y-axis (col 6
   " inside the box with label_w = 4) so the label visually attaches
   " to the axis it describes.
-  let key = ' log y (y = n/min) | ●/○ hits_rate (● ≥ aim) | × miss_rate | ··· aim__rate'
+  let key = ' log y (y = n/min) | ●/○ corrects (● ≥ aim) | × errors | ··· aim_rate'
   call add(lines, '│' . s:pad_right(key, a:w - 2) . '│')
 
   " The chart frame (y-axis + x-axis + tick marks + decade labels +
@@ -4673,21 +4673,21 @@ function! s:dashboard_chart_panel(id, registry, sessions, w, h) abort
   let today_jul = s:julian_from_iso(strftime('%Y-%m-%d'))
   let n_days = max_days
   let base_jul = today_jul - n_days + 1
-  " day_idx → list of {hits, miss} per session that fell on that
-  " day. hits_per_min (correct items where actual ≤ optimal) and
-  " miss_per_min (wasted motions + skips) are what the chart plots
-  " now — frequency_per_min and errors_per_min are the fallbacks
-  " for sessions logged before those fields existed.
+  " day_idx → list of {rate, errors} per session that fell on that
+  " day. Classical PT measurement: rate is items_correct/min
+  " (frequency_per_min), errors is wasted_motions/min
+  " (errors_per_min). Skips are tracked in the LAST SESSION pane's
+  " counts block — they're not a rate (the trial didn't happen)
+  " and Lindsley/Morningside SCC convention keeps them off the
+  " corrects/errors lines.
   let day_data = {}
   for s in usable
     let day_idx = s:julian_from_iso(s.timestamp) - base_jul
     if day_idx < 0 || day_idx >= n_days | continue | endif
     if !has_key(day_data, day_idx) | let day_data[day_idx] = [] | endif
-    let hits = get(s, 'hits_per_min', -1)
-    if hits < 0 | let hits = get(s, 'frequency_per_min', 0) | endif
-    let miss = get(s, 'miss_per_min', -1)
-    if miss < 0 | let miss = get(s, 'errors_per_min', 0) | endif
-    call add(day_data[day_idx], {'hits': hits, 'miss': miss})
+    call add(day_data[day_idx], {
+      \ 'rate':   get(s, 'frequency_per_min', 0),
+      \ 'errors': get(s, 'errors_per_min', 0)})
   endfor
 
   let aim_row = eff_aim > 0 ? s:dashboard_log_y(eff_aim, plot_h, log_bot, log_top) : -1
@@ -4719,14 +4719,14 @@ function! s:dashboard_chart_panel(id, registry, sessions, w, h) abort
       let drawn = ' '
       if c % cols_per_day == 0 && has_key(day_data, day_idx)
         for entry in day_data[day_idx]
-          if entry.miss > 0
-            let erow = s:dashboard_log_y(entry.miss, plot_h, log_bot, log_top)
+          if entry.errors > 0
+            let erow = s:dashboard_log_y(entry.errors, plot_h, log_bot, log_top)
             if r == erow | let drawn = '×' | endif
           endif
         endfor
         for entry in day_data[day_idx]
-          let crow = s:dashboard_log_y(entry.hits, plot_h, log_bot, log_top)
-          if r == crow | let drawn = entry.hits >= eff_aim ? '●' : '○' | endif
+          let crow = s:dashboard_log_y(entry.rate, plot_h, log_bot, log_top)
+          if r == crow | let drawn = entry.rate >= eff_aim ? '●' : '○' | endif
         endfor
       endif
       if drawn ==# ' ' && r == aim_row | let drawn = '·' | endif
@@ -4849,37 +4849,31 @@ function! s:dashboard_last_session_breakdown_panel(id, registry, sessions, w, h)
     let opt_m   = get(last, 'total_optimal_motions', 0)
     let eff     = get(last, 'efficiency_pct', 0)
 
-    " Hits / miss rates: prefer the values logged at session-end. For
-    " older sessions that don't have those fields yet, recompute from
-    " items_log (a hit = correct + actual ≤ optimal) so the panel
-    " stays useful against historical data.
-    let hits_rate = get(last, 'hits_per_min', -1)
-    let miss_rate = get(last, 'miss_per_min', -1)
-    if hits_rate < 0 || miss_rate < 0
-      let items_log = get(last, 'items', [])
-      let hit_count = 0
-      for it in items_log
-        if get(it, 'outcome', '') ==# 'correct'
-          \ && get(it, 'actual_motions', 0) <= get(it, 'optimal_motions', 0)
-          let hit_count += 1
-        endif
-      endfor
-      let hits_rate = dur > 0 ? hit_count * 60.0 / dur : 0.0
-      let miss_rate = dur > 0 ? (wasted + skipped) * 60.0 / dur : 0.0
+    " Classical PT rates: corrects per minute and errors per minute
+    " (wasted motions per minute). Skips don't fold into either —
+    " they're an abandoned-trial signal, not within-trial noise, and
+    " they live in the counts block below as their own row.
+    let rate = get(last, 'frequency_per_min', 0)
+    if rate <= 0
+      let rate = dur > 0 ? correct * 60.0 / dur : 0.0
+    endif
+    let err_rate = get(last, 'errors_per_min', 0)
+    if err_rate <= 0
+      let err_rate = dur > 0 ? wasted * 60.0 / dur : 0.0
     endif
 
     " Two-column layout: 12-char label area (left-aligned) then the
-    " value. Numeric fields right-pad to widen the value column so the
-    " trailing descriptor parentheticals on hits_rate / miss_rate /
-    " efficiency line up vertically.
+    " value. Numeric fields right-pad to widen the value column so
+    " the trailing descriptor parentheticals on the rate / error /
+    " efficiency rows line up vertically.
     call add(body, printf('  %-12s%s', 'drill:',    a:id))
     call add(body, printf('  %-12s%5.1fs', 'duration:', dur))
     call add(body, '')
-    call add(body, printf('  %-12s%5.1f/min', 'aim__rate:', aim_val * 1.0))
-    call add(body, printf('  %-12s%5.1f/min  (correct / no wasted motions)',
-      \ 'hits_rate:', hits_rate))
-    call add(body, printf('  %-12s%5.1f/min  (wasted motions + skips)',
-      \ 'miss_rate:', miss_rate))
+    call add(body, printf('  %-12s%5.1f/min', 'aim_rate:', aim_val * 1.0))
+    call add(body, printf('  %-12s%5.1f/min  (items reaching the target)',
+      \ 'corrects:', rate))
+    call add(body, printf('  %-12s%5.1f/min  (wasted motions)',
+      \ 'errors:', err_rate))
     call add(body, '')
     call add(body, printf('  %-12s%4d%%      (%d motions for %d optimal)',
       \ 'efficiency:', float2nr(eff), total_m, opt_m))
