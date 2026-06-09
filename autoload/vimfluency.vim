@@ -1816,6 +1816,17 @@ function! s:on_change() abort
       let exp_start = get(item, 'expected_selection_start', item.start)
       let exp_end   = get(item, 'expected_selection_end',   item.target)
       if anchor == exp_start && cur_pos == exp_end
+        " +1 for the v / V / Ctrl-V keystroke that put the learner
+        " into visual mode. That keystroke didn't move the cursor
+        " (mode change only) so it never fired CursorMoved and
+        " current_item_motions never counted it. Without this fixup
+        " a perfect run scored actual=1 vs optimal=2 → 200%
+        " efficiency per item, distorting the session average.
+        " Known limitation: multiple v-presses in one item (e.g. v,
+        " Esc, v, l) only count once — accurate tracking of
+        " mode-toggle keystrokes would require ModeChanged hooks
+        " and is deferred.
+        let s:session.current_item_motions += 1
         " Queue an "exit any mode → normal" before crediting. Without
         " this the learner stays in visual mode after credit, and the
         " next training item (or the lesson's Space-advance prompt)
@@ -3386,6 +3397,16 @@ function! s:learn_on_change() abort
     let cur_pos = [line('.') - header_offset, col('.')]
     if s:session.phase ==# 'test'
       let item = s:session.current_test_item
+      " Dedupe + per-CursorMoved motion count, mirroring the
+      " test-phase block further down. Without this the visual_motion
+      " test phase never increments test_motion_count, so streak
+      " always sees last_item_motions == 0 ≤ optimal and graduates
+      " on every item regardless of efficiency.
+      let cur_lines = getline(header_offset + 1, '$')
+      let new_state = [cur_pos, cur_lines]
+      if get(s:session, 'last_event_state', []) ==# new_state | return | endif
+      let s:session.last_event_state = new_state
+      let s:session.test_motion_count += 1
     else
       let frame = s:session.frames[s:session.frame_idx]
       if frame.kind !=# 'try' | return | endif
@@ -3399,6 +3420,12 @@ function! s:learn_on_change() abort
     let exp_end   = get(item, 'expected_selection_end',   item.target)
     if anchor != exp_start || cur_pos != exp_end | return | endif
 
+    " +1 for the v / V / Ctrl-V keystroke (mode change, no
+    " CursorMoved). See the matching comment in s:on_change's
+    " visual_motion branch — same fixup, same limitation.
+    if s:session.phase ==# 'test'
+      let s:session.test_motion_count += 1
+    endif
     call feedkeys("\<C-\>\<C-n>", 'n')
     let s:session.frame_complete = 1
     if s:session.phase ==# 'test'
