@@ -224,9 +224,90 @@ function! s:test_stop_persists_jsonl() abort
   call s:cleanup()
 endfunction
 
+" --- 7) per-item event stream captured -------------------------
+" Drive a motion item to credit, then inspect the items_log entry
+" to confirm:
+"   - events array exists and is non-empty
+"   - each entry has 't', 'kind', and the kind-specific fields
+"   - timestamps are monotonically non-decreasing
+"   - motion events render as kind='cursor' (buffer didn't change)
+"   - non-command items get snippet={} and goal=''
+function! s:test_event_stream_motion() abort
+  call s:set_motion_fixture([
+    \ {'lines': ['abcdefghij'], 'start': [1,1], 'target': [1,4],
+    \  'expected_motion': 'l', 'optimal_motions': 3},
+    \ ])
+  call vimfluency#start('TEST.motion', s:dur)
+  call s:move_item(1, 2)
+  call s:move_item(1, 3)
+  call s:move_item(1, 4)
+
+  let st = vimfluency#_test_state()
+  call Assert(len(st.items_log) >= 1, 'events: at least one item logged')
+  let entry = st.items_log[0]
+
+  call Assert(has_key(entry, 'events') && type(entry.events) == v:t_list,
+    \ 'events: entry has events list')
+  call Assert(len(entry.events) >= 3,
+    \ 'events: list captures all post-dedupe cursor moves')
+
+  let last_t = -1.0
+  for ev in entry.events
+    call Assert(has_key(ev, 't') && has_key(ev, 'kind'),
+      \ 'events: every entry has t + kind')
+    call Assert(ev.t >= last_t,
+      \ 'events: timestamps monotonic non-decreasing')
+    let last_t = ev.t
+    call AssertEq(ev.kind, 'cursor',
+      \ 'events: motion-kind entries are cursor (no buffer change)')
+    call Assert(has_key(ev, 'pos') && type(ev.pos) == v:t_list,
+      \ 'events: cursor entry carries pos:[r,c]')
+  endfor
+
+  call Assert(has_key(entry, 'snippet') && empty(entry.snippet),
+    \ 'events: snippet={} for non-command kind')
+  call AssertEq(get(entry, 'goal', '?'), '',
+    \ "events: goal='' for non-command kind")
+  call s:cleanup()
+endfunction
+
+" --- 8) editing-kind events split between cursor and text -------
+" When the buffer changes between events, the runner emits a
+" 'text' event carrying a lines_hash; cursor-only moves stay
+" 'cursor' events. Both kinds can show up in the same item.
+function! s:test_event_stream_editing() abort
+  call s:set_editing_fixture([
+    \ {'lines': ['abc'], 'target_lines': ['xbc'],
+    \  'start': [1,1], 'target': [1,1],
+    \  'expected_motion': 'rx', 'optimal_motions': 2,
+    \  'prompt': 'replace a with x'},
+    \ ])
+  call vimfluency#start('TEST.editing', s:dur)
+  " Type x into the buffer (replaces 'a' with 'x') to trigger a text event.
+  call s:edit_line(1, 1, 'xbc')
+
+  let st = vimfluency#_test_state()
+  call Assert(len(st.items_log) >= 1, 'edit-events: item logged')
+  let entry = st.items_log[0]
+  let kinds = map(copy(entry.events), 'v:val.kind')
+  call Assert(index(kinds, 'text') >= 0,
+    \ 'edit-events: buffer-change emits text event')
+  for ev in entry.events
+    if ev.kind ==# 'text'
+      call Assert(has_key(ev, 'lines_hash')
+        \ && type(ev.lines_hash) == v:t_string
+        \ && len(ev.lines_hash) > 0,
+        \ 'edit-events: text entry carries lines_hash')
+    endif
+  endfor
+  call s:cleanup()
+endfunction
+
 call s:test_no_motion_count_inflation()
 call s:test_wrong_motion_free_operant()
 call s:test_tab_skip()
 call s:test_per_motion_accounting()
 call s:test_editing_kind()
 call s:test_stop_persists_jsonl()
+call s:test_event_stream_motion()
+call s:test_event_stream_editing()

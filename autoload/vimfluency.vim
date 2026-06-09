@@ -58,6 +58,29 @@ function! s:round3(x) abort
   return str2float(printf('%.3f', a:x))
 endfunction
 
+" Append an entry to s:session.current_item_events with an
+" auto-stamped 't' (seconds since item_started_at, rounded to 3 dp
+" to match time_seconds precision). Uses extend(copy(...)) so the
+" caller can reuse a literal dict across iterations without one
+" mutation bleeding into the next (vim dicts are reference-typed).
+function! s:item_event(entry) abort
+  if !has_key(s:session, 'current_item_events') | return | endif
+  let t = s:round3(reltimefloat(reltime(s:session.item_started_at)))
+  call add(s:session.current_item_events,
+    \ extend(copy(a:entry), {'t': t}))
+endfunction
+
+" Returns the {lines, comment} snippet dict for command-kind items
+" so the on-screen scenario the learner saw is logged with the item.
+" Other kinds return {} — keeps the items_log schema uniform.
+function! s:scenario_capture(item) abort
+  if get(s:session, 'kind', '') !=# 'command' | return {} | endif
+  let snip = get(a:item, 'snippet', {})
+  if empty(snip) | return {} | endif
+  return {'lines': get(snip, 'lines', []),
+    \ 'comment': get(snip, 'comment', '')}
+endfunction
+
 " Build a numbered annotation row aligned with item.lines[0]. Each
 " waypoint gets a number 1..N (in declared order); the final target
 " gets N+1. Returns [annotation_string] (a single-line list) when the
@@ -1446,6 +1469,7 @@ function! vimfluency#start(...) abort
     \ 'total_motions': 0,
     \ 'total_optimal_motions': 0,
     \ 'current_item_motions': 0,
+    \ 'current_item_events': [],
     \ 'current_item': {},
     \ 'item_started_at': reltime(),
     \ 'advancing': 0,
@@ -1551,6 +1575,7 @@ function! s:next_item() abort
   let s:session.current_item = item
   let s:session.item_started_at = reltime()
   let s:session.current_item_motions = 0
+  let s:session.current_item_events = []
   " Initial state for the dedupe guard in s:on_change. The deferred
   " CursorMoved that fires after our cursor() call below sees this
   " same state and is skipped as a duplicate. Subsequent presses
@@ -1760,9 +1785,21 @@ function! s:on_change() abort
   if get(s:session, 'last_event_state', []) ==# new_state
     return
   endif
+  " Detect a buffer change against the prior state (pure motion items
+  " keep cur_lines == start_lines forever, editing items vary it).
+  " prev_lines comes from the dedupe state; first event compares
+  " against start_lines via the init in s:next_item.
+  let prev_state = get(s:session, 'last_event_state', [cur_pos, start_lines])
+  let buf_changed = cur_lines !=# prev_state[1]
   let s:session.last_event_state = new_state
 
   let s:session.current_item_motions += 1
+  if buf_changed
+    call s:item_event({'kind': 'text', 'pos': cur_pos,
+      \ 'lines_hash': sha256(join(cur_lines, "\n"))[:6]})
+  else
+    call s:item_event({'kind': 'cursor', 'pos': cur_pos})
+  endif
 
   if cur_lines ==# target_lines && cur_pos == item.target
     call s:credit_item()
@@ -1805,6 +1842,9 @@ function! s:credit_item() abort
     \ 'actual_motions': actual,
     \ 'time_seconds': s:round3(elapsed),
     \ 'outcome': 'correct',
+    \ 'events': copy(s:session.current_item_events),
+    \ 'snippet': s:scenario_capture(item),
+    \ 'goal': get(item, 'goal', ''),
     \ })
   call s:next_item()
 endfunction
@@ -1952,6 +1992,7 @@ function! s:recall_append(c) abort
   if !has_key(s:session, 'input_row') | return | endif
   let s:session.recall_input .= a:c
   call s:recall_increment_motions()
+  call s:item_event({'kind': 'key', 'k': a:c})
   call s:recall_repaint()
   call s:recall_check_match()
 endfunction
@@ -1960,6 +2001,7 @@ function! s:recall_backspace() abort
   if empty(s:session) || s:session.advancing | return | endif
   if !has_key(s:session, 'input_row') | return | endif
   call s:recall_increment_motions()
+  call s:item_event({'kind': 'bs'})
   if !empty(s:session.recall_input)
     let s:session.recall_input = strpart(s:session.recall_input,
       \ 0, len(s:session.recall_input) - 1)
@@ -2116,6 +2158,8 @@ function! s:command_check(typed) abort
     let item = frame
   endif
   let expected = get(item, 'expected_motion', '')
+  call s:item_event({'kind': 'command', 'k': a:typed,
+    \ 'ok': a:typed ==# expected ? v:true : v:false})
   if a:typed !=# expected
     redraw
     echohl WarningMsg
@@ -2297,6 +2341,7 @@ function! s:on_cmdline_enter_train() abort
   let target = get(s:session.current_item, 'target_mode_canon', '')
   if target !=# 'c' | return | endif
   let s:session.current_item_motions = s:mode_switch_strokes('c')
+  call s:item_event({'kind': 'mode', 'to': 'c'})
   call s:credit_item()
 endfunction
 
@@ -2313,6 +2358,7 @@ function! s:check_mode_for_credit(...) abort
     " (<Esc> + entry key). Mirrors the optimal_motions logic so the
     " per-motion breakdown stays honest.
     let s:session.current_item_motions = s:mode_switch_strokes(target)
+    call s:item_event({'kind': 'mode', 'to': canon})
     call s:credit_item()
   endif
 endfunction
@@ -2468,6 +2514,7 @@ function! s:on_insert_enter() abort
   let s:session.insert_entered = 1
   let s:session.insert_enter_pos = [line('.') - header_offset, col('.')]
   let s:session.current_item_motions += 1
+  call s:item_event({'kind': 'insert_enter', 'pos': s:session.insert_enter_pos})
   " Arm a one-shot guard for the credit_on_text_typed TextChangedI
   " handler. o/O fire both InsertEnter AND a TextChangedI for the
   " line they auto-insert; without the guard that TextChangedI
@@ -2485,6 +2532,7 @@ function! s:on_insert_leave() abort
   if win_getid() != s:session.you_win | return | endif
   if !get(s:session, 'insert_entered', 0) | return | endif
   let s:session.current_item_motions += 1
+  call s:item_event({'kind': 'insert_leave'})
   " For credit_on_text_typed pinpoints, credit is exclusively the
   " TextChangedI handler's job — pressing Esc without typing the
   " expected payload is a wrong attempt. Reset for retry; the
@@ -2543,6 +2591,8 @@ function! s:on_text_changed_i() abort
     return
   endif
   let s:session.current_item_motions += 1
+  call s:item_event({'kind': 'text_typed_i',
+    \ 'lines_hash': sha256(join(cur_lines, "\n"))[:6]})
   if cur_lines !=# target | return | endif
   " Cheat-defense: the InsertEnter column must match what the
   " expected entry key produces.
@@ -2594,6 +2644,9 @@ function! s:skip() abort
     \ 'actual_motions': actual,
     \ 'time_seconds': s:round3(reltimefloat(reltime(s:session.item_started_at))),
     \ 'outcome': 'skipped',
+    \ 'events': copy(s:session.current_item_events),
+    \ 'snippet': s:scenario_capture(item),
+    \ 'goal': get(item, 'goal', ''),
     \ })
   call s:next_item()
 endfunction
