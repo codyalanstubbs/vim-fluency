@@ -4624,7 +4624,7 @@ function! s:dashboard_chart_panel(id, registry, sessions, w, h) abort
   " which puts the 'y' character directly above the y-axis (col 6
   " inside the box with label_w = 4) so the label visually attaches
   " to the axis it describes.
-  let key = ' log y rate/min  ·  ● corrects  ·  × errors  ·  · aim line'
+  let key = ' log y (y = n/min) | ● hits_rate | × miss_rate | ··· aim__rate'
   call add(lines, '│' . s:pad_right(key, a:w - 2) . '│')
 
   " The chart frame (y-axis + x-axis + tick marks + decade labels +
@@ -4673,14 +4673,21 @@ function! s:dashboard_chart_panel(id, registry, sessions, w, h) abort
   let today_jul = s:julian_from_iso(strftime('%Y-%m-%d'))
   let n_days = max_days
   let base_jul = today_jul - n_days + 1
-  let day_data = {}  " day_idx (0..n_days-1) → [{rate, errors}, …]
+  " day_idx → list of {hits, miss} per session that fell on that
+  " day. hits_per_min (correct items where actual ≤ optimal) and
+  " miss_per_min (wasted motions + skips) are what the chart plots
+  " now — frequency_per_min and errors_per_min are the fallbacks
+  " for sessions logged before those fields existed.
+  let day_data = {}
   for s in usable
     let day_idx = s:julian_from_iso(s.timestamp) - base_jul
     if day_idx < 0 || day_idx >= n_days | continue | endif
     if !has_key(day_data, day_idx) | let day_data[day_idx] = [] | endif
-    call add(day_data[day_idx], {
-      \ 'rate':   s.frequency_per_min,
-      \ 'errors': get(s, 'errors_per_min', 0)})
+    let hits = get(s, 'hits_per_min', -1)
+    if hits < 0 | let hits = get(s, 'frequency_per_min', 0) | endif
+    let miss = get(s, 'miss_per_min', -1)
+    if miss < 0 | let miss = get(s, 'errors_per_min', 0) | endif
+    call add(day_data[day_idx], {'hits': hits, 'miss': miss})
   endfor
 
   let aim_row = eff_aim > 0 ? s:dashboard_log_y(eff_aim, plot_h, log_bot, log_top) : -1
@@ -4712,14 +4719,14 @@ function! s:dashboard_chart_panel(id, registry, sessions, w, h) abort
       let drawn = ' '
       if c % cols_per_day == 0 && has_key(day_data, day_idx)
         for entry in day_data[day_idx]
-          if entry.errors > 0
-            let erow = s:dashboard_log_y(entry.errors, plot_h, log_bot, log_top)
+          if entry.miss > 0
+            let erow = s:dashboard_log_y(entry.miss, plot_h, log_bot, log_top)
             if r == erow | let drawn = '×' | endif
           endif
         endfor
         for entry in day_data[day_idx]
-          let crow = s:dashboard_log_y(entry.rate, plot_h, log_bot, log_top)
-          if r == crow | let drawn = entry.rate >= eff_aim ? '●' : '○' | endif
+          let crow = s:dashboard_log_y(entry.hits, plot_h, log_bot, log_top)
+          if r == crow | let drawn = entry.hits >= eff_aim ? '●' : '○' | endif
         endfor
       endif
       if drawn ==# ' ' && r == aim_row | let drawn = '·' | endif
@@ -5070,7 +5077,7 @@ function! s:dashboard_daily_chart_panel(by_day, days_back, today_count, streak, 
 
   " Key row — same structural slot the SCC uses, and 'log y' starts
   " at column 2 so the 'y' character sits directly above the y-axis.
-  let key = ' log y drills/day  ·  ● = a day''s count'
+  let key = ' log y (y = drills/day)'
   call add(lines, '│' . s:pad_right(key, a:w - 2) . '│')
 
   let label_w = 4
