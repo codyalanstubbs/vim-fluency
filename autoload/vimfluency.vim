@@ -4868,7 +4868,7 @@ function! s:dashboard_last_session_breakdown_panel(id, registry, sessions, w, h)
     call add(body, printf('  %-12s%s', 'drill:',    a:id))
     call add(body, printf('  %-12s%5.1fs', 'duration:', dur))
     call add(body, '')
-    call add(body, printf('  %-12s%5.1f/min', 'aims_rate:', aim_val * 1.0))
+    call add(body, printf('  %-12s%5.1f/min', 'aim__rate:', aim_val * 1.0))
     call add(body, printf('  %-12s%5.1f/min  (correct / no wasted motions)',
       \ 'hits_rate:', hits_rate))
     call add(body, printf('  %-12s%5.1f/min  (wasted motions + skips)',
@@ -4882,29 +4882,11 @@ function! s:dashboard_last_session_breakdown_panel(id, registry, sessions, w, h)
     call add(body, printf('  %-12s%4d', 'total:',    total))
   endif
 
-  " Prereqs sub-block — one line per prereq with its current status
-  " icon, matching the :VfList B-breakdown formatting. Track each
-  " prereq line's body index so the renderer can build a buffer-line
-  " → prereq-id map for the J keystroke (jump to prereq in table).
+  " Sub-blocks: commands first (the just-trained breakdown), then
+  " prereqs (diagnostic context for the drill). A blank line
+  " separates each section from the stats block above and from each
+  " other so the panel reads as three distinct paragraphs.
   let meta = a:registry[a:id]
-  let prereqs = filter(copy(get(meta, 'prereqs', [])),
-    \ 'has_key(a:registry, v:val)')
-  " body index → prereq id; populated only when prereqs are listed.
-  " Initialized at function scope so the post-build map-construction
-  " loop runs cleanly even when no prereqs exist.
-  let body_prereq_lines = {}
-  if !empty(prereqs)
-    call add(body, ' prereqs:')
-    let aim_overrides = get(s:load_settings(), 'aims', {})
-    for p in prereqs
-      let p_runs = get(a:sessions, p, [])
-      let p_meta = a:registry[p]
-      let p_aim = get(aim_overrides, p, get(p_meta, 'aim', 0))
-      let p_status = s:status_from_sessions(p_aim, p_runs)
-      call add(body, printf('   %s %s', s:status_icon(p_status), p))
-      let body_prereq_lines[len(body) - 1] = p
-    endfor
-  endif
 
   " Commands sub-table — header + one row per motion in the last
   " session. Mirrors the breakdown columns from s:append_breakdown
@@ -4914,7 +4896,8 @@ function! s:dashboard_last_session_breakdown_panel(id, registry, sessions, w, h)
     if !empty(pm)
       let eff_aim_for_drill = get(get(s:load_settings(), 'aims', {}), a:id, get(meta, 'aim', 0))
       let stroke_overrides = get(meta, 'stroke_counts', {})
-      call add(body, ' commands:')
+      call add(body, '')
+      call add(body, '  commands:')
       call add(body, printf('   %-6s  %9s  %7s  %s',
         \ 'command', 'last_rate', 'strokes', 'stroke_rate'))
       for motion in sort(keys(pm))
@@ -4927,6 +4910,30 @@ function! s:dashboard_last_session_breakdown_panel(id, registry, sessions, w, h)
           \ s:stroke_rate_field(mrate_f, strokes)))
       endfor
     endif
+  endif
+
+  " Prereqs sub-block — one line per prereq with its current status
+  " icon, matching the :VfList B-breakdown formatting. Track each
+  " prereq line's body index so the renderer can build a buffer-line
+  " → prereq-id map for the J keystroke (jump to prereq in table).
+  " body index → prereq id; populated only when prereqs are listed.
+  " Initialized at function scope so the post-build map-construction
+  " loop runs cleanly even when no prereqs exist.
+  let body_prereq_lines = {}
+  let prereqs = filter(copy(get(meta, 'prereqs', [])),
+    \ 'has_key(a:registry, v:val)')
+  if !empty(prereqs)
+    call add(body, '')
+    call add(body, '  prereqs:')
+    let aim_overrides = get(s:load_settings(), 'aims', {})
+    for p in prereqs
+      let p_runs = get(a:sessions, p, [])
+      let p_meta = a:registry[p]
+      let p_aim = get(aim_overrides, p, get(p_meta, 'aim', 0))
+      let p_status = s:status_from_sessions(p_aim, p_runs)
+      call add(body, printf('   %s %s', s:status_icon(p_status), p))
+      let body_prereq_lines[len(body) - 1] = p
+    endfor
   endif
 
   " LAST SESSION renders the *full* body — no truncation. Drills with
