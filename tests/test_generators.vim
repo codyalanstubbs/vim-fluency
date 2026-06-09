@@ -1385,6 +1385,47 @@ function! s:test_4_5() abort
   endfor
 endfunction
 
+" visual_select_single_char_up_down_left_right: vh / vj / vk / vl.
+" Broader v-family charwise drill mixing all four single-cell
+" extensions. Target Chebyshev distance == 1 (one cardinal cell),
+" no diagonals, expected_sub_mode == 'v', and the motion label
+" matches the chosen cardinal direction.
+function! s:test_visual_select_single_char_up_down_left_right() abort
+  let GenFn = function('vimfluency#pinpoints#visual_select_single_char_up_down_left_right#generate')
+  let valid = ['vh', 'vj', 'vk', 'vl']
+  let seen = {}
+  let prefix = 'visual_select_single_char_up_down_left_right: '
+  for i in range(s:N)
+    let item = GenFn()
+    call AssertIn(item.expected_motion, valid,
+      \ prefix . 'expected_motion in {vh, vj, vk, vl}')
+    let drow = item.target[0] - item.start[0]
+    let dcol = item.target[1] - item.start[1]
+    call Assert((abs(drow) + abs(dcol)) == 1,
+      \ prefix . 'manhattan distance == 1 (single cardinal step), got drow='
+      \ . drow . ' dcol=' . dcol)
+    call AssertEq(item.optimal_motions, 2,
+      \ prefix . 'optimal_motions == 2 (v + direction)')
+    call AssertEq(item.expected_sub_mode, 'v',
+      \ prefix . 'expected_sub_mode == "v" (charwise)')
+    call AssertEq(item.expected_selection_start, item.start,
+      \ prefix . 'expected_selection_start == start (anchor at cursor)')
+    call AssertEq(item.expected_selection_end, item.target,
+      \ prefix . 'expected_selection_end == target')
+    " Motion label matches the direction vector
+    if     dcol == -1 | call AssertEq(item.expected_motion, 'vh', prefix . 'dcol=-1 → vh')
+    elseif dcol ==  1 | call AssertEq(item.expected_motion, 'vl', prefix . 'dcol=+1 → vl')
+    elseif drow == -1 | call AssertEq(item.expected_motion, 'vk', prefix . 'drow=-1 → vk')
+    elseif drow ==  1 | call AssertEq(item.expected_motion, 'vj', prefix . 'drow=+1 → vj')
+    endif
+    let seen[item.expected_motion] = 1
+  endfor
+  for k in valid
+    call Assert(get(seen, k, 0) == 1,
+      \ prefix . k . ' appeared in samples')
+  endfor
+endfunction
+
 " visual_select_single_char_up_down: vj vs vk. Foundational v-family
 " charwise pair on the vertical axis. Target on the same column as
 " start, target row = start ± 1, expected_sub_mode = 'v'.
@@ -1499,3 +1540,4 @@ call s:test_4_4()
 call s:test_4_5()
 call s:test_visual_select_single_char_left_right()
 call s:test_visual_select_single_char_up_down()
+call s:test_visual_select_single_char_up_down_left_right()
