@@ -1816,6 +1816,13 @@ function! s:on_change() abort
       let exp_start = get(item, 'expected_selection_start', item.start)
       let exp_end   = get(item, 'expected_selection_end',   item.target)
       if anchor == exp_start && cur_pos == exp_end
+        " Queue an "exit any mode → normal" before crediting. Without
+        " this the learner stays in visual mode after credit, and the
+        " next training item (or the lesson's Space-advance prompt)
+        " sees their keystrokes as visual-mode motions instead of
+        " normal-mode commands. <C-\><C-n> is vim's idempotent
+        " "drop to normal from anywhere"; 'n' flag = no remap.
+        call feedkeys("\<C-\>\<C-n>", 'n')
         call s:credit_item()
       endif
     endif
@@ -3367,6 +3374,47 @@ function! s:learn_on_change() abort
   if win_getid() != s:session.you_win | return | endif
   if s:session.phase ==# 'complete' | return | endif
   if s:session.frame_complete | return | endif
+
+  " visual_motion kind: use mode + visual-anchor predicate (same as the
+  " training path), then queue <C-\><C-n> to drop to normal mode so the
+  " learner's next <Space> hits the lesson's advance mapping instead of
+  " being interpreted as a visual-mode motion. Handles both the
+  " setup-phase try frame and the test-phase item — they share the
+  " same item shape (snippet/start/target/expected_selection_*).
+  if s:session.kind ==# 'visual_motion'
+    let header_offset = s:session.header_offset
+    let cur_pos = [line('.') - header_offset, col('.')]
+    if s:session.phase ==# 'test'
+      let item = s:session.current_test_item
+    else
+      let frame = s:session.frames[s:session.frame_idx]
+      if frame.kind !=# 'try' | return | endif
+      let item = frame
+    endif
+    let expected_mode = get(item, 'expected_sub_mode', 'v')
+    if mode(1) !=# expected_mode | return | endif
+    let v_pos = getpos('v')
+    let anchor = [v_pos[1] - header_offset, v_pos[2]]
+    let exp_start = get(item, 'expected_selection_start', item.start)
+    let exp_end   = get(item, 'expected_selection_end',   item.target)
+    if anchor != exp_start || cur_pos != exp_end | return | endif
+
+    call feedkeys("\<C-\>\<C-n>", 'n')
+    let s:session.frame_complete = 1
+    if s:session.phase ==# 'test'
+      let s:session.last_item_motions = get(s:session, 'test_motion_count', 0)
+      let s:session.last_item_optimal = get(item, 'optimal_motions', 1)
+      if s:session.last_item_motions <= s:session.last_item_optimal
+        let s:session.streak += 1
+        let s:session.wrongs = 0
+      else
+        let s:session.streak = 0
+        let s:session.wrongs += 1
+      endif
+    endif
+    call s:learn_render_complete()
+    return
+  endif
 
   if s:session.phase ==# 'test'
     let item = s:session.current_test_item
