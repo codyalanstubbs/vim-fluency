@@ -73,4 +73,4 @@ See `:help vf-pinpoints` or copy `autoload/vimfluency/pinpoints/move_single_char
 
 - **No raw keystroke counting.** Vim's autocmds fire post-aggregate (`5w` is one event), so the motion counts measure commands, not individual key presses. Stroke counts shown in breakdowns are derived from the command string.
 - **No input restriction.** A pinpoint declares `allowed_keys` in its metadata, but the plugin doesn't remap forbidden keys. Honest measurement of what the user does. Can be added as opt-in later.
-- **Vim 8.1+** required.
+- **Vim 8.1+** (with `rand()`, patch 8.1.2342) or **Neovim** required. The plugin is deliberately written in conservative legacy vimscript so it runs on every server you ssh into; the same baseline runs on Neovim unmodified (test suite and interactive use verified on nvim 0.11).

@@ -348,6 +348,9 @@ meta() may declare a `kind` field:
 ==============================================================================
 REQUIREMENTS                                                       *vf-reqs*
 
-Vim 8.1 or later (for rand(), json_encode(), timer_start()).
+Vim 8.1 or later (for rand() — patch 8.1.2342 — json_encode(),
+timer_start()), or Neovim. The legacy-vimscript baseline runs on
+Neovim unmodified; verified on nvim 0.11 (headless test suite,
+scripted interactive smoke test, and real interactive use).
 
  vim:tw=78:ts=8:ft=help:norl:
