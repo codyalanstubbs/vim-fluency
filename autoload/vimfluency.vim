@@ -4470,7 +4470,7 @@ function! s:show_dashboard(registry, sessions, ...) abort
   " mapping's vimfluency#close_summary() works here too.
   let b:vf_summary_tabnr = tabnr
   let b:vf_summary_prev_laststatus = &laststatus
-  let &l:statusline = ' Vim Fluency dashboard   [L=Learn  T=Train  C=Chart  A=Aim  D=Duration  P=Path  B=Breakdown  q=close]'
+  let &l:statusline = ' Vim Fluency dashboard   [L=Learn  T=Train  C=Chart  A=Aim  D=Duration  P=Path  B=Breakdown  s=sort  q=close]'
   set laststatus=2
 
   " --- Window 2: banner at the very top (1 content row) ---
@@ -4569,6 +4569,41 @@ function! s:show_dashboard(registry, sessions, ...) abort
   nnoremap <buffer> <silent> k :call vimfluency#list_move('prev')<CR>
   nnoremap <buffer> <silent> gg :call vimfluency#list_move('first')<CR>
   nnoremap <buffer> <silent> G :call vimfluency#list_move('last')<CR>
+  " Sort keybindings — same column keys as :VfList. The 2-key chords
+  " must be installed before the bare `s` help mapping so vim's
+  " longest-match-wins resolution gives the chords priority.
+  nnoremap <buffer> <silent> sd :call vimfluency#dashboard_sort('drill')<CR>
+  nnoremap <buffer> <silent> sc :call vimfluency#dashboard_sort('commands')<CR>
+  nnoremap <buffer> <silent> sp :call vimfluency#dashboard_sort('prereqs_n')<CR>
+  nnoremap <buffer> <silent> sa :call vimfluency#dashboard_sort('aim')<CR>
+  nnoremap <buffer> <silent> sr :call vimfluency#dashboard_sort('last_rate')<CR>
+  nnoremap <buffer> <silent> ss :call vimfluency#dashboard_sort('last_session')<CR>
+  nnoremap <buffer> <silent> sn :call vimfluency#dashboard_sort('runs')<CR>
+  nnoremap <buffer> <silent> sf :call vimfluency#dashboard_sort('family')<CR>
+  nnoremap <buffer> <silent> s<Space> :call vimfluency#dashboard_sort('')<CR>
+  nnoremap <buffer> <silent> s :call vimfluency#list_sort_help()<CR>
+endfunction
+
+" Sort the dashboard table by the given column and rebuild in place.
+" Same flip semantics as vimfluency#list_sort (same col reverses,
+" empty col resets to default order), but the cursor FOLLOWS the
+" hovered pinpoint to its new row rather than staying on the same
+" Nth row — the hover panels (chart, LAST SESSION) track the
+" hovered drill, and having them silently switch to whatever row
+" slid under the cursor would be disorienting on a dashboard.
+function! vimfluency#dashboard_sort(col) abort
+  if !exists('b:vf_list_line_to_id') | return | endif
+  if empty(a:col)
+    let b:vf_list_sort_col = ''
+    let b:vf_list_sort_desc = 0
+  elseif get(b:, 'vf_list_sort_col', '') ==# a:col
+    let b:vf_list_sort_desc = !get(b:, 'vf_list_sort_desc', 0)
+  else
+    let b:vf_list_sort_col = a:col
+    let b:vf_list_sort_desc = 0
+  endif
+  let id = get(b:vf_list_line_to_id, line('.'), '')
+  call s:rebuild_dashboard_keeping_pinpoint(id)
 endfunction
 
 function! s:dashboard_on_cursor_moved() abort
