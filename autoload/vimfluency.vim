@@ -108,7 +108,9 @@ function! s:waypoint_annotation(item) abort
     let annotation = strpart(annotation, 0, tcol - 1)
       \ . string(n) . strpart(annotation, tcol)
   endif
-  return [annotation]
+  " Trim the trailing pad — listchars=trail:· would render it as a
+  " dotted tail after the last marker.
+  return [substitute(annotation, '\s\+$', '', '')]
 endfunction
 
 " Build a marker row with ▼ above every cell of the item's
@@ -149,7 +151,10 @@ function! s:deletion_annotation(item) abort
   for c in range(1, llen)
     let annotation .= has_key(cols, c) ? '▼' : ' '
   endfor
-  return [annotation]
+  " Trim the trailing pad — the training buffer sets
+  " listchars=trail:· (for whitespace-sensitive drills), which would
+  " render the padding right of the last ▼ as a dotted tail.
+  return [substitute(annotation, '\s\+$', '', '')]
 endfunction
 
 " Add VfTarget highlights for each declared waypoint at its buffer row
