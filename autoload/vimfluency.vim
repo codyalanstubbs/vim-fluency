@@ -111,6 +111,47 @@ function! s:waypoint_annotation(item) abort
   return [annotation]
 endfunction
 
+" Build a marker row with ▼ above every cell of the item's
+" deletion_range — but only when the item opts in via
+" annotate_deletion. Solves the cursor-occlusion problem: a
+" single-cell deletion at the cursor position (dl, x) hides its red
+" VfDeletion highlight under the cursor block, making the item look
+" target-less. The ▼ row keeps the deletion position readable.
+"
+" Opt-in (and set on EVERY item of an opting pinpoint, both the
+" occluded and the visible direction) rather than auto-detected:
+" if the row only appeared when the cursor covers the deletion,
+" its mere presence would be a tell ('row visible → dl') and the
+" learner would discriminate on that instead of reading the
+" deletion position. Same row for every item → the position of
+" the ▼ relative to the cursor is the only cue.
+"
+" Single-row items only, mirroring s:waypoint_annotation.
+function! s:deletion_annotation(item) abort
+  if !get(a:item, 'annotate_deletion', 0) | return [] | endif
+  if !has_key(a:item, 'deletion_range') || empty(a:item.deletion_range)
+    return []
+  endif
+  if empty(a:item.lines) | return [] | endif
+  let llen = len(a:item.lines[0])
+  " Collect deletion columns on row 1, then emit left-to-right.
+  " (Column-accounted append rather than strpart splicing — the
+  " multi-byte ▼ would desync byte offsets for later splices.)
+  let cols = {}
+  for rng in a:item.deletion_range
+    if rng[0] != 1 | continue | endif
+    for c in range(rng[1], rng[1] + rng[2] - 1)
+      if c >= 1 && c <= llen | let cols[c] = 1 | endif
+    endfor
+  endfor
+  if empty(cols) | return [] | endif
+  let annotation = ''
+  for c in range(1, llen)
+    let annotation .= has_key(cols, c) ? '▼' : ' '
+  endfor
+  return [annotation]
+endfunction
+
 " Add VfTarget highlights for each declared waypoint at its buffer row
 " (header_offset + item-coord row). Stores match IDs on the session so
 " they can be cleared on render_complete or the next frame.
@@ -1647,6 +1688,7 @@ function! s:next_item() abort
   " training sessions need it too so the learner can disambiguate ; vs , scenarios
   " for items where cursor sits between two char occurrences.
   let header += s:waypoint_annotation(item)
+  let header += s:deletion_annotation(item)
   let s:session.header_offset = len(header)
 
   setlocal modifiable
@@ -2578,6 +2620,7 @@ function! s:render_mode_item(item) abort
   endif
 
   let header += s:waypoint_annotation(a:item)
+  let header += s:deletion_annotation(a:item)
   let s:session.header_offset = len(header)
 
   setlocal modifiable
@@ -3284,6 +3327,7 @@ function! s:learn_show_frame() abort
   " content), so the cur_lines comparison in s:learn_on_change still
   " excludes it via header_offset.
   let header = base_header + mode_extra + s:waypoint_annotation(frame)
+    \ + s:deletion_annotation(frame)
   let s:session.header_offset = len(header)
 
   setlocal modifiable
@@ -4023,7 +4067,8 @@ function! s:learn_test_next() abort
       call add(mode_extra, ind)
     endif
   endif
-  let full_header = lesson_header + editing_header + mode_extra + s:waypoint_annotation(item)
+  let full_header = lesson_header + editing_header + mode_extra
+    \ + s:waypoint_annotation(item) + s:deletion_annotation(item)
   let s:session.header_offset = len(full_header)
 
   setlocal modifiable

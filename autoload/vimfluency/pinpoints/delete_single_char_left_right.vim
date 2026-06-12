@@ -64,13 +64,19 @@ function! vimfluency#pinpoints#delete_single_char_left_right#generate() abort
   let target_line = strpart(line, 0, del_start - 1)
     \ . strpart(line, del_start - 1 + del_len)
 
+  " annotate_deletion: dl deletes the char UNDER the cursor, so its
+  " red VfDeletion cell hides beneath the cursor block — without the
+  " ▼ marker row the item looks target-less (2026-06-12 report).
+  " Set on BOTH directions so the row's presence is never a tell;
+  " the ▼ position relative to the cursor is the cue.
   return {
     \ 'lines': [line],
     \ 'target_lines': [target_line],
     \ 'start': [1, cursor_col],
     \ 'target': [1, target_col],
     \ 'deletion_range': [[1, del_start, del_len]],
-    \ 'prompt': 'Delete the highlighted character using d + h or l.',
+    \ 'annotate_deletion': 1,
+    \ 'prompt': 'Delete the ▼-marked character using d + h or l.',
     \ 'expected_motion': motion,
     \ 'optimal_motions': 1,
     \ }
@@ -84,10 +90,12 @@ function! vimfluency#pinpoints#delete_single_char_left_right#lesson() abort
     \ {'kind': 'try', 'lines': buf, 'start': [1, 10], 'target': [1, 10],
     \  'target_lines': ['if data: eturn value'],
     \  'deletion_range': [[1, 10, 1]],
-    \  'prompt': 'Press dl — deletes the r under cursor. Cursor stays put; the next char slides under.'},
+    \  'annotate_deletion': 1,
+    \  'prompt': 'The ▼ marks the char under your cursor — press dl to delete it. Cursor stays put; the next char slides under.'},
     \ {'kind': 'try', 'lines': buf, 'start': [1, 10], 'target': [1, 9],
     \  'target_lines': ['if data:return value'],
     \  'deletion_range': [[1, 9, 1]],
-    \  'prompt': 'Press dh — deletes the space before cursor. Cursor moves left one column.'},
+    \  'annotate_deletion': 1,
+    \  'prompt': 'The ▼ marks the char before your cursor — press dh to delete it. Cursor moves left one column.'},
     \ ]
 endfunction
