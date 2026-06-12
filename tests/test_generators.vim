@@ -346,6 +346,7 @@ function! s:test_1C_1() abort
       \ '1C.1: expected_motion in {f, F}')
     call AssertEq(item.optimal_motions, 1,
       \ '1C.1: optimal_motions == 1')
+    call s:assert_till_shape_auto('move_to_char_forward_backward', item)
 
     let line = item.lines[0]
     let llen = len(line)
@@ -412,6 +413,7 @@ function! s:test_1C_2() abort
       \ '1C.2: expected_motion in {t, T}')
     call AssertEq(item.optimal_motions, 1,
       \ '1C.2: optimal_motions == 1')
+    call s:assert_till_shape_auto('move_till_char_forward_backward', item)
 
     let line = item.lines[0]
     let llen = len(line)
@@ -594,6 +596,7 @@ function! s:test_1C_4() abort
       \ '1C.4: expected_motion in {f, F, t, T}')
     call AssertEq(item.optimal_motions, 1,
       \ '1C.4: optimal_motions == 1')
+    call s:assert_till_shape_auto('move_to_till_forward_backward', item)
     let seen[item.expected_motion] = 1
   endfor
   for m in valid
@@ -674,6 +677,13 @@ function! s:assert_till_shape(id, item, backward) abort
   else
     call Assert(cch !=# line[L], prefix . 'cursor cell != right-neighbor char')
   endif
+endfunction
+
+" Variant for pinpoints whose items mix directions: derive the
+" backward flag from the motion's case (F/T backward, f/t forward).
+function! s:assert_till_shape_auto(id, item) abort
+  call s:assert_till_shape(a:id, a:item,
+    \ a:item.expected_motion =~# '^[FT]$')
 endfunction
 
 function! s:test_till_pair(id, valid, backward, constant_geom) abort

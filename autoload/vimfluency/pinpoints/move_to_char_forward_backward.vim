@@ -26,6 +26,12 @@
 "   - lines have no leading or trailing whitespace, so 0/^/$/g_ all land
 "     on positions outside the candidate target range (col 1 or llen,
 "     while target is always strictly interior to a word).
+"
+"   - the TILL alternative must miss (2026-06-11 shapes): any target is
+"     also reachable with t/T using the target's neighbor char. Start
+"     candidates where that till motion would land exactly on the target
+"     are rejected, so f/F is the only clean single-chord answer. The
+"     cursor also never starts on the relevant neighbor char.
 
 let s:WORDS = ['return', 'import', 'while', 'range', 'class', 'value',
   \ 'array', 'result', 'parse', 'error', 'begin', 'label', 'count',
@@ -68,6 +74,27 @@ endfunction
 
 function! s:rand(n) abort
   return rand() % a:n
+endfunction
+
+" First column > a:after holding a:ch (1-indexed), 0 when absent.
+function! s:first_after(line, ch, after) abort
+  let c = a:after + 1
+  let llen = len(a:line)
+  while c <= llen
+    if a:line[c - 1] ==# a:ch | return c | endif
+    let c += 1
+  endwhile
+  return 0
+endfunction
+
+" Last column < a:before holding a:ch (1-indexed), 0 when absent.
+function! s:last_before(line, ch, before) abort
+  let c = a:before - 1
+  while c >= 1
+    if a:line[c - 1] ==# a:ch | return c | endif
+    let c -= 1
+  endwhile
+  return 0
 endfunction
 
 function! s:try_generate() abort
@@ -117,6 +144,23 @@ function! s:try_generate() abort
     if abs(sc - target_col) < 4 | continue | endif
     let ch = line[sc - 1]
     if ch ==# ' ' || ch ==# target_char | continue | endif
+    " Shape filter: the till alternative (t/T with the target's
+    " neighbor char) must NOT land on the target from this start;
+    " otherwise the item is answerable with either member of the
+    " find/till pair and the discrimination isn't drilled.
+    if sc < target_col
+      " forward f-item — till alternative is t{right-neighbor}
+      let nb = line[target_col]
+      if ch ==# nb | continue | endif
+      let found = s:first_after(line, nb, sc)
+      if found > 0 && found - 1 == target_col | continue | endif
+    else
+      " backward F-item — till alternative is T{left-neighbor}
+      let nb = line[target_col - 2]
+      if ch ==# nb | continue | endif
+      let found = s:last_before(line, nb, sc)
+      if found > 0 && found + 1 == target_col | continue | endif
+    endif
     call add(valid_starts, sc)
   endfor
 
@@ -138,8 +182,9 @@ function! vimfluency#pinpoints#move_to_char_forward_backward#generate() abort
     endif
   endwhile
   " Fallback in the unlikely event of no candidate after 30 attempts.
-  " 'banana split query': l in 'split' (col 10) is unique and interior.
-  return {'lines': ['banana split query'],
-    \ 'start': [1, 1], 'target': [1, 10],
+  " 'spend faster point': i in 'point' (col 16) is unique → fi lands
+  " exactly; its right-neighbor n repeats at col 4 → tn stops early.
+  return {'lines': ['spend faster point'],
+    \ 'start': [1, 1], 'target': [1, 16],
     \ 'expected_motion': 'f', 'optimal_motions': 1}
 endfunction

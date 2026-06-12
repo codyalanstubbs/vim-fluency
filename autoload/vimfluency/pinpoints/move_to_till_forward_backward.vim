@@ -2,14 +2,16 @@
 " Mixes the by-find-vs-till split (move_to_char_forward_backward,
 " move_till_char_forward_backward) with the by-direction split
 " (move_to_till_forward, move_to_till_backward). The cognitive task
-" is: read the target's position relative to the surrounding chars
-" AND its direction relative to the cursor, then pick the right
-" motion before executing.
+" is: read the direction (cursor side), then pick find vs till by
+" which search char does NOT repeat in the span (the 2026-06-11
+" shapes — see move_to_till_backward for the worked rationale).
 "
 " Cheat-defense is inherited from the underlying generators —
 " delegate to move_to_char_forward_backward.generate and
-" move_till_char_forward_backward.generate at random. Optimal_motions
-" is 1 for every item (single f / F / t / T).
+" move_till_char_forward_backward.generate at random. Both enforce
+" the discriminative shape (the wrong member of the find/till pair
+" always lands off-target), so every item in this 4-way mix forces
+" BOTH axes. Optimal_motions is 1 for every item.
 
 function! vimfluency#pinpoints#move_to_till_forward_backward#meta() abort
   return {'id': 'move_to_till_forward_backward',
@@ -33,7 +35,15 @@ function! vimfluency#pinpoints#move_to_till_forward_backward#lesson() abort
   let buf = ['the cat ran past us today']
   return [
     \ {'kind': 'show', 'lines': buf, 'cursor': [1, 1],
-    \  'prompt': 'f lands ON the char. t lands ONE CELL BEFORE the char. F and T are the backward versions. Read the target''s position relative to the next char to pick.'},
+    \  'prompt': [
+    \    'f lands ON the next char; t lands ONE CELL BEFORE it.',
+    \    'F and T are the backward versions.',
+    \    '',
+    \    'Two reads per item: direction first (is the target ahead or',
+    \    'behind?), then find vs till — any target is reachable BOTH',
+    \    'ways, so pick the motion whose search char does NOT appear',
+    \    'again between you and the target. The repeated one stops',
+    \    'too early.']},
     \ {'kind': 'try', 'lines': buf, 'start': [1, 1], 'target': [1, 13],
     \  'prompt': 'Target is ON the p — use fp.'},
     \ {'kind': 'try', 'lines': buf, 'start': [1, 1], 'target': [1, 12],

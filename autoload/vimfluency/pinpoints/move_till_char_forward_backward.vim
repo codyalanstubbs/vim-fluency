@@ -21,8 +21,14 @@
 "   - target character appears EXACTLY ONCE in the line, so t{c} from any
 "     position to its left lands directly at X-1 (no `;` needed) and
 "     T{c} from any position to its right lands directly at X+1.
-"     Also defeats the f-cheat: fc lands ON the unique c (one column past
-"     the t-landing), so fc + h = 3 keys vs tc = 2 keys. Tc analogously.
+"     Also defeats the same-char f-cheat: fc lands ON the unique c (one
+"     column past the t-landing), so fc + h = 3 keys vs tc = 2 keys.
+"
+"   - the FIND alternative must miss (2026-06-11 shapes): the landing
+"     cell is also reachable with f/F using the char AT the landing.
+"     Start candidates where that find motion would land exactly on the
+"     landing are rejected, so t/T is the only clean single-chord
+"     answer. The cursor also never starts on the landing-cell char.
 "
 "   - cursor never starts on whitespace or on the target character.
 "
@@ -71,6 +77,27 @@ endfunction
 
 function! s:rand(n) abort
   return rand() % a:n
+endfunction
+
+" First column > a:after holding a:ch (1-indexed), 0 when absent.
+function! s:first_after(line, ch, after) abort
+  let c = a:after + 1
+  let llen = len(a:line)
+  while c <= llen
+    if a:line[c - 1] ==# a:ch | return c | endif
+    let c += 1
+  endwhile
+  return 0
+endfunction
+
+" Last column < a:before holding a:ch (1-indexed), 0 when absent.
+function! s:last_before(line, ch, before) abort
+  let c = a:before - 1
+  while c >= 1
+    if a:line[c - 1] ==# a:ch | return c | endif
+    let c -= 1
+  endwhile
+  return 0
 endfunction
 
 function! s:try_generate() abort
@@ -129,6 +156,7 @@ function! s:try_generate() abort
 
   " Forward: cursor LEFT of landing by >= 3, so cursor <= target_char_col - 4.
   " Backward: cursor RIGHT of landing by >= 3, so cursor >= target_char_col + 4.
+  let landing_char = line[landing_col - 1]
   let valid_starts = []
   for sc in range(1, llen)
     if direction == 0
@@ -137,7 +165,16 @@ function! s:try_generate() abort
       if sc < target_char_col + 4 | continue | endif
     endif
     let ch = line[sc - 1]
-    if ch ==# ' ' || ch ==# target_char | continue | endif
+    if ch ==# ' ' || ch ==# target_char || ch ==# landing_char | continue | endif
+    " Shape filter: the find alternative (f/F with the char AT the
+    " landing cell) must NOT land on the landing from this start;
+    " otherwise the item is answerable with either member of the
+    " find/till pair and the discrimination isn't drilled.
+    if direction == 0
+      if s:first_after(line, landing_char, sc) == landing_col | continue | endif
+    else
+      if s:last_before(line, landing_char, sc) == landing_col | continue | endif
+    endif
     call add(valid_starts, sc)
   endfor
 
