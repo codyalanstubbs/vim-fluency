@@ -605,44 +605,120 @@ endfunction
 " move_to_till_forward — 2-cell atomic over {f, t}. The generator
 " re-rolls the by-find/till underlying generators until a forward
 " item lands, so every item should have expected_motion in {f, t}.
-function! s:test_move_to_till_forward() abort
-  let GenFn = function('vimfluency#pinpoints#move_to_till_forward#generate')
-  let valid = ['f', 't']
+" Simulate F{ch} / T{ch} landings from col `from` (backward search):
+" returns [F_landing, T_landing] (0 = char absent). Mirrors vim.
+function! s:sim_backward(line, x_ch, y_ch, from) abort
+  let f_land = 0
+  let t_land = 0
+  let c = a:from - 1
+  while c >= 1
+    if f_land == 0 && a:line[c - 1] ==# a:x_ch | let f_land = c | endif
+    if t_land == 0 && a:line[c - 1] ==# a:y_ch | let t_land = c + 1 | endif
+    if f_land && t_land | break | endif
+    let c -= 1
+  endwhile
+  return [f_land, t_land]
+endfunction
+
+" Simulate f{ch} / t{ch} landings from col `from` (forward search).
+function! s:sim_forward(line, x_ch, z_ch, from) abort
+  let f_land = 0
+  let t_land = 0
+  let llen = len(a:line)
+  let c = a:from + 1
+  while c <= llen
+    if f_land == 0 && a:line[c - 1] ==# a:x_ch | let f_land = c | endif
+    if t_land == 0 && a:line[c - 1] ==# a:z_ch | let t_land = c - 1 | endif
+    if f_land && t_land | break | endif
+    let c += 1
+  endwhile
+  return [f_land, t_land]
+endfunction
+
+" Behavioral property shared by all four till pinpoints (2026-06-11
+" diary): the expected motion must land EXACTLY on the target, and
+" the OTHER member of the pair must NOT — otherwise the item doesn't
+" force the F-vs-T (f-vs-t) discrimination and the learner can answer
+" everything with one motion.
+function! s:assert_till_shape(id, item, backward) abort
+  let prefix = a:id . ': '
+  let line = a:item.lines[0]
+  let L = a:item.target[1]
+  let C = a:item.start[1]
+  let X = line[L - 1]
+  if a:backward
+    let Y = line[L - 2]
+    let [f_land, t_land] = s:sim_backward(line, X, Y, C)
+  else
+    let Z = line[L]
+    let [f_land, t_land] = s:sim_forward(line, X, Z, C)
+  endif
+  let motion_lower = tolower(a:item.expected_motion)
+  if motion_lower ==# 'f'
+    call AssertEq(f_land, L,
+      \ prefix . 'find-motion lands on target (line="' . line . '" L=' . L . ' C=' . C . ')')
+    call Assert(t_land != L,
+      \ prefix . 'till-motion must NOT land on target (line="' . line . '" L=' . L . ' C=' . C . ')')
+  else
+    call AssertEq(t_land, L,
+      \ prefix . 'till-motion lands on target (line="' . line . '" L=' . L . ' C=' . C . ')')
+    call Assert(f_land != L,
+      \ prefix . 'find-motion must NOT land on target (line="' . line . '" L=' . L . ' C=' . C . ')')
+  endif
+  " Cursor never starts on either search char (would make the skim
+  " read ambiguous).
+  let cch = line[C - 1]
+  call Assert(cch !=# X, prefix . 'cursor cell != target char')
+  if a:backward
+    call Assert(cch !=# line[L - 2], prefix . 'cursor cell != left-neighbor char')
+  else
+    call Assert(cch !=# line[L], prefix . 'cursor cell != right-neighbor char')
+  endif
+endfunction
+
+function! s:test_till_pair(id, valid, backward, constant_geom) abort
+  let GenFn = function('vimfluency#pinpoints#' . a:id . '#generate')
   let seen = {}
   for i in range(s:N)
     let item = GenFn()
-    call s:assert_common('move_to_till_forward', item)
-    call AssertIn(item.expected_motion, valid,
-      \ 'move_to_till_forward: expected_motion in {f, t}')
+    call s:assert_common(a:id, item)
+    call AssertIn(item.expected_motion, a:valid,
+      \ a:id . ': expected_motion in ' . string(a:valid))
     call AssertEq(item.optimal_motions, 1,
-      \ 'move_to_till_forward: optimal_motions == 1')
+      \ a:id . ': optimal_motions == 1')
+    call s:assert_till_shape(a:id, item, a:backward)
+    if !empty(a:constant_geom)
+      call AssertEq(item.start, a:constant_geom[0],
+        \ a:id . ': constant cursor position')
+      call AssertEq(item.target, a:constant_geom[1],
+        \ a:id . ': constant target position')
+      call AssertEq(len(item.lines[0]), a:constant_geom[2],
+        \ a:id . ': constant line length')
+    endif
     let seen[item.expected_motion] = 1
   endfor
-  for m in valid
+  for m in a:valid
     call Assert(get(seen, m, 0) == 1,
-      \ 'move_to_till_forward: ' . m . ' appeared in samples')
+      \ a:id . ': ' . m . ' appeared in samples')
   endfor
 endfunction
 
-" move_to_till_backward — 2-cell atomic over {F, T}. Mirror of
-" move_to_till_forward, filtered to the backward direction.
+function! s:test_move_to_till_forward() abort
+  call s:test_till_pair('move_to_till_forward', ['f', 't'], 0,
+    \ [[1, 1], [1, 10], 15])
+endfunction
+
 function! s:test_move_to_till_backward() abort
-  let GenFn = function('vimfluency#pinpoints#move_to_till_backward#generate')
-  let valid = ['F', 'T']
-  let seen = {}
-  for i in range(s:N)
-    let item = GenFn()
-    call s:assert_common('move_to_till_backward', item)
-    call AssertIn(item.expected_motion, valid,
-      \ 'move_to_till_backward: expected_motion in {F, T}')
-    call AssertEq(item.optimal_motions, 1,
-      \ 'move_to_till_backward: optimal_motions == 1')
-    let seen[item.expected_motion] = 1
-  endfor
-  for m in valid
-    call Assert(get(seen, m, 0) == 1,
-      \ 'move_to_till_backward: ' . m . ' appeared in samples')
-  endfor
+  call s:test_till_pair('move_to_till_backward', ['F', 'T'], 1,
+    \ [[1, 15], [1, 6], 15])
+endfunction
+
+function! s:test_move_to_till_forward_in_words() abort
+  call s:test_till_pair('move_to_till_forward_in_words', ['f', 't'], 0, [])
+endfunction
+
+function! s:test_move_to_till_backward_in_words() abort
+  call s:test_till_pair('move_to_till_backward_in_words', ['F', 'T'], 1, [])
 endfunction
 
 " --- T0 — recall and mode kinds -----------------------------------
@@ -1512,6 +1588,8 @@ call s:test_1C_3()
 call s:test_1C_4()
 call s:test_move_to_till_forward()
 call s:test_move_to_till_backward()
+call s:test_move_to_till_forward_in_words()
+call s:test_move_to_till_backward_in_words()
 call s:test_2_1()
 call s:test_2_2()
 call s:test_4_1()

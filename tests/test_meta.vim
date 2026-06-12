@@ -38,6 +38,8 @@ let s:expected = [
   \ {'id': 'move_repeat_last_find_forward_backward', 'prereqs': ['move_to_char_forward_backward', 'move_till_char_forward_backward']},
   \ {'id': 'move_to_till_forward', 'prereqs': []},
   \ {'id': 'move_to_till_backward', 'prereqs': []},
+  \ {'id': 'move_to_till_forward_in_words', 'prereqs': ['move_to_till_forward']},
+  \ {'id': 'move_to_till_backward_in_words', 'prereqs': ['move_to_till_backward']},
   \ {'id': 'move_to_till_forward_backward',
   \   'prereqs': ['move_to_char_forward_backward',
   \               'move_till_char_forward_backward',

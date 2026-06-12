@@ -1740,6 +1740,9 @@ function! s:install_autocmds() abort
     " the session — every other ex command is cancelled.
     cnoremap <buffer> <expr> <CR> getcmdtype() ==# ':' && getcmdline() =~# '^VfQuit\>' ? "\<CR>" : "\<C-c>"
     nnoremap <buffer> <silent> <Tab> :call <SID>skip()<CR>
+    " Jumplist escape hatch — see the matching <C-o> block in the
+    " general-kind branch below for the full rationale.
+    nnoremap <buffer> <silent> <C-o> <Nop>
     return
   endif
   augroup VfTrain
@@ -1780,6 +1783,14 @@ function! s:install_autocmds() abort
   " kind, plus motion/editing kinds where the learner hit i/a/o by
   " mistake and needs out).
   inoremap <buffer> <silent> <C-c> <Esc>
+  " Ctrl-O walks the jumplist, which still holds pre-session
+  " positions — inside the training buffer it jumps to a stale
+  " location (reads as 'top-left corner') and a second press
+  " escapes the session entirely. There IS no meaningful
+  " in-session jumplist (f/F/t/T/hjkl don't set entries), so
+  " block it. (<C-i> needs no map: terminals fold it into <Tab>,
+  " which is already the skip key.)
+  nnoremap <buffer> <silent> <C-o> <Nop>
 endfunction
 
 function! s:on_change() abort
@@ -2039,6 +2050,8 @@ function! s:install_recall_maps() abort
   nnoremap <buffer> <silent> <C-c> :call vimfluency#stop('user')<CR>
   " Block <CR>'s default (would jump the cursor to the next line).
   nnoremap <buffer> <silent> <CR> <Nop>
+  " Block jumplist-back (stale pre-session entries escape the buffer).
+  nnoremap <buffer> <silent> <C-o> <Nop>
 endfunction
 
 " Recall input handlers work for both training and lesson sessions:
@@ -2180,6 +2193,8 @@ function! s:install_command_maps() abort
   nnoremap <buffer> <silent> ZZ :call <SID>command_check('ZZ')<CR>
   nnoremap <buffer> <silent> ZQ :call <SID>command_check('ZQ')<CR>
   nnoremap <buffer> <silent> <Tab> :call <SID>skip()<CR>
+  " Block jumplist-back (stale pre-session entries escape the buffer).
+  nnoremap <buffer> <silent> <C-o> <Nop>
 endfunction
 
 " input('-style fake cmdline. The leading ':' prompt makes it look
@@ -3418,6 +3433,8 @@ function! s:learn_install_autocmds() abort
   " without firing InsertLeave by design, so unmapped it would leave
   " the mode-kind matcher hanging.
   inoremap <buffer> <silent> <C-c> <Esc>
+  " Block jumplist-back (stale pre-session entries escape the buffer).
+  nnoremap <buffer> <silent> <C-o> <Nop>
 endfunction
 
 " Space/Enter: advance from a 'show' frame, from a completed 'try' frame,
