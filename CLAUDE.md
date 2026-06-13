@@ -25,26 +25,35 @@ Neovim-specific or Lua features — must run on every server you ssh into.
 ```
 plugin/vimfluency.vim                          commands + load guard
 autoload/vimfluency.vim                        runner (training + lesson + history + summary)
-autoload/vimfluency/pinpoints/p<ID>.vim        one file per pinpoint
+autoload/vimfluency/pinpoints/<slug>.vim       one file per pinpoint
 doc/vimfluency.txt                             :help docs
 tests/                                  vim-headless test runner
 ```
 
 ## Pinpoint contract
 
-Each `autoload/vimfluency/pinpoints/p<ID>.vim` must export:
+Each `autoload/vimfluency/pinpoints/<slug>.vim` must export:
 
-- `vimfluency#pinpoints#p<ID>#meta()` → `{id, name, aim, allowed_keys, prereqs}`
+- `vimfluency#pinpoints#<slug>#meta()` → `{id, name, aim, allowed_keys, keys, prereqs}`
   (`allowed_keys` is advisory documentation of the intended key set —
   the runner never reads or enforces it, and encodings vary across
-  pinpoints; don't build logic on it without normalizing first)
-- `vimfluency#pinpoints#p<ID>#generate()` → `{lines, start, target, expected_motion, optimal_motions}`
-- `vimfluency#pinpoints#p<ID>#lesson()` → list of show/try frames (optional)
+  pinpoints; don't build logic on it without normalizing first.
+  `keys` is the slash-separated display string of the drilled
+  keystrokes, e.g. `'dl/dh'` — the runner reads it for the dashboard
+  commands column and command sorting)
+- `vimfluency#pinpoints#<slug>#generate()` → `{lines, start, target, expected_motion, optimal_motions}`
+- `vimfluency#pinpoints#<slug>#lesson()` → list of show/try frames (optional)
 
-`{id}` is a descriptive snake_case slug (e.g. `move_single_char_left_right`,
+`<slug>` is a descriptive snake_case id (e.g. `move_single_char_left_right`,
 `save_vs_quit`). The slug is the filename minus `.vim` and is the
 identifier the user types into `:Vf <id>`. Slug starts with a letter —
-no `p` prefix needed anymore.
+no `p` prefix needed anymore (the old `p<ID>` tier-code names are gone).
+
+**Terminology note:** "pinpoint" is the internal/Precision-Teaching term
+(directory name, function namespace, JSONL `pinpoint_id`/`pinpoint_name`
+fields — do not rename those; the log fields are user data). All
+*user-facing* text (UI messages, statuslines, `:help`, README, CATALOG)
+says **drill** instead.
 
 `prereqs` is a list of specific pinpoint slugs that must be at aim before
 drilling this one. No group/tier prefix matching — every entry names a
@@ -232,15 +241,17 @@ item-start position), not exercised natively.
 
 ## Adding a new pinpoint (checklist)
 
-1. Create `autoload/vimfluency/pinpoints/p<ID>.vim`
+1. Create `autoload/vimfluency/pinpoints/<slug>.vim`
 2. Define `meta()` with `id`, `name`, `aim` (starting guess), `allowed_keys`
-   (advisory only — see the pinpoint contract note)
+   (advisory only — see the pinpoint contract note), `keys`, `family`,
+   `test_sequence`, and `kind`
 3. **Cheat analysis first** — document at top of file, then write `generate()`
 4. Include `expected_motion` and `optimal_motions` in the returned item
 5. Define `lesson()` if the motion needs teaching (most do)
 6. Add property tests in `tests/test_generators.vim`
-7. Run `tests/run.sh`
-8. Commit (no `Co-Authored-By: Claude` trailer; see auto-memory for this project)
+7. Add a row to `CATALOG.md` (it is the shipped index — keep it exhaustive)
+8. Run `tests/run.sh`
+9. Commit (no `Co-Authored-By: Claude` trailer; see auto-memory for this project)
 
 ## Conventions to remember
 

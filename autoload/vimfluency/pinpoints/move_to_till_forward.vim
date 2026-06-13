@@ -44,7 +44,7 @@ function! vimfluency#pinpoints#move_to_till_forward#meta() abort
   " Aim 50/min, matching move_to_till_backward. Single 2-cell
   " discrimination, single chord per item.
   return {'id': 'move_to_till_forward',
-    \ 'name': 'find char forward (f / t)',
+    \ 'name': 'find vs till, forward (f / t)',
     \ 'aim': 50, 'allowed_keys': 'ft',
     \ 'prereqs': [], 'keys': 'f/t', 'family': 'motion',
     \ 'parallel_to': ['move_to_till_backward'],

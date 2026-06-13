@@ -13,7 +13,7 @@ let s:chars = ['a','b','c','d','e','f','g','h','i','j','k','m','n','p',
   \ '2','3','4','5','6','7','8','9']
 
 function! vimfluency#pinpoints#move_single_char_up_down_left_right#meta() abort
-  return {'id': 'move_single_char_up_down_left_right', 'name': 'hjkl', 'aim': 60,
+  return {'id': 'move_single_char_up_down_left_right', 'name': 'move one char, 4-way (hjkl)', 'aim': 60,
     \ 'allowed_keys': 'hjkl',
     \ 'prereqs': ['move_single_char_left_right', 'move_single_char_up_down'],
     \ 'keys': 'h/j/k/l', 'family': 'motion',

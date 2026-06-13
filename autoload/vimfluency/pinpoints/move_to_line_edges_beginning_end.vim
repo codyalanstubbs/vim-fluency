@@ -1,4 +1,4 @@
-" move_to_line_edges_beginning_end — 0 vs $. Narrower 2-cell sibling of 1A.2 (line start/end
+" move_to_line_edges_beginning_end — 0 vs $. Narrower 2-cell sibling of move_to_line_edges_all (line start/end
 " bundle). Shared quality: line-edge motion. Juxtaposed quality:
 " direction (line-start vs line-end). Drops the whitespace-
 " sensitivity axis (^ and g_) so the only thing the learner
@@ -16,9 +16,9 @@ let s:words = ['def', 'class', 'return', 'import', 'from', 'while',
   \ 'data', 'value']
 
 function! vimfluency#pinpoints#move_to_line_edges_beginning_end#meta() abort
-  " Aim slightly above 1A.2's 50/min — narrower discrimination,
+  " Aim slightly above move_to_line_edges_all's 50/min — narrower discrimination,
   " no whitespace axis to read. Starting guess.
-  return {'id': 'move_to_line_edges_beginning_end', 'name': '0 $', 'aim': 55,
+  return {'id': 'move_to_line_edges_beginning_end', 'name': 'line edges (0 / $)', 'aim': 55,
     \ 'allowed_keys': '0$', 'prereqs': [],
     \ 'narrower_of': 'move_to_line_edges_all',
     \ 'parallel_to': ['move_to_line_edges_non_white_space'],

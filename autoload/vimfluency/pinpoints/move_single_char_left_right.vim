@@ -1,7 +1,7 @@
-" move_single_char_left_right — h vs l. Narrower 2-cell sibling of 1A.1 (hjkl). Shared
+" move_single_char_left_right — h vs l. Narrower 2-cell sibling of move_single_char_up_down_left_right (hjkl). Shared
 " quality: single-char horizontal motion. Juxtaposed quality:
 " direction (left vs right). Use this pinpoint as a fallback for
-" learners who plateau on 1A.1 specifically on the horizontal axis.
+" learners who plateau on move_single_char_up_down_left_right specifically on the horizontal axis.
 "
 " Design constraints:
 "   - target on the SAME row as start (no vertical component)
@@ -18,11 +18,11 @@ let s:chars = ['a','b','c','d','e','f','g','h','i','j','k','m','n','p',
   \ '2','3','4','5','6','7','8','9']
 
 function! vimfluency#pinpoints#move_single_char_left_right#meta() abort
-  " Aim ~ 1A.1's 60/min. Narrower discrimination = slightly easier
+  " Aim ~ move_single_char_up_down_left_right's 60/min. Narrower discrimination = slightly easier
   " in principle, but a learner who reaches here is here because they
   " plateaued — keep the aim honest rather than inflated. Starting
   " guess, revise on data.
-  return {'id': 'move_single_char_left_right', 'name': 'h l', 'aim': 60,
+  return {'id': 'move_single_char_left_right', 'name': 'move one char left / right (h / l)', 'aim': 60,
     \ 'allowed_keys': 'hl', 'prereqs': [],
     \ 'narrower_of': 'move_single_char_up_down_left_right', 'parallel_to': ['move_single_char_up_down'], 'keys': 'h/l', 'family': 'motion',
     \ 'test_sequence': ['h', 'l']}

@@ -2,7 +2,7 @@
 " Real direction discrimination on the indentation axis. Both
 " doubled-key operators, both produce visible buffer changes (whole
 " line shifts left or right by one shiftwidth), neither enters
-" insert mode. Mirrors 1B.1's forward/backward direction pair at the
+" insert mode. Mirrors move_to_word_start_forward_backward's forward/backward direction pair at the
 " operator layer.
 "
 " Training design: 2-line buffer where line 1 is the line to modify and
@@ -30,9 +30,9 @@ let s:words = ['alpha', 'beta', 'gamma', 'delta', 'epsilon',
   \ 'zeta', 'eta', 'theta', 'iota', 'kappa']
 
 function! vimfluency#pinpoints#indent_vs_dedent#meta() abort
-  " Disc-band aim, matching 1C.4 and 2.1. Read-and-pick costs more
+  " Disc-band aim, matching move_to_till_forward_backward and delete_char_vs_line. Read-and-pick costs more
   " than pure motor; revise on data.
-  return {'id': 'indent_vs_dedent', 'name': '>> vs <<',
+  return {'id': 'indent_vs_dedent', 'name': 'indent vs dedent (>> / <<)',
     \ 'aim': 35, 'allowed_keys': '><', 'kind': 'editing',
     \ 'prereqs': [], 'keys': '>>/<<', 'family': 'indent',
     \ 'test_sequence': ['>>', '<<']}

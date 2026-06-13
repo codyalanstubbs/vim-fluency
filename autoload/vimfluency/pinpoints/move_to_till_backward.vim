@@ -47,7 +47,7 @@ let s:REPEAT_COLS = [7, 9, 10, 11, 13, 14]
 
 function! vimfluency#pinpoints#move_to_till_backward#meta() abort
   return {'id': 'move_to_till_backward',
-    \ 'name': 'find char backward (F / T)',
+    \ 'name': 'find vs till, backward (F / T)',
     \ 'aim': 50, 'allowed_keys': 'FT',
     \ 'prereqs': [], 'keys': 'F/T', 'family': 'motion',
     \ 'parallel_to': ['move_to_till_forward'],

@@ -37,7 +37,7 @@ function! vimfluency#pinpoints#switch_btwn_many_modes#meta() abort
   " key to press next based on the prompt + current mode), so a
   " slightly lower starting guess.
   return {'id': 'switch_btwn_many_modes',
-    \ 'name': 'switch between many modes',
+    \ 'name': 'switch between many modes (i v R : Ctrl+[)',
     \ 'aim': 70, 'allowed_keys': '', 'kind': 'mode_switch',
     \ 'prereqs': ['switch_mode_to_insert',
     \             'switch_mode_to_visual',

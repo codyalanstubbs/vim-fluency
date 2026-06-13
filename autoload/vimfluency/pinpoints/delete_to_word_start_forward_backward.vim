@@ -30,7 +30,7 @@ let s:words = ['alpha', 'beta', 'gamma', 'delta', 'epsilon',
   \ 'zeta', 'eta', 'theta', 'iota', 'kappa']
 
 function! vimfluency#pinpoints#delete_to_word_start_forward_backward#meta() abort
-  return {'id': 'delete_to_word_start_forward_backward', 'name': 'delete with word motion (dw, db)',
+  return {'id': 'delete_to_word_start_forward_backward', 'name': 'delete with word motion (dw / db)',
     \ 'aim': 60, 'allowed_keys': 'dwb', 'kind': 'editing',
     \ 'prereqs': ['move_to_word_start_forward_backward'],
     \ 'parallel_to': ['delete_to_line_edges_beginning_end', 'delete_single_char_left_right'], 'keys': 'dw/db', 'family': 'delete',

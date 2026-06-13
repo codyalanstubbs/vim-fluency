@@ -57,7 +57,8 @@ log_lines() { NV 'filereadable(vimfluency#log_dir() . "/sessions.jsonl") ? len(r
 
 echo "== load =="
 chk "plugin loaded" 1 "$(NV 'exists("g:loaded_vimfluency")')"
-chk "registry has 39 pinpoints" 39 "$(NV 'len(vimfluency#discover_pinpoints())')"
+pinpoint_count=$(ls "$ROOT"/autoload/vimfluency/pinpoints/*.vim | wc -l | tr -d ' ')
+chk "registry has $pinpoint_count pinpoints (one per file)" "$pinpoint_count" "$(NV 'len(vimfluency#discover_pinpoints())')"
 chk "15 :Vf* commands" 15 "$(NV 'len(getcompletion("Vf", "command"))')"
 
 echo "== arg validation =="

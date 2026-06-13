@@ -14,7 +14,7 @@ let s:GOALS = {
 let s:CMDS = [':wq', ':q!']
 
 function! vimfluency#pinpoints#save_quit_vs_force_quit#meta() abort
-  return {'id': 'save_quit_vs_force_quit', 'name': 'discriminate :wq vs :q!',
+  return {'id': 'save_quit_vs_force_quit', 'name': 'save & quit vs force quit (:wq / :q!)',
     \ 'aim': 35, 'allowed_keys': ':wq!', 'kind': 'command',
     \ 'prereqs': [], 'keys': ':wq/:q!', 'family': 'survival',
     \ 'test_sequence': [':wq', ':q!']}

@@ -2,7 +2,7 @@
 "
 " Juxtaposition pair: same landing position (word start), opposite
 " direction. The discrimination axis is purely direction. The end-of-
-" word motions (e, ge) live in 1B.2 — they form their own pair with
+" word motions (e, ge) live in move_to_word_end_forward_backward — they form their own pair with
 " the same direction discrimination at a different landing position.
 "
 " Design constraints to keep w/b the strictly shortest path:
@@ -20,7 +20,7 @@
 let s:chars = ['a', 'e', 'i', 'o', 'r', 's']
 
 function! vimfluency#pinpoints#move_to_word_start_forward_backward#meta() abort
-  return {'id': 'move_to_word_start_forward_backward', 'name': 'w b', 'aim': 45,
+  return {'id': 'move_to_word_start_forward_backward', 'name': 'word start forward / backward (w / b)', 'aim': 45,
     \ 'allowed_keys': 'wb', 'prereqs': [],
     \ 'parallel_to': ['move_to_word_end_forward_backward'], 'keys': 'w/b', 'family': 'motion',
     \ 'test_sequence': ['w', 'b']}

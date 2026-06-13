@@ -12,7 +12,7 @@ let s:targets = ['n', 'c']
 
 function! vimfluency#pinpoints#switch_mode_to_command_line#meta() abort
   return {'id': 'switch_mode_to_command_line',
-    \ 'name': 'switch mode to command line',
+    \ 'name': 'switch mode to command line (: / Ctrl+[)',
     \ 'aim': 80, 'allowed_keys': '', 'kind': 'mode_switch',
     \ 'prereqs': [], 'keys': ':/C-[', 'family': 'survival',
     \ 'parallel_to': ['switch_mode_to_insert',

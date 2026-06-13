@@ -25,7 +25,7 @@ let s:targets = ['n', 'i']
 " summary shows 'i' and 'C-[' instead of 'to_i' and 'to_n'.
 function! vimfluency#pinpoints#switch_mode_to_insert#meta() abort
   return {'id': 'switch_mode_to_insert',
-    \ 'name': 'switch mode to insert',
+    \ 'name': 'switch mode to insert (i / Ctrl+[)',
     \ 'aim': 80, 'allowed_keys': '', 'kind': 'mode_switch',
     \ 'prereqs': [], 'keys': 'i/C-[', 'family': 'survival',
     \ 'stroke_counts': {'i': 1, 'C-[': 1},

@@ -9,7 +9,7 @@ let s:targets = ['n', 'v']
 
 function! vimfluency#pinpoints#switch_mode_to_visual#meta() abort
   return {'id': 'switch_mode_to_visual',
-    \ 'name': 'switch mode to visual',
+    \ 'name': 'switch mode to visual (v / Ctrl+[)',
     \ 'aim': 80, 'allowed_keys': '', 'kind': 'mode_switch',
     \ 'prereqs': [], 'keys': 'v/C-[', 'family': 'survival',
     \ 'parallel_to': ['switch_mode_to_insert',

@@ -1,16 +1,16 @@
 " move_to_word_end_forward_backward — e ge. Forward/backward to the end of a nearby word.
 "
-" Juxtaposition pair with 1B.1 (w/b): same landing concept (word
+" Juxtaposition pair with move_to_word_start_forward_backward (w/b): same landing concept (word
 " boundary), but landing at the END instead of the start. Within
 " this pinpoint the discrimination is direction (forward / backward),
-" mirroring 1B.1's structure. The 1-keystroke vs 2-keystroke
+" mirroring move_to_word_start_forward_backward's structure. The 1-keystroke vs 2-keystroke
 " distinction (e is one keypress; ge is g + e) is what differs from
-" 1B.1 — that's the structural reason these motions earn their own
+" move_to_word_start_forward_backward — that's the structural reason these motions earn their own
 " pinpoint instead of bundling with w/b.
 "
 " Design constraints to keep e/ge the canonical (motion-event-minimum)
 " path:
-"   - same alphabet and word geometry as 1B.1 (6-letter vowel-heavy,
+"   - same alphabet and word geometry as move_to_word_start_forward_backward (6-letter vowel-heavy,
 "     10 words per line, 3-4 letters each)
 "   - target is the END of word M; e × (dist+1) lands forward at
 "     end-of-M from start-of-K, ge × dist lands backward
@@ -22,17 +22,17 @@
 let s:chars = ['a', 'e', 'i', 'o', 'r', 's']
 
 function! vimfluency#pinpoints#move_to_word_end_forward_backward#meta() abort
-  " Aim slightly below 1B.1 because ge is two keystrokes, halving the
+  " Aim slightly below move_to_word_start_forward_backward because ge is two keystrokes, halving the
   " theoretical max rate on the backward half of the discrimination.
   " Starting guess; revise once the data accumulates.
-  return {'id': 'move_to_word_end_forward_backward', 'name': 'e ge', 'aim': 40,
+  return {'id': 'move_to_word_end_forward_backward', 'name': 'word end forward / backward (e / ge)', 'aim': 40,
     \ 'allowed_keys': 'eg', 'prereqs': [],
     \ 'parallel_to': ['move_to_word_start_forward_backward'], 'keys': 'e/ge', 'family': 'motion',
     \ 'test_sequence': ['e', 'ge']}
 endfunction
 
 function! vimfluency#pinpoints#move_to_word_end_forward_backward#lesson() abort
-  " Same parallel-rule shape as 1B.1: try frames for each motion,
+  " Same parallel-rule shape as move_to_word_start_forward_backward: try frames for each motion,
   " then a rule statement. Real words for readability; cheat-defense
   " irrelevant during teaching.
   let buf = ['alpha beta gamma delta epsilon']

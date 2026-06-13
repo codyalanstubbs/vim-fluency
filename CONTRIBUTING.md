@@ -4,6 +4,10 @@ Vim Fluency accepts pinpoint contributions, bug fixes, and doc
 improvements. Pinpoints are the interesting one — they have a review
 gate that most projects don't, so read this before writing code.
 
+("Pinpoint" is the Precision Teaching term for a precisely specified
+behavior to measure — it's the internal name for what the UI calls a
+drill.)
+
 ## The cheat-analysis gate
 
 Every training item a pinpoint generates must make the **intended

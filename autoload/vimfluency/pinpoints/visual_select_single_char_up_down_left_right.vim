@@ -32,7 +32,7 @@ function! vimfluency#pinpoints#visual_select_single_char_up_down_left_right#meta
   " the 2-cell pinpoints — same starting guess until data says
   " otherwise.
   return {'id': 'visual_select_single_char_up_down_left_right',
-    \ 'name': 'vh vj vk vl', 'aim': 50,
+    \ 'name': 'extend selection, 4-way (vh vj vk vl)', 'aim': 50,
     \ 'allowed_keys': 'vhjkl', 'kind': 'visual_motion',
     \ 'prereqs': ['visual_select_single_char_left_right',
     \              'visual_select_single_char_up_down'],

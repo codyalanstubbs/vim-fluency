@@ -1,21 +1,25 @@
-*vimfluency.txt*    fluency training sessions for vim pinpoints                       *vimfluency*
+*vimfluency.txt*    fluency training sessions for vim drills                       *vimfluency*
 
 ==============================================================================
 INTRODUCTION                                                       *vf-intro*
 
-Vim Fluency runs short timed training sessions on vim pinpoints to build behavioral fluency.
+Vim Fluency runs short timed training sessions on vim drills to build behavioral fluency.
 Each training shows a target buffer state; you produce that state with vim
-commands. Per-session rate is logged for celeration tracking.
+commands. Per-session rate is logged for progress tracking.
+
+Every drill has an "aim": the rate, in correct items per minute, at
+which the behavior counts as fluent. Aims start as rough guesses; set
+your own with :VfSetAim.
 
 ==============================================================================
 COMMANDS                                                        *vf-commands*
 
 :Vf {id} [seconds] [only=motion[,motion...]]                          *:Vf*
-    Start a training on pinpoint {id} for [seconds] (default 60, or
+    Start a training on drill {id} for [seconds] (default 60, or
     your :VfSetDuration override). Use Tab to skip an item, :VfQuit
     to end early. When the session ends, the runner opens (or
     rebuilds) :VfDashboard with the cursor on the just-trained
-    pinpoint, so the LAST SESSION pane shows the fresh stats.
+    drill, so the LAST SESSION pane shows the fresh stats.
 
     `only=` filters the generator to only produce items where the
     canonical answer is one of the listed motions. Example:
@@ -25,7 +29,7 @@ COMMANDS                                                        *vf-commands*
     end-of-session summary breaks down the rate per motion.
 
 :VfList                                                          *:VfList*
-    Open an interactive flat table of installed pinpoints. A column
+    Open an interactive flat table of installed drills. A column
     header row names the columns; each row then lists, left to right:
         ▶/✓/○         status icon (legend in the banner above the
                       table: ✓ at aim, ▶ climbing, ○ not started).
@@ -37,7 +41,7 @@ COMMANDS                                                        *vf-commands*
                       of demonstrated stability. So a row can show
                       last_rate well above aim and still display ▶
                       until the trend holds.
-        drill         the pinpoint id (what you'd type after :Vf)
+        drill         the drill id (what you'd type after :Vf)
         commands      the keystrokes that produce this behavior,
                       space-separated
         prereqs_n     transitive prereq depth — 0 = no prereqs,
@@ -46,12 +50,12 @@ COMMANDS                                                        *vf-commands*
         last_rate     rate of the most recent non-zero session
         last_session  date of that same session
         runs          number of non-zero-rate training runs for this
-                      pinpoint (zero-rate quits are excluded so the
+                      drill (zero-rate quits are excluded so the
                       count matches what last_rate and last_session
                       read from)
         family        the verb family (survival, motion, delete, …)
     Default order: family → prereqs_n → drill, so each family
-    clusters and within a family the foundational pinpoints come
+    clusters and within a family the foundational drills come
     first. There are no per-family section dividers — the family
     column carries the grouping.
 
@@ -64,7 +68,7 @@ COMMANDS                                                        *vf-commands*
     slug) ascending — flipping direction only affects the primary key,
     so rows with identical primary values keep the same relative order
     asc-or-desc. After a sort, the cursor stays on the SAME row index
-    (the Nth pinpoint from the top), not on the same pinpoint — so
+    (the Nth drill from the top), not on the same drill — so
     your eye stays put while the data underneath re-orders. Sort keys:
         sd    drill         (alphabetical by slug)
         sc    commands      (alphabetical by rendered key string)
@@ -81,13 +85,13 @@ COMMANDS                                                        *vf-commands*
     markers update there when you change the sort. The cursor lives
     in the data window. Either `q` or `:q` closes both windows and the
     tab in one shot. The cursor row is highlighted; j/k snap between
-    pinpoint rows (breakdown rows are skipped). On a pinpoint row
+    drill rows (breakdown rows are skipped). On a drill row
     press:
-        L     start a Learn session (:VfLearn) for this pinpoint
-        T     start a Train session (:Vf) for this pinpoint
-        C     open the celeration Chart (:VfChart) for this pinpoint
-        B     toggle the Breakdown beneath the pinpoint — see below
-        A     prompt to set the aim for THIS pinpoint. Type a
+        L     start a Learn session (:VfLearn) for this drill
+        T     start a Train session (:Vf) for this drill
+        C     open the progress Chart (:VfChart) for this drill
+        B     toggle the Breakdown beneath the drill — see below
+        A     prompt to set the aim for THIS drill. Type a
               positive integer to store an override (same effect as
               :VfSetAim), 0 to clear an existing override (same as
               :VfResetAim), or press Esc to cancel.
@@ -96,13 +100,13 @@ COMMANDS                                                        *vf-commands*
               (:VfSetDuration), 0 clears (:VfResetDuration), Esc
               cancels.
         q     close the list
-    gg / G jump to the first / last pinpoint. C requires logged
+    gg / G jump to the first / last drill. C requires logged
     sessions, L requires a lesson, B requires either a multi-command
     session or at least one prereq — each is a no-op with a hint
     otherwise. Sort state is per-buffer and does NOT persist — a
     fresh :VfList starts at the default.
 
-    The B breakdown shows up to two sub-blocks beneath the pinpoint:
+    The B breakdown shows up to two sub-blocks beneath the drill:
         prereqs:   every in-registry prereq, with its own ▶/✓/○ icon
                    so you can see at a glance which are still
                    climbing
@@ -113,23 +117,23 @@ COMMANDS                                                        *vf-commands*
                    lens for comparing 1-key and multi-key commands)
     stroke_count is derived from the command string (shift counts as
     its own keystroke, and Ex commands add one for the trailing
-    <Enter>, so `q!` = 3 and `:wq` = 5); a pinpoint can declare
+    <Enter>, so `q!` = 3 and `:wq` = 5); a drill can declare
     `stroke_counts: {motion → N}` in meta() to override the derived
     count for a specific command.
 
 :VfDashboard [id]                                            *:VfDashboard*
     Open the multi-panel dashboard: a one-line banner (current path,
-    status counts, sessions trained), a hover panel showing celeration
-    charts for the drill under the cursor, the interactive pinpoint
+    status counts, sessions trained), a hover panel showing progress
+    charts for the drill under the cursor, the interactive drill
     table, and a LAST SESSION side panel with the hovered drill's most
     recent breakdown (date / rate / aim / efficiency, prereqs,
     per-command sub-table). The table rows and j/k navigation work
     like :VfList; the hover and LAST SESSION panels refresh as the
     cursor moves. The table is filtered to the current path (see
     :VfSetPath); :Vf {id} and :VfLearn {id} still accept every
-    pinpoint regardless of path. Optional [id] lands the cursor on
+    drill regardless of path. Optional [id] lands the cursor on
     that row — every training session also ends here, on the
-    just-trained pinpoint. If a dashboard tab is already open it is
+    just-trained drill. If a dashboard tab is already open it is
     reused and rebuilt in place rather than duplicated. Keys on the
     table window:
         L T C A D     same as :VfList (Learn, Train, Chart, Aim,
@@ -147,22 +151,23 @@ COMMANDS                                                        *vf-commands*
     End the active session, write its log entry, restore the window layout.
 
 :VfHistory [id]                                                *:VfHistory*
-    Show prior sessions from the JSONL log, grouped by pinpoint and
+    Show prior sessions from the JSONL log, grouped by drill and
     rendered with an ASCII rate bar (filled = fraction of aim, all '*'
-    means at-or-above aim). Optional [id] filters to a single pinpoint.
+    means at-or-above aim). Optional [id] filters to a single drill.
     For groups with n≥2 sessions, shows the first→last rate ratio.
 
 :VfLearn {id}                                                    *:VfLearn*
-    Walk through a scripted lesson for pinpoint {id} (DI-style example/
+    Walk through a scripted lesson for drill {id} (DI-style example/
     non-example sequencing followed by 'try it' frames) before timing the
     skill with :Vf. Press <Space> or <CR> to advance through 'show'
     frames; reach the green target to advance through 'try' frames; press
-    'q' or :VfQuit to stop early. Pinpoints without a lesson() function
+    'q' or :VfQuit to stop early. Drills without a lesson() function
     will report "no lesson written for {id} yet".
 
 :VfChart {id}                                                    *:VfChart*
-    Render a Standard Celeration Chart (text-only, semi-log) for pinpoint
-    {id}. Y-axis is rate per minute on a log scale (1 to 1000 across
+    Render a progress chart for drill {id} — a Standard Celeration
+    Chart, the Precision Teaching convention for plotting rates on a
+    semi-log scale. Y-axis is rate per minute on a log scale (1 to 1000 across
     three decades). X-axis is session index (chronological). Plots both
     the corrects rate (●) and the errors rate (×) per session, with the
     fluency aim drawn as a dashed line. Press 'q' or <Enter> to close.
@@ -174,7 +179,7 @@ COMMANDS                                                        *vf-commands*
     Sessions or aim lines outside 10-100 are clipped.
 
 :VfSetAim {id} {rate}                                          *:VfSetAim*
-    Store a personal aim override for pinpoint {id} (rate per minute).
+    Store a personal aim override for drill {id} (rate per minute).
         :VfSetAim insert_before_after_char_start_end_line 75
     The override persists across vim restarts in
     $XDG_DATA_HOME/vimfluency/settings.json and is used everywhere the
@@ -185,15 +190,15 @@ COMMANDS                                                        *vf-commands*
     meta() stays untouched.
 
 :VfResetAim {id}                                            *:VfResetAim*
-    Clear the personal aim override for pinpoint {id}, reverting to
-    the pinpoint's meta.aim default.
+    Clear the personal aim override for drill {id}, reverting to
+    the drill's meta.aim default.
 
 :VfSetDuration {seconds}                                  *:VfSetDuration*
     Store a personal global default duration (seconds) for :Vf runs
     that don't specify an explicit duration.
         :VfSetDuration 90
     Per-invocation arg on :Vf <id> <seconds> still wins over both this
-    override and the 60s built-in default. There is no per-pinpoint
+    override and the 60s built-in default. There is no per-drill
     duration override; this is one knob that applies to every :Vf
     that doesn't pass an explicit duration.
 
@@ -202,18 +207,18 @@ COMMANDS                                                        *vf-commands*
 
 :VfSetPath {name}                                            *:VfSetPath*
     Store the current learning path. A path is a curated subset of
-    the pinpoint registry (defined by a file under
+    the drill registry (defined by a file under
     autoload/vimfluency/paths/) that filters what :VfDashboard shows.
         :VfSetPath foundational
     Tab-completion offers the discovered paths; unknown names are
     rejected with the list of what's available. The selection
     persists in settings.json as `current_path`. Built-in paths:
-        general        every shipped pinpoint, no curation (default)
+        general        every shipped drill, no curation (default)
         foundational   survival skills + basic motion — mode
                        switching, positional inserts, save/quit,
                        undo, hjkl, line edges, word motion
     Path ids listed in a path file but not (or no longer) in the
-    registry are silently dropped, so paths survive pinpoint renames.
+    registry are silently dropped, so paths survive drill renames.
 
 :VfResetPath                                               *:VfResetPath*
     Clear the path selection, reverting to 'general'.
@@ -236,9 +241,10 @@ items_hit, frequency_per_min, hits_per_min, miss_per_min,
 errors_per_min, total_motions, total_optimal_motions, efficiency_pct,
 end_reason, only_filter, per_motion, items. The recorded `aim` is the
 EFFECTIVE aim at training time (the user override if one is set,
-otherwise the pinpoint's meta.aim default). items_hit counts correct
+otherwise the drill's meta.aim default). items_hit counts correct
 items solved with no wasted motions (actual ≤ optimal); hits_per_min /
-miss_per_min are the SCC-convention rates derived from hits, wasted
+miss_per_min are the Standard-Celeration-Chart-convention rates (see
+:VfChart) derived from hits, wasted
 motions, and skips. errors_per_min is wasted motions (total minus
 optimal, clamped at 0) per minute. per_motion maps each
 expected_motion to {correct, time_seconds, rate_per_min, avg_motions,
@@ -261,6 +267,11 @@ install.
 
 ==============================================================================
 ADDING A PINPOINT                                              *vf-pinpoints*
+
+Internally a drill is called a "pinpoint" — the Precision Teaching
+term for a precisely specified behavior to measure. The directory,
+function namespace, and session-log field names all use it; the UI
+says "drill".
 
 Drop a file at  autoload/vimfluency/pinpoints/<slug>.vim  defining:
 
@@ -329,8 +340,8 @@ meta() may declare a `kind` field:
         the ZZ / ZQ shortcuts, so the command is checked but never
         executed — vim doesn't quit, the snippet isn't written.
         Credits when the typed command equals `expected_motion`;
-        wrong commands echo a hint and the learner retries
-        (free-operant). :VfQuit typed at the fake cmdline still
+        wrong commands echo a hint and the learner retries — mistakes
+        are never auto-failed. :VfQuit typed at the fake cmdline still
         passes through and ends the session.
 
     visual_motion

@@ -266,7 +266,7 @@ endfunction
 function! vimfluency#set_aim(id, rate) abort
   let registry = vimfluency#discover_pinpoints()
   if !has_key(registry, a:id)
-    echo 'unknown pinpoint: ' . a:id . '  (try :VfList)'
+    echo 'unknown drill: ' . a:id . '  (try :VfList)'
     return
   endif
   let rate = str2nr(a:rate)
@@ -286,7 +286,7 @@ endfunction
 function! vimfluency#reset_aim(id) abort
   let registry = vimfluency#discover_pinpoints()
   if !has_key(registry, a:id)
-    echo 'unknown pinpoint: ' . a:id . '  (try :VfList)'
+    echo 'unknown drill: ' . a:id . '  (try :VfList)'
     return
   endif
   let settings = s:load_settings()
@@ -888,7 +888,7 @@ function! s:build_list_view(registry, sessions_by_id, expanded, ...) abort
   let mapping = {}
   let pinpoint_rows = []
 
-  call add(lines, printf('vim-fluency: %d pinpoint(s) built',
+  call add(lines, printf('vim-fluency: %d drill(s) built',
     \ len(a:registry)))
   call add(lines, '')
   call add(lines, 'Move with j/k, then:  (L)earn  (T)rain  (C)hart  (B)reakdown  set (A)im  (D)uration   ·   q closes')
@@ -1016,7 +1016,7 @@ endfunction
 function! vimfluency#list() abort
   let registry = vimfluency#discover_pinpoints()
   if empty(registry)
-    echo 'no pinpoints built — see CATALOG.md'
+    echo 'no drills built — see CATALOG.md'
     return
   endif
   " Reuse an open list if there is one — a second vf-list tab would
@@ -1124,7 +1124,7 @@ function! s:show_list_buffer(view) abort
   silent! execute 'keepalt file vf-list'
   call setline(1, split.data_lines)
   setlocal nomodifiable nomodified
-  let &l:statusline = ' pinpoint list   [L=Learn  T=Train  C=Chart  B=Breakdown  A=Aim  D=Duration  s+col=Sort  q=close]'
+  let &l:statusline = ' drill list   [L=Learn  T=Train  C=Chart  B=Breakdown  A=Aim  D=Duration  s+col=Sort  q=close]'
   let b:vf_summary_tabnr = tabnr
   let b:vf_summary_prev_laststatus = &laststatus
   let b:vf_list_line_to_id    = split.mapping
@@ -1237,7 +1237,7 @@ function! vimfluency#list_action(action) abort
   if !exists('b:vf_list_line_to_id') | return | endif
   let id = get(b:vf_list_line_to_id, line('.'), '')
   if empty(id)
-    echo 'cursor must be on a pinpoint row'
+    echo 'cursor must be on a drill row'
     return
   endif
 
@@ -1297,7 +1297,7 @@ function! vimfluency#list_toggle_breakdown() abort
   if !exists('b:vf_list_line_to_id') | return | endif
   let id = get(b:vf_list_line_to_id, line('.'), '')
   if empty(id)
-    echo 'cursor must be on a pinpoint row'
+    echo 'cursor must be on a drill row'
     return
   endif
   if !has_key(b:vf_list_expanded, id) && !s:pinpoint_has_breakdown(id)
@@ -1407,7 +1407,7 @@ function! vimfluency#list_set_aim() abort
   if !exists('b:vf_list_line_to_id') | return | endif
   let id = get(b:vf_list_line_to_id, line('.'), '')
   if empty(id)
-    echo 'cursor must be on a pinpoint row'
+    echo 'cursor must be on a drill row'
     return
   endif
   let registry = vimfluency#discover_pinpoints()
@@ -1511,7 +1511,7 @@ function! vimfluency#start(...) abort
 
   let registry = vimfluency#discover_pinpoints()
   if !has_key(registry, id)
-    echo 'unknown pinpoint: ' . id . '  (try :VfList)'
+    echo 'unknown drill: ' . id . '  (try :VfList)'
     return
   endif
   let info = registry[id]
@@ -2975,7 +2975,7 @@ function! vimfluency#history(...) abort
   if !empty(filter_id)
     call filter(records, 'get(v:val, "pinpoint_id", "") ==# filter_id')
     if empty(records)
-      echo 'no sessions for pinpoint ' . filter_id
+      echo 'no sessions for drill ' . filter_id
       return
     endif
   endif
@@ -2996,7 +2996,7 @@ function! vimfluency#history(...) abort
     call add(groups[r.pinpoint_id], r)
   endfor
 
-  echo printf('vimfluency history — %d session(s) across %d pinpoint(s)',
+  echo printf('vimfluency history — %d session(s) across %d drill(s)',
     \ len(records), len(groups))
   for pid in sort(order)
     let g = groups[pid]
@@ -3038,13 +3038,13 @@ function! vimfluency#learn(...) abort
     return
   endif
   if a:0 < 1
-    echo 'usage: :VfLearn <pinpoint_id>'
+    echo 'usage: :VfLearn <drill_id>'
     return
   endif
   let id = a:1
   let registry = vimfluency#discover_pinpoints()
   if !has_key(registry, id)
-    echo 'unknown pinpoint: ' . id
+    echo 'unknown drill: ' . id
     return
   endif
   let info = registry[id]
@@ -4242,7 +4242,7 @@ function! s:chart_render(id, bounds, variant) abort
   endfor
 
   if empty(sessions)
-    echo 'no sessions for pinpoint ' . a:id
+    echo 'no sessions for drill ' . a:id
     return
   endif
 
@@ -4388,7 +4388,7 @@ function! s:render_chart(id, sessions, bounds) abort
 
   " Compose output lines
   let out = []
-  call add(out, printf('vimfluency celeration chart — %s (%s)', a:id, pinpoint_name))
+  call add(out, printf('vimfluency progress chart — %s (%s)', a:id, pinpoint_name))
   call add(out, 'rate per minute (log Y) over calendar date · one column per day')
   call add(out, printf('aim %d/min   ·   %d session(s)   ·   ● corrects   × errors   - aim',
     \ aim, n))
@@ -4416,7 +4416,7 @@ function! s:show_chart_buffer(id, lines, variant) abort
   silent! execute 'keepalt file vf-chart' . bufname_suffix . '-' . a:id
   call setline(1, a:lines)
   setlocal nomodifiable nomodified
-  let &l:statusline = ' celeration chart — ' . a:id . title_suffix . '   [press q or <Enter> to close]'
+  let &l:statusline = ' progress chart — ' . a:id . title_suffix . '   [press q or <Enter> to close]'
   let b:vf_summary_tabnr = tabnr
   let b:vf_summary_prev_laststatus = &laststatus
   set laststatus=2
@@ -4468,7 +4468,7 @@ let s:dashboard_cache = {}
 function! vimfluency#dashboard(...) abort
   let registry = vimfluency#discover_pinpoints()
   if empty(registry)
-    echo 'no pinpoints built — see CATALOG.md'
+    echo 'no drills built — see CATALOG.md'
     return
   endif
   let target_id = a:0 > 0 ? a:1 : ''
@@ -4758,7 +4758,7 @@ function! vimfluency#dashboard_set_aim() abort
   if !exists('b:vf_list_line_to_id') | return | endif
   let id = get(b:vf_list_line_to_id, line('.'), '')
   if empty(id)
-    echo 'cursor must be on a pinpoint row'
+    echo 'cursor must be on a drill row'
     return
   endif
   let registry = vimfluency#discover_pinpoints()

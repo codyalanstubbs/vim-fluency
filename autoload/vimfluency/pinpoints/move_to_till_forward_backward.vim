@@ -15,7 +15,7 @@
 
 function! vimfluency#pinpoints#move_to_till_forward_backward#meta() abort
   return {'id': 'move_to_till_forward_backward',
-    \ 'name': 'find char, 4-way (f / F / t / T)',
+    \ 'name': 'find vs till, 4-way (f / F / t / T)',
     \ 'aim': 35, 'allowed_keys': 'fFtT',
     \ 'prereqs': ['move_to_char_forward_backward',
     \             'move_till_char_forward_backward',

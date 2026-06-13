@@ -46,7 +46,7 @@ function! vimfluency#pinpoints#undo_redo#meta() abort
   " Catalog aim 50/min. The motor task is a single keypress, so the
   " bottleneck is recognizing whether the situation calls for undo
   " or redo. Starting guess.
-  return {'id': 'undo_redo', 'name': 'undo / redo',
+  return {'id': 'undo_redo', 'name': 'undo / redo (u / Ctrl-r)',
     \ 'aim': 50, 'allowed_keys': 'u<C-r>', 'kind': 'editing',
     \ 'prereqs': [], 'keys': 'u/C-r', 'family': 'survival',
     \ 'test_sequence': ['u', '<C-r>']}

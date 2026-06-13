@@ -1,12 +1,13 @@
-# Vim Pinpoint Catalog
+# Vim Drill Catalog
 
-Pinpoints currently shipped, grouped by **family**. The actual
-behavioral hierarchy lives in each pinpoint's `prereqs` list; this
-catalog is the flat index. Use `:VfList` to see status (rate, aim);
-press `B` on any row for a breakdown that lists every prereq with its
-own met/unmet status.
+Drills currently shipped, grouped by **family**. (Internally a drill
+is called a "pinpoint" — the Precision Teaching term for a precisely
+specified behavior to measure.) The actual behavioral hierarchy lives
+in each drill's `prereqs` list; this catalog is the flat index. Use
+`:VfList` to see status (rate, aim); press `B` on any row for a
+breakdown that lists every prereq with its own met/unmet status.
 
-Forward-looking spec rows (pinpoints under design but not yet built)
+Forward-looking spec rows (drills under design but not yet built)
 live in `.strategy/catalog-v2/` slice documents, not here. This file
 is the source of truth for *what's actually shipped*.
 
@@ -24,13 +25,13 @@ is the source of truth for *what's actually shipped*.
 - **Aim** — starting guess for fluency rate (correct/min). Will be
   replaced by community-aggregated rates per
   `.strategy/data-contribution.md`.
-- **Prereqs** — specific pinpoint slugs that suggest fallbacks when a
-  rate plateaus. **Diagnostic, not gating.** A learner can drill any
-  pinpoint at any time; press `B` on its `:VfList` row to see each
+- **Prereqs** — specific drill slugs that suggest fallbacks when a
+  rate plateaus. **Diagnostic, not gating.** A learner can train any
+  drill at any time; press `B` on its `:VfList` row to see each
   prereq's met/unmet status.
 - **Family** — verb-family or functional grouping (`survival`,
   `motion`, `delete`, `change`, `yank`, `paste`, `v`, `indent`, etc.).
-  Used by `:VfList` to group pinpoints visually.
+  Used by `:VfList` to group drills visually.
 
 ## Survival family
 
@@ -70,6 +71,8 @@ Cursor-only behaviors. No buffer change.
 | `move_repeat_last_find_forward_backward` | Repeat last find (`;`, `,`) | S→K | 40 | `move_to_char_forward_backward`, `move_till_char_forward_backward` |
 | `move_to_till_forward` | 2-cell: `f{c}` (lands ON next c) vs `t{c}` (lands ONE BEFORE next c) | S→K | 50 | — |
 | `move_to_till_backward` | 2-cell: `F{c}` (lands ON previous c) vs `T{c}` (lands ONE AFTER previous c) | S→K | 50 | — |
+| `move_to_till_forward_in_words` | 2-cell: `f{c}` vs `t{c}` over word-shaped content (varying skim span) | S→K | 40 | `move_to_till_forward` |
+| `move_to_till_backward_in_words` | 2-cell: `F{c}` vs `T{c}` over word-shaped content (varying skim span) | S→K | 40 | `move_to_till_backward` |
 | `move_to_till_forward_backward` | 4-way composite over `f`, `F`, `t`, `T` | Disc | 35 | `move_to_char_forward_backward`, `move_till_char_forward_backward`, `move_to_till_forward`, `move_to_till_backward` |
 
 ## Visual family
@@ -139,5 +142,5 @@ Planned families (per `verb-families.md`):
 - `p` — paste family (`p/P`, `gp/gP`, `]p/]P`, count-prefix)
 - register cross-cutting axis (`"a`, `"_`, `"+` prefixes on d/y/p)
 
-Each pinpoint's `prereqs` list defines what unlocks what; `:VfList`
+Each drill's `prereqs` list defines what unlocks what; `:VfList`
 surfaces unmet prereqs per row.

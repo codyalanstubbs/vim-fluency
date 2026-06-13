@@ -1,7 +1,7 @@
 " move_till_char_forward_backward — t{char} / T{char}. Find a target character on the current line,
 " but land one column shy of it (t = before, T = after).
 "
-" Where 1C.1's f/F land ON the char, t/T land NEXT TO it. The training target
+" Where move_to_char_forward_backward's f/F land ON the char, t/T land NEXT TO it. The training target
 " is the LANDING column (X-1 forward, X+1 backward) — not the char itself.
 "
 " Design constraints to keep t/T the strictly shortest path:
@@ -45,7 +45,7 @@ let s:WORDS = ['return', 'import', 'result', 'parser', 'broken', 'hammer',
   \ 'history', 'forward', 'channel', 'monster']
 
 function! vimfluency#pinpoints#move_till_char_forward_backward#meta() abort
-  return {'id': 'move_till_char_forward_backward', 'name': 'find char (t T)',
+  return {'id': 'move_till_char_forward_backward', 'name': 'till char (t / T)',
     \ 'aim': 45, 'allowed_keys': 'tT', 'prereqs': ['move_to_char_forward_backward'],
     \ 'parallel_to': ['move_to_char_forward_backward'], 'keys': 't/T', 'family': 'motion',
     \ 'test_sequence': ['t', 'T']}
@@ -54,7 +54,7 @@ endfunction
 function! vimfluency#pinpoints#move_till_char_forward_backward#lesson() abort
   " Each motion via try frame so the learner sees the off-by-one
   " landing from their own keystroke. Frame 3 deliberately calls back
-  " to f (the 1C.1 prereq) to make the discrimination concrete: same
+  " to f (the move_to_char_forward_backward prereq) to make the discrimination concrete: same
   " buffer, same cursor, same target char, but f lands ON and t lands
   " BEFORE.
   let buf1 = ['the cat ran past us today']

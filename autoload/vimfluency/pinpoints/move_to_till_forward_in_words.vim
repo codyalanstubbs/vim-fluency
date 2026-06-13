@@ -26,7 +26,7 @@ let s:WORDS = ['return', 'import', 'while', 'range', 'class', 'value',
 function! vimfluency#pinpoints#move_to_till_forward_in_words#meta() abort
   " Aim matches the backward in-words sibling. Starting guess.
   return {'id': 'move_to_till_forward_in_words',
-    \ 'name': 'find char forward in words (f / t)',
+    \ 'name': 'find vs till in words, forward (f / t)',
     \ 'aim': 40, 'allowed_keys': 'ft',
     \ 'prereqs': ['move_to_till_forward'],
     \ 'keys': 'f/t', 'family': 'motion',

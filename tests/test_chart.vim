@@ -20,7 +20,7 @@ let s:sessions = [
 let s:rendered = vimfluency#_test_render_chart('TEST', s:sessions)
 let s:rendered_text = join(s:rendered, "\n")
 
-call Assert(s:rendered_text =~# 'celeration chart — TEST',
+call Assert(s:rendered_text =~# 'progress chart — TEST',
   \ 'render_chart: header includes pinpoint id')
 call Assert(s:rendered_text =~# 'aim 50/min',
   \ 'render_chart: legend shows aim')

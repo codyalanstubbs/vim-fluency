@@ -5,7 +5,7 @@
 " most common confusion when learners first meet vim's operator
 " model.
 "
-" Tier 2 design note: this departs from the catalog's original 2.1
+" Tier 2 design note: this departs from the catalog's original delete_char_vs_line
 " (dd alone). Pure-fluency single-response training sessions don't have a
 " cognitive task — the learner just smashes the same key. Pairing
 " dd with x gives a real read-and-pick that fits the
@@ -53,9 +53,9 @@ let s:words = ['alpha', 'beta', 'gamma', 'delta', 'epsilon',
 function! vimfluency#pinpoints#delete_char_vs_line#meta() abort
   " Discrimination training sessions carry a cognitive cost beyond fluency
   " training sessions (read the highlight, navigate, pick the operator), so
-  " the aim is set lower than 1A.1's hjkl drill. Starting guess;
-  " revise on data. Same band as 1C.4 and 2.2 disc training sessions.
-  return {'id': 'delete_char_vs_line', 'name': 'x vs dd',
+  " the aim is set lower than move_single_char_up_down_left_right's hjkl drill. Starting guess;
+  " revise on data. Same band as move_to_till_forward_backward and indent_vs_dedent disc training sessions.
+  return {'id': 'delete_char_vs_line', 'name': 'delete char vs line (x / dd)',
     \ 'aim': 35, 'allowed_keys': 'xdjk', 'kind': 'editing',
     \ 'prereqs': [], 'keys': 'x/dd', 'family': 'delete',
     \ 'test_sequence': ['x', 'dd']}

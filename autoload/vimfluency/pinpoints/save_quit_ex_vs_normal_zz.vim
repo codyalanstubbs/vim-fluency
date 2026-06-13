@@ -12,7 +12,7 @@ let s:GOALS = {
 let s:CMDS = [':wq', 'ZZ']
 
 function! vimfluency#pinpoints#save_quit_ex_vs_normal_zz#meta() abort
-  return {'id': 'save_quit_ex_vs_normal_zz', 'name': 'discriminate :wq vs ZZ',
+  return {'id': 'save_quit_ex_vs_normal_zz', 'name': 'save & quit, Ex vs normal (:wq / ZZ)',
     \ 'aim': 35, 'allowed_keys': ':wqZ', 'kind': 'command',
     \ 'prereqs': [], 'keys': ':wq/ZZ', 'family': 'survival',
     \ 'test_sequence': [':wq', 'ZZ']}

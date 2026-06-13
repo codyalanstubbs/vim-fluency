@@ -34,7 +34,7 @@ function! vimfluency#pinpoints#move_to_till_backward_in_words#meta() abort
   " Aim a tick below the constant-geometry drill's 50/min — the skim
   " span varies and the content is wordy. Starting guess.
   return {'id': 'move_to_till_backward_in_words',
-    \ 'name': 'find char backward in words (F / T)',
+    \ 'name': 'find vs till in words, backward (F / T)',
     \ 'aim': 40, 'allowed_keys': 'FT',
     \ 'prereqs': ['move_to_till_backward'],
     \ 'keys': 'F/T', 'family': 'motion',
