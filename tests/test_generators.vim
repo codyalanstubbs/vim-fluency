@@ -582,30 +582,30 @@ function! s:test_move_repeat_last_find_forward_backward() abort
   call Assert(get(seen, ',', 0) == 1, 'move_repeat_last_find_forward_backward: , appeared in samples')
 endfunction
 
-" move_to_till_forward_backward: delegates to move_to_char_forward_backward / move_till_char_forward_backward generators. Just verify all four
+" move_to_vs_till_forward_backward: delegates to move_to_char_forward_backward / move_till_char_forward_backward generators. Just verify all four
 " motions appear over N samples and every item passes a baseline
 " structural check.
-function! s:test_move_to_till_forward_backward() abort
-  let GenFn = function('vimfluency#pinpoints#move_to_till_forward_backward#generate')
+function! s:test_move_to_vs_till_forward_backward() abort
+  let GenFn = function('vimfluency#pinpoints#move_to_vs_till_forward_backward#generate')
   let valid = ['f', 'F', 't', 'T']
   let seen = {}
   for i in range(s:N)
     let item = GenFn()
-    call s:assert_common('move_to_till_forward_backward', item)
+    call s:assert_common('move_to_vs_till_forward_backward', item)
     call AssertIn(item.expected_motion, valid,
-      \ 'move_to_till_forward_backward: expected_motion in {f, F, t, T}')
+      \ 'move_to_vs_till_forward_backward: expected_motion in {f, F, t, T}')
     call AssertEq(item.optimal_motions, 1,
-      \ 'move_to_till_forward_backward: optimal_motions == 1')
-    call s:assert_till_shape_auto('move_to_till_forward_backward', item)
+      \ 'move_to_vs_till_forward_backward: optimal_motions == 1')
+    call s:assert_till_shape_auto('move_to_vs_till_forward_backward', item)
     let seen[item.expected_motion] = 1
   endfor
   for m in valid
     call Assert(get(seen, m, 0) == 1,
-      \ 'move_to_till_forward_backward: ' . m . ' appeared in samples')
+      \ 'move_to_vs_till_forward_backward: ' . m . ' appeared in samples')
   endfor
 endfunction
 
-" move_to_till_forward — 2-cell atomic over {f, t}. The generator
+" move_to_vs_till_forward — 2-cell atomic over {f, t}. The generator
 " re-rolls the by-find/till underlying generators until a forward
 " item lands, so every item should have expected_motion in {f, t}.
 " Simulate F{ch} / T{ch} landings from col `from` (backward search):
@@ -713,22 +713,22 @@ function! s:test_till_pair(id, valid, backward, constant_geom) abort
   endfor
 endfunction
 
-function! s:test_move_to_till_forward() abort
-  call s:test_till_pair('move_to_till_forward', ['f', 't'], 0,
+function! s:test_move_to_vs_till_forward() abort
+  call s:test_till_pair('move_to_vs_till_forward', ['f', 't'], 0,
     \ [[1, 1], [1, 10], 15])
 endfunction
 
-function! s:test_move_to_till_backward() abort
-  call s:test_till_pair('move_to_till_backward', ['F', 'T'], 1,
+function! s:test_move_to_vs_till_backward() abort
+  call s:test_till_pair('move_to_vs_till_backward', ['F', 'T'], 1,
     \ [[1, 15], [1, 6], 15])
 endfunction
 
-function! s:test_move_to_till_forward_in_words() abort
-  call s:test_till_pair('move_to_till_forward_in_words', ['f', 't'], 0, [])
+function! s:test_move_to_vs_till_forward_in_words() abort
+  call s:test_till_pair('move_to_vs_till_forward_in_words', ['f', 't'], 0, [])
 endfunction
 
-function! s:test_move_to_till_backward_in_words() abort
-  call s:test_till_pair('move_to_till_backward_in_words', ['F', 'T'], 1, [])
+function! s:test_move_to_vs_till_backward_in_words() abort
+  call s:test_till_pair('move_to_vs_till_backward_in_words', ['F', 'T'], 1, [])
 endfunction
 
 " --- recall and mode kinds -----------------------------------------
@@ -947,13 +947,13 @@ function! s:test_switch_mode_to_command_line() abort
   call s:test_mode_atomic('switch_mode_to_command_line', 'c', ':')
 endfunction
 
-" switch_btwn_many_modes composite — strict alternation between
+" switch_between_many_modes composite — strict alternation between
 " Normal and non-Normal. From Normal the generator picks any of
 " {i,v,r,c}; from any non-Normal it picks 'n'. Every item is 1
 " stroke. The pinpoint exposes the optional current-mode arg so we
 " can test both branches without contorting the test harness.
-function! s:test_switch_btwn_many_modes() abort
-  let GenFn = function('vimfluency#pinpoints#switch_btwn_many_modes#generate')
+function! s:test_switch_between_many_modes() abort
+  let GenFn = function('vimfluency#pinpoints#switch_between_many_modes#generate')
   let non_normal = ['i', 'v', 'r', 'c']
   let expected = {'n': 'C-[', 'i': 'i', 'v': 'v', 'r': 'R', 'c': ':'}
 
@@ -963,27 +963,27 @@ function! s:test_switch_btwn_many_modes() abort
   for i in range(s:N)
     let item = GenFn('n')
     call AssertIn(item.target_mode_canon, non_normal,
-      \ 'switch_btwn_many_modes[from n]: target in {i,v,r,c}')
+      \ 'switch_between_many_modes[from n]: target in {i,v,r,c}')
     call AssertEq(item.expected_motion, expected[item.target_mode_canon],
-      \ 'switch_btwn_many_modes[from n]: expected_motion = entry key')
+      \ 'switch_between_many_modes[from n]: expected_motion = entry key')
     call AssertEq(item.optimal_motions, 1,
-      \ 'switch_btwn_many_modes[from n]: optimal_motions = 1')
+      \ 'switch_between_many_modes[from n]: optimal_motions = 1')
     let seen[item.target_mode_canon] = 1
   endfor
   for m in non_normal
     call Assert(get(seen, m, 0) == 1,
-      \ 'switch_btwn_many_modes[from n]: target ' . m . ' appeared')
+      \ 'switch_between_many_modes[from n]: target ' . m . ' appeared')
   endfor
 
   " From any non-Normal: target must be 'n', expected_motion 'C-['.
   for cur in non_normal
     let item = GenFn(cur)
     call AssertEq(item.target_mode_canon, 'n',
-      \ 'switch_btwn_many_modes[from ' . cur . ']: target = n')
+      \ 'switch_between_many_modes[from ' . cur . ']: target = n')
     call AssertEq(item.expected_motion, 'C-[',
-      \ 'switch_btwn_many_modes[from ' . cur . ']: expected_motion = C-[')
+      \ 'switch_between_many_modes[from ' . cur . ']: expected_motion = C-[')
     call AssertEq(item.optimal_motions, 1,
-      \ 'switch_btwn_many_modes[from ' . cur . ']: optimal_motions = 1')
+      \ 'switch_between_many_modes[from ' . cur . ']: optimal_motions = 1')
   endfor
 endfunction
 
@@ -1288,34 +1288,34 @@ function! s:test_move_single_char_up_down() abort
   endfor
 endfunction
 
-" move_to_line_edges_beginning_end: 0 vs $. Single line, no trailing whitespace, cursor in interior.
+" move_to_line_edges_start_end: 0 vs $. Single line, no trailing whitespace, cursor in interior.
 " target column ∈ {1, llen}; motion '0' for col 1 else '$'.
-function! s:test_move_to_line_edges_beginning_end() abort
-  let GenFn = function('vimfluency#pinpoints#move_to_line_edges_beginning_end#generate')
+function! s:test_move_to_line_edges_start_end() abort
+  let GenFn = function('vimfluency#pinpoints#move_to_line_edges_start_end#generate')
   let valid = ['0', '$']
   let seen = {}
   for i in range(s:N)
     let item = GenFn()
-    call s:assert_common('move_to_line_edges_beginning_end', item)
+    call s:assert_common('move_to_line_edges_start_end', item)
     call AssertIn(item.expected_motion, valid,
-      \ 'move_to_line_edges_beginning_end: expected_motion in {0, $}')
-    call AssertEq(item.optimal_motions, 1, 'move_to_line_edges_beginning_end: optimal_motions == 1')
+      \ 'move_to_line_edges_start_end: expected_motion in {0, $}')
+    call AssertEq(item.optimal_motions, 1, 'move_to_line_edges_start_end: optimal_motions == 1')
     let line = item.lines[0]
     let llen = len(line)
     call Assert(line ==# substitute(line, '\s\+$', '', ''),
-      \ 'move_to_line_edges_beginning_end: line has no trailing whitespace')
+      \ 'move_to_line_edges_start_end: line has no trailing whitespace')
     call Assert(line ==# substitute(line, '^\s\+', '', ''),
-      \ 'move_to_line_edges_beginning_end: line has no leading whitespace')
+      \ 'move_to_line_edges_start_end: line has no leading whitespace')
     if item.expected_motion ==# '0'
-      call AssertEq(item.target[1], 1, 'move_to_line_edges_beginning_end/0: target col == 1')
+      call AssertEq(item.target[1], 1, 'move_to_line_edges_start_end/0: target col == 1')
     else
-      call AssertEq(item.target[1], llen, 'move_to_line_edges_beginning_end/$: target col == line length')
+      call AssertEq(item.target[1], llen, 'move_to_line_edges_start_end/$: target col == line length')
     endif
     let seen[item.expected_motion] = 1
   endfor
   for k in valid
     call Assert(get(seen, k, 0) == 1,
-      \ 'move_to_line_edges_beginning_end: ' . k . ' appeared in samples')
+      \ 'move_to_line_edges_start_end: ' . k . ' appeared in samples')
   endfor
 endfunction
 
@@ -1359,42 +1359,42 @@ function! s:test_move_to_line_edges_non_white_space() abort
   endfor
 endfunction
 
-" delete_to_line_edges_beginning_end: d0 vs d$. Editing-kind; single-line buffer; cursor in interior.
+" delete_to_line_edges_start_end: d0 vs d$. Editing-kind; single-line buffer; cursor in interior.
 " Deletion range covers [1, cursor-1] for d0 or [cursor, llen] for d$.
 " target_lines is the surviving slice; cursor ends at col 1 (d0) or
 " cursor-1 (d$).
-function! s:test_delete_to_line_edges_beginning_end() abort
-  let GenFn = function('vimfluency#pinpoints#delete_to_line_edges_beginning_end#generate')
+function! s:test_delete_to_line_edges_start_end() abort
+  let GenFn = function('vimfluency#pinpoints#delete_to_line_edges_start_end#generate')
   let valid = ['d0', 'd$']
   let seen = {}
   for i in range(s:N)
     let item = GenFn()
-    call s:assert_common('delete_to_line_edges_beginning_end', item)
+    call s:assert_common('delete_to_line_edges_start_end', item)
     call AssertIn(item.expected_motion, valid,
-      \ 'delete_to_line_edges_beginning_end: expected_motion in {d0, d$}')
-    call AssertEq(item.optimal_motions, 1, 'delete_to_line_edges_beginning_end: optimal_motions == 1')
+      \ 'delete_to_line_edges_start_end: expected_motion in {d0, d$}')
+    call AssertEq(item.optimal_motions, 1, 'delete_to_line_edges_start_end: optimal_motions == 1')
     call Assert(has_key(item, 'target_lines'),
-      \ 'delete_to_line_edges_beginning_end: has target_lines')
+      \ 'delete_to_line_edges_start_end: has target_lines')
     call Assert(has_key(item, 'deletion_range'),
-      \ 'delete_to_line_edges_beginning_end: has deletion_range')
+      \ 'delete_to_line_edges_start_end: has deletion_range')
     let cursor_col = item.start[1]
     let line = item.lines[0]
     let llen = len(line)
     let del = item.deletion_range[0]
     if item.expected_motion ==# 'd0'
-      call AssertEq(del[1], 1, 'delete_to_line_edges_beginning_end/d0: deletion starts at col 1')
-      call AssertEq(del[2], cursor_col - 1, 'delete_to_line_edges_beginning_end/d0: deletion length == cursor-1')
-      call AssertEq(item.target[1], 1, 'delete_to_line_edges_beginning_end/d0: target col == 1')
+      call AssertEq(del[1], 1, 'delete_to_line_edges_start_end/d0: deletion starts at col 1')
+      call AssertEq(del[2], cursor_col - 1, 'delete_to_line_edges_start_end/d0: deletion length == cursor-1')
+      call AssertEq(item.target[1], 1, 'delete_to_line_edges_start_end/d0: target col == 1')
     else
-      call AssertEq(del[1], cursor_col, 'delete_to_line_edges_beginning_end/d$: deletion starts at cursor')
-      call AssertEq(del[2], llen - cursor_col + 1, 'delete_to_line_edges_beginning_end/d$: deletion length == llen-cursor+1')
-      call AssertEq(item.target[1], cursor_col - 1, 'delete_to_line_edges_beginning_end/d$: target col == cursor-1')
+      call AssertEq(del[1], cursor_col, 'delete_to_line_edges_start_end/d$: deletion starts at cursor')
+      call AssertEq(del[2], llen - cursor_col + 1, 'delete_to_line_edges_start_end/d$: deletion length == llen-cursor+1')
+      call AssertEq(item.target[1], cursor_col - 1, 'delete_to_line_edges_start_end/d$: target col == cursor-1')
     endif
     let seen[item.expected_motion] = 1
   endfor
   for k in valid
     call Assert(get(seen, k, 0) == 1,
-      \ 'delete_to_line_edges_beginning_end: ' . k . ' appeared in samples')
+      \ 'delete_to_line_edges_start_end: ' . k . ' appeared in samples')
   endfor
 endfunction
 
@@ -1598,11 +1598,11 @@ call s:test_move_to_word_end_forward_backward()
 call s:test_move_to_char_forward_backward()
 call s:test_move_till_char_forward_backward()
 call s:test_move_repeat_last_find_forward_backward()
-call s:test_move_to_till_forward_backward()
-call s:test_move_to_till_forward()
-call s:test_move_to_till_backward()
-call s:test_move_to_till_forward_in_words()
-call s:test_move_to_till_backward_in_words()
+call s:test_move_to_vs_till_forward_backward()
+call s:test_move_to_vs_till_forward()
+call s:test_move_to_vs_till_backward()
+call s:test_move_to_vs_till_forward_in_words()
+call s:test_move_to_vs_till_backward_in_words()
 call s:test_delete_char_vs_line()
 call s:test_indent_vs_dedent()
 call s:test_delete_to_word_start_forward_backward()
@@ -1619,14 +1619,14 @@ call s:test_switch_mode_to_insert()
 call s:test_switch_mode_to_visual()
 call s:test_switch_mode_to_replace()
 call s:test_switch_mode_to_command_line()
-call s:test_switch_btwn_many_modes()
+call s:test_switch_between_many_modes()
 call s:test_recall_inner_quote_pair()
 call s:test_recall_inner_quote_triple()
 call s:test_move_single_char_left_right()
 call s:test_move_to_line_edges_non_white_space()
 call s:test_move_single_char_up_down()
-call s:test_move_to_line_edges_beginning_end()
-call s:test_delete_to_line_edges_beginning_end()
+call s:test_move_to_line_edges_start_end()
+call s:test_delete_to_line_edges_start_end()
 call s:test_delete_single_char_left_right()
 call s:test_delete_two_lines_down_up()
 call s:test_visual_select_single_char_left_right()

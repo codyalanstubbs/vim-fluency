@@ -81,3 +81,48 @@ call AssertEq(s:order, ['bar', 'foo'],
 
 " Cleanup: delete the temp file so subsequent test files start clean.
 call delete(s:tmp . '/vimfluency/settings.json')
+
+" -- legacy id aliasing --
+"
+" Renamed drill slugs keep working: vimfluency#canonical_id maps old →
+" new, aim overrides stored under an old id migrate on load, and
+" session records logged under an old pinpoint_id group under the new
+" id at read time. The JSONL log is never rewritten.
+call AssertEq(vimfluency#canonical_id('switch_btwn_many_modes'),
+  \ 'switch_between_many_modes',
+  \ 'canonical_id: renamed slug maps to current slug')
+call AssertEq(vimfluency#canonical_id('move_to_till_forward_in_words'),
+  \ 'move_to_vs_till_forward_in_words',
+  \ 'canonical_id: every legacy map entry resolves (spot check)')
+call AssertEq(vimfluency#canonical_id('save_vs_quit'), 'save_vs_quit',
+  \ 'canonical_id: current slug passes through unchanged')
+call AssertEq(vimfluency#canonical_id('no_such_drill'), 'no_such_drill',
+  \ 'canonical_id: unknown id passes through unchanged')
+
+" Aim override stored under the OLD id applies to the NEW id.
+call writefile([json_encode({'aims': {'move_to_line_edges_beginning_end': 75}})],
+  \ s:tmp . '/vimfluency/settings.json')
+call AssertEq(vimfluency#_test_effective_aim('move_to_line_edges_start_end', s:meta), 75,
+  \ 'aims migration: override under old id applies to new id')
+call AssertEq(vimfluency#_test_effective_aim('move_to_line_edges_beginning_end', s:meta), 50,
+  \ 'aims migration: old key is dropped, not duplicated')
+
+" When overrides exist under BOTH ids, the new id wins.
+call writefile([json_encode({'aims': {
+  \ 'move_to_line_edges_beginning_end': 75,
+  \ 'move_to_line_edges_start_end': 80}})],
+  \ s:tmp . '/vimfluency/settings.json')
+call AssertEq(vimfluency#_test_effective_aim('move_to_line_edges_start_end', s:meta), 80,
+  \ 'aims migration: override under new id wins over old-id override')
+call delete(s:tmp . '/vimfluency/settings.json')
+
+" Session records logged under the old id are visible under the new id.
+let s:old_rec = {'pinpoint_id': 'move_to_line_edges_beginning_end',
+  \ 'pinpoint_name': 'line edges (0 / $)', 'timestamp': '2026-06-01T12:00:00',
+  \ 'frequency_per_min': 42}
+call writefile([json_encode(s:old_rec)], s:tmp . '/vimfluency/sessions.jsonl')
+call Assert(vimfluency#_test_pinpoint_has_sessions('move_to_line_edges_start_end'),
+  \ 'sessions remap: old-id record groups under the new id')
+call Assert(!vimfluency#_test_pinpoint_has_sessions('move_to_line_edges_beginning_end'),
+  \ 'sessions remap: nothing left grouped under the old id')
+call delete(s:tmp . '/vimfluency/sessions.jsonl')

@@ -41,7 +41,7 @@ is the source of truth for *what's actually shipped*.
 | `switch_mode_to_visual` | 2-cell: enter VISUAL (`v`) or return to Normal (`Ctrl+[` / `Esc`) | Mode | 80 | — |
 | `switch_mode_to_replace` | 2-cell: enter REPLACE (`R`, capital) or return to Normal (`Ctrl+[` / `Esc`) | Mode | 80 | — |
 | `switch_mode_to_command_line` | 2-cell: enter COMMAND (`:`) or return to Normal (`Ctrl+[` / `Esc`) | Mode | 80 | — |
-| `switch_btwn_many_modes` | Composite: strict alternation between Normal and the four non-Normal modes; each item is one stroke (entry key or `Ctrl+[`) | Mode | 70 | `switch_mode_to_insert`, `switch_mode_to_visual`, `switch_mode_to_replace`, `switch_mode_to_command_line` |
+| `switch_between_many_modes` | Composite: strict alternation between Normal and the four non-Normal modes; each item is one stroke (entry key or `Ctrl+[`) | Mode | 70 | `switch_mode_to_insert`, `switch_mode_to_visual`, `switch_mode_to_replace`, `switch_mode_to_command_line` |
 | `insert_before_after_char` | 2-cell: `i` (insert before cursor) vs `a` (append after cursor) — type a short payload at the marked gap | Mode | 60 | — |
 | `insert_start_end_line` | 2-cell: `I` (insert at first non-blank) vs `A` (append at end of line) — type a short payload at the marked gap | Mode | 60 | — |
 | `insert_before_after_char_start_end_line` | 4-way composite over `i`, `a`, `I`, `A` — type a short payload at the marked gap | Mode | 50 | `insert_before_after_char`, `insert_start_end_line` |
@@ -61,19 +61,19 @@ Cursor-only behaviors. No buffer change.
 | `move_single_char_up_down_left_right` | `hjkl` (4-direction) | S→K | 60 | `move_single_char_left_right`, `move_single_char_up_down` |
 | `move_single_char_left_right` | `h l` (narrower horizontal sibling of hjkl) | S→K | 60 | — |
 | `move_single_char_up_down` | `j k` (narrower vertical sibling of hjkl) | S→K | 60 | — |
-| `move_to_line_edges_all` | Line start / first-non-blank / end (`0`, `^`, `$`, `g_`) | S→K | 50 | `move_to_line_edges_beginning_end`, `move_to_line_edges_non_white_space` |
-| `move_to_line_edges_beginning_end` | 2-cell: `0` (line start) vs `$` (line end). No whitespace axis. | S→K | 55 | — |
+| `move_to_line_edges_all` | Line start / first-non-blank / end (`0`, `^`, `$`, `g_`) | S→K | 50 | `move_to_line_edges_start_end`, `move_to_line_edges_non_white_space` |
+| `move_to_line_edges_start_end` | 2-cell: `0` (line start) vs `$` (line end). No whitespace axis. | S→K | 55 | — |
 | `move_to_line_edges_non_white_space` | 2-cell: `^` (first non-blank) vs `g_` (last non-blank). Whitespace-edge sibling. | S→K | 55 | — |
 | `move_to_word_start_forward_backward` | `w b` | S→K | 45 | — |
 | `move_to_word_end_forward_backward` | `e ge` | S→K | 40 | — |
 | `move_to_char_forward_backward` | `f{c} F{c}` | S→K | 50 | `move_single_char_up_down_left_right` |
 | `move_till_char_forward_backward` | `t{c} T{c}` | S→K | 45 | `move_to_char_forward_backward` |
 | `move_repeat_last_find_forward_backward` | Repeat last find (`;`, `,`) | S→K | 40 | `move_to_char_forward_backward`, `move_till_char_forward_backward` |
-| `move_to_till_forward` | 2-cell: `f{c}` (lands ON next c) vs `t{c}` (lands ONE BEFORE next c) | S→K | 50 | — |
-| `move_to_till_backward` | 2-cell: `F{c}` (lands ON previous c) vs `T{c}` (lands ONE AFTER previous c) | S→K | 50 | — |
-| `move_to_till_forward_in_words` | 2-cell: `f{c}` vs `t{c}` over word-shaped content (varying skim span) | S→K | 40 | `move_to_till_forward` |
-| `move_to_till_backward_in_words` | 2-cell: `F{c}` vs `T{c}` over word-shaped content (varying skim span) | S→K | 40 | `move_to_till_backward` |
-| `move_to_till_forward_backward` | 4-way composite over `f`, `F`, `t`, `T` | Disc | 35 | `move_to_char_forward_backward`, `move_till_char_forward_backward`, `move_to_till_forward`, `move_to_till_backward` |
+| `move_to_vs_till_forward` | 2-cell: `f{c}` (lands ON next c) vs `t{c}` (lands ONE BEFORE next c) | S→K | 50 | — |
+| `move_to_vs_till_backward` | 2-cell: `F{c}` (lands ON previous c) vs `T{c}` (lands ONE AFTER previous c) | S→K | 50 | — |
+| `move_to_vs_till_forward_in_words` | 2-cell: `f{c}` vs `t{c}` over word-shaped content (varying skim span) | S→K | 40 | `move_to_vs_till_forward` |
+| `move_to_vs_till_backward_in_words` | 2-cell: `F{c}` vs `T{c}` over word-shaped content (varying skim span) | S→K | 40 | `move_to_vs_till_backward` |
+| `move_to_vs_till_forward_backward` | 4-way composite over `f`, `F`, `t`, `T` | Disc | 35 | `move_to_char_forward_backward`, `move_till_char_forward_backward`, `move_to_vs_till_forward`, `move_to_vs_till_backward` |
 
 ## Visual family
 
@@ -98,7 +98,7 @@ broader drills) are designed but not yet built — see
 |---|---|---|---|---|
 | `delete_char_vs_line` | `x` vs `dd` (navigate then operate) | Disc | 35 | — |
 | `delete_to_word_start_forward_backward` | `dw db` (delete to word start, both directions) | Disc | 60 | `move_to_word_start_forward_backward` |
-| `delete_to_line_edges_beginning_end` | `d0 d$` (delete to line edge, both directions) | Disc | 35 | `move_to_line_edges_beginning_end` |
+| `delete_to_line_edges_start_end` | `d0 d$` (delete to line edge, both directions) | Disc | 35 | `move_to_line_edges_start_end` |
 | `delete_single_char_left_right` | `dl dh` (delete one char via motion) | Disc | 40 | `move_single_char_left_right` |
 | `delete_two_lines_down_up` | `dj dk` (linewise, two-line extent) | Disc | 30 | `move_single_char_up_down` |
 

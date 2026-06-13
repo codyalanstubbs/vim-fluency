@@ -1,9 +1,9 @@
-" move_to_till_forward_in_words — the realistic-content follow-on to
-" move_to_till_forward. Same f/t discrimination (pick the motion
+" move_to_vs_till_forward_in_words — the realistic-content follow-on to
+" move_to_vs_till_forward. Same f/t discrimination (pick the motion
 " whose search char does NOT repeat between cursor and target), but
 " embedded in real-word lines with variable geometry.
 "
-" Prereq: move_to_till_forward (the constant-geometry version) — get
+" Prereq: move_to_vs_till_forward (the constant-geometry version) — get
 " the discrimination fluent there first, then add the skim load here.
 "
 " Shape constraints, enforced per generated item:
@@ -13,7 +13,7 @@
 "   f-item: X unique in (cursor, target) → f{X} lands exactly.
 "           Z occurs again in (cursor, target] → t{Z} stops early.
 "
-" Cheat-defense mirrors move_to_till_backward_in_words.
+" Cheat-defense mirrors move_to_vs_till_backward_in_words.
 
 let s:WORDS = ['return', 'import', 'while', 'range', 'class', 'value',
   \ 'array', 'result', 'parse', 'error', 'begin', 'label', 'count',
@@ -23,14 +23,14 @@ let s:WORDS = ['return', 'import', 'while', 'range', 'class', 'value',
   \ 'north', 'visit', 'spend', 'phone', 'movie', 'happy', 'lucky',
   \ 'jumbo', 'flash', 'crisp', 'blank', 'globe']
 
-function! vimfluency#pinpoints#move_to_till_forward_in_words#meta() abort
+function! vimfluency#pinpoints#move_to_vs_till_forward_in_words#meta() abort
   " Aim matches the backward in-words sibling. Starting guess.
-  return {'id': 'move_to_till_forward_in_words',
+  return {'id': 'move_to_vs_till_forward_in_words',
     \ 'name': 'find vs till in words, forward (f / t)',
     \ 'aim': 40, 'allowed_keys': 'ft',
-    \ 'prereqs': ['move_to_till_forward'],
+    \ 'prereqs': ['move_to_vs_till_forward'],
     \ 'keys': 'f/t', 'family': 'motion',
-    \ 'parallel_to': ['move_to_till_backward_in_words'],
+    \ 'parallel_to': ['move_to_vs_till_backward_in_words'],
     \ 'test_sequence': ['f', 't']}
 endfunction
 
@@ -95,7 +95,7 @@ function! s:try_generate() abort
     \ 'optimal_motions': 1}
 endfunction
 
-function! vimfluency#pinpoints#move_to_till_forward_in_words#generate() abort
+function! vimfluency#pinpoints#move_to_vs_till_forward_in_words#generate() abort
   let attempts = 0
   while attempts < 30
     let attempts += 1
@@ -112,13 +112,13 @@ function! vimfluency#pinpoints#move_to_till_forward_in_words#generate() abort
     \ 'expected_motion': 'f', 'optimal_motions': 1}
 endfunction
 
-function! vimfluency#pinpoints#move_to_till_forward_in_words#lesson() abort
+function! vimfluency#pinpoints#move_to_vs_till_forward_in_words#lesson() abort
   let buf_t = ['point faster spend']
   let buf_f = ['spend faster point']
   return [
     \ {'kind': 'show', 'lines': [], 'cursor': [1, 1],
     \  'prompt': [
-    \    'Same f/t rule as move_to_till_forward, now inside real words:',
+    \    'Same f/t rule as move_to_vs_till_forward, now inside real words:',
     \    '',
     \    '    f{c}  →  lands ON the next c',
     \    '    t{c}  →  lands ONE CELL BEFORE the next c',

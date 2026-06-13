@@ -265,6 +265,13 @@ is rewritten on each change. A missing or malformed file is treated as
 "no overrides" so neither :VfList nor :Vf ever errors on a fresh
 install.
 
+Renamed drills: when a drill's id changes between releases, the old id
+keeps working — session records in the log, aim-override keys in
+settings.json, and ids typed into :Vf / :VfLearn / :VfChart /
+:VfHistory are all mapped to the current id at read time. The log
+file itself is never rewritten, so history and charts stay continuous
+across a rename.
+
 ==============================================================================
 ADDING A PINPOINT                                              *vf-pinpoints*
 

@@ -205,6 +205,29 @@ endfunction
 " through the effective helpers, so a single override propagates
 " everywhere.
 
+" Renamed drill slugs: old id → current id. Old ids keep working
+" everywhere — :Vf/:VfLearn/:VfChart args, session history, aim
+" overrides — because every read path canonicalizes through this map.
+" The JSONL log on disk is never rewritten; records that carry an old
+" pinpoint_id are remapped at read time so history and charts stay
+" continuous across a rename. When renaming a slug, git mv the file,
+" update every in-repo reference, and add one entry here.
+let s:LEGACY_IDS = {
+  \ 'move_to_line_edges_beginning_end':   'move_to_line_edges_start_end',
+  \ 'delete_to_line_edges_beginning_end': 'delete_to_line_edges_start_end',
+  \ 'switch_btwn_many_modes':             'switch_between_many_modes',
+  \ 'move_to_till_forward':               'move_to_vs_till_forward',
+  \ 'move_to_till_backward':              'move_to_vs_till_backward',
+  \ 'move_to_till_forward_backward':      'move_to_vs_till_forward_backward',
+  \ 'move_to_till_forward_in_words':      'move_to_vs_till_forward_in_words',
+  \ 'move_to_till_backward_in_words':     'move_to_vs_till_backward_in_words',
+  \ }
+
+" Map a possibly-renamed drill id to its current slug.
+function! vimfluency#canonical_id(id) abort
+  return get(s:LEGACY_IDS, a:id, a:id)
+endfunction
+
 function! s:settings_path() abort
   return vimfluency#log_dir() . '/settings.json'
 endfunction
@@ -219,6 +242,17 @@ function! s:load_settings() abort
     let parsed = json_decode(raw)
     if type(parsed) != type({}) | return {'aims': {}} | endif
     if !has_key(parsed, 'aims') | let parsed.aims = {} | endif
+    " Migrate aim overrides stored under renamed drill ids. An
+    " override already present under the new id wins; the next
+    " s:save_settings() persists the migrated keys.
+    for [old, new] in items(s:LEGACY_IDS)
+      if has_key(parsed.aims, old)
+        if !has_key(parsed.aims, new)
+          let parsed.aims[new] = parsed.aims[old]
+        endif
+        call remove(parsed.aims, old)
+      endif
+    endfor
     return parsed
   catch
     return {'aims': {}}
@@ -264,9 +298,10 @@ endfunction
 
 " :VfSetAim <id> <rate>  — store an aim override for one pinpoint.
 function! vimfluency#set_aim(id, rate) abort
+  let id = vimfluency#canonical_id(a:id)
   let registry = vimfluency#discover_pinpoints()
-  if !has_key(registry, a:id)
-    echo 'unknown drill: ' . a:id . '  (try :VfList)'
+  if !has_key(registry, id)
+    echo 'unknown drill: ' . id . '  (try :VfList)'
     return
   endif
   let rate = str2nr(a:rate)
@@ -276,30 +311,31 @@ function! vimfluency#set_aim(id, rate) abort
   endif
   let settings = s:load_settings()
   if !has_key(settings, 'aims') | let settings.aims = {} | endif
-  let settings.aims[a:id] = rate
+  let settings.aims[id] = rate
   call s:save_settings(settings)
-  echo 'aim for ' . a:id . ' set to ' . rate . '/min'
-    \ . ' (default ' . registry[a:id].aim . '/min)'
+  echo 'aim for ' . id . ' set to ' . rate . '/min'
+    \ . ' (default ' . registry[id].aim . '/min)'
 endfunction
 
 " :VfResetAim <id>  — clear the aim override for one pinpoint.
 function! vimfluency#reset_aim(id) abort
+  let id = vimfluency#canonical_id(a:id)
   let registry = vimfluency#discover_pinpoints()
-  if !has_key(registry, a:id)
-    echo 'unknown drill: ' . a:id . '  (try :VfList)'
+  if !has_key(registry, id)
+    echo 'unknown drill: ' . id . '  (try :VfList)'
     return
   endif
   let settings = s:load_settings()
   let aims = get(settings, 'aims', {})
-  if !has_key(aims, a:id)
-    echo 'no aim override set for ' . a:id
+  if !has_key(aims, id)
+    echo 'no aim override set for ' . id
     return
   endif
-  call remove(aims, a:id)
+  call remove(aims, id)
   let settings.aims = aims
   call s:save_settings(settings)
-  echo 'aim override cleared for ' . a:id
-    \ . ' (reverted to ' . registry[a:id].aim . '/min)'
+  echo 'aim override cleared for ' . id
+    \ . ' (reverted to ' . registry[id].aim . '/min)'
 endfunction
 
 " :VfSetDuration <seconds>  — store the global default duration.
@@ -550,7 +586,7 @@ function! s:load_sessions_grouped() abort
     if empty(line) | continue | endif
     try
       let r = json_decode(line)
-      let id = get(r, 'pinpoint_id', '')
+      let id = get(s:LEGACY_IDS, get(r, 'pinpoint_id', ''), get(r, 'pinpoint_id', ''))
       if empty(id) | continue | endif
       if !has_key(by_id, id) | let by_id[id] = [] | endif
       call add(by_id[id], r)
@@ -1497,7 +1533,7 @@ function! vimfluency#start(...) abort
     echo 'usage: :Vf <id> [duration] [only=motion[,motion...]]'
     return
   endif
-  let id = positional[0]
+  let id = vimfluency#canonical_id(positional[0])
   " Duration precedence: explicit arg > user's global default > 60s.
   if len(positional) >= 2 && positional[1] !~# '^[1-9]\d*$'
     echo 'duration must be a positive number of seconds, got: ' . positional[1]
@@ -2950,7 +2986,7 @@ function! s:rate_bar(rate, aim) abort
 endfunction
 
 function! vimfluency#history(...) abort
-  let filter_id = a:0 >= 1 ? a:1 : ''
+  let filter_id = a:0 >= 1 ? vimfluency#canonical_id(a:1) : ''
   let log_path = vimfluency#log_dir() . '/sessions.jsonl'
   if !filereadable(log_path)
     echo 'no sessions logged yet (' . log_path . ')'
@@ -2965,6 +3001,7 @@ function! vimfluency#history(...) abort
       " A JSON-valid line that isn't a session record (hand-edited
       " log, older schema) must not crash the whole listing.
       if type(rec) == type({}) && has_key(rec, 'pinpoint_id')
+        let rec.pinpoint_id = get(s:LEGACY_IDS, rec.pinpoint_id, rec.pinpoint_id)
         call add(records, rec)
       endif
     catch
@@ -3041,7 +3078,7 @@ function! vimfluency#learn(...) abort
     echo 'usage: :VfLearn <drill_id>'
     return
   endif
-  let id = a:1
+  let id = vimfluency#canonical_id(a:1)
   let registry = vimfluency#discover_pinpoints()
   if !has_key(registry, id)
     echo 'unknown drill: ' . id
@@ -4208,18 +4245,18 @@ endfunction
 
 function! vimfluency#chart(...) abort
   if a:0 < 1
-    echo 'usage: :VfChart <pinpoint_id>'
+    echo 'usage: :VfChart <drill_id>'
     return
   endif
-  call s:chart_render(a:1, s:CHART_BOUNDS_FULL, '')
+  call s:chart_render(vimfluency#canonical_id(a:1), s:CHART_BOUNDS_FULL, '')
 endfunction
 
 function! vimfluency#chart_zoom(...) abort
   if a:0 < 1
-    echo 'usage: :VfChartZoom <pinpoint_id>'
+    echo 'usage: :VfChartZoom <drill_id>'
     return
   endif
-  call s:chart_render(a:1, s:CHART_BOUNDS_ZOOM, 'zoom')
+  call s:chart_render(vimfluency#canonical_id(a:1), s:CHART_BOUNDS_ZOOM, 'zoom')
 endfunction
 
 function! s:chart_render(id, bounds, variant) abort
@@ -4234,7 +4271,7 @@ function! s:chart_render(id, bounds, variant) abort
     if empty(line) | continue | endif
     try
       let r = json_decode(line)
-      if get(r, 'pinpoint_id', '') ==# a:id
+      if get(s:LEGACY_IDS, get(r, 'pinpoint_id', ''), get(r, 'pinpoint_id', '')) ==# a:id
         call add(sessions, r)
       endif
     catch
@@ -4471,7 +4508,7 @@ function! vimfluency#dashboard(...) abort
     echo 'no drills built — see CATALOG.md'
     return
   endif
-  let target_id = a:0 > 0 ? a:1 : ''
+  let target_id = a:0 > 0 ? vimfluency#canonical_id(a:1) : ''
 
   " Reuse an open dashboard if there is one — switch to its tab and
   " rebuild in place so the just-finished session shows up in LAST

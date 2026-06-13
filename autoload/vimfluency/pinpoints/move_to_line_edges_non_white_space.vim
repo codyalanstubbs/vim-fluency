@@ -1,6 +1,6 @@
 " move_to_line_edges_non_white_space — atomic 2-cell drill over
 " the non-blank line-edge motions. Parallel-by-design with
-" move_to_line_edges_beginning_end (0 / $).
+" move_to_line_edges_start_end (0 / $).
 "
 "   ^   → first NON-BLANK char on the line (skips leading whitespace)
 "   g_  → last NON-BLANK char on the line  (skips trailing whitespace)
@@ -24,7 +24,7 @@ let s:words = ['def', 'class', 'return', 'import', 'from', 'while',
   \ 'data', 'value']
 
 function! vimfluency#pinpoints#move_to_line_edges_non_white_space#meta() abort
-  " Aim 55/min, same as move_to_line_edges_beginning_end. Narrower
+  " Aim 55/min, same as move_to_line_edges_start_end. Narrower
   " 2-cell discrimination, single keystroke per item (g_ is 2
   " physical keys but the runner credits it as one motion since the
   " behavior is atomic — see the canonical-motion convention in
@@ -33,7 +33,7 @@ function! vimfluency#pinpoints#move_to_line_edges_non_white_space#meta() abort
     \ 'name': 'non-blank line edges (^ / g_)',
     \ 'aim': 55, 'allowed_keys': '^g_', 'prereqs': [],
     \ 'narrower_of': 'move_to_line_edges_all',
-    \ 'parallel_to': ['move_to_line_edges_beginning_end'],
+    \ 'parallel_to': ['move_to_line_edges_start_end'],
     \ 'keys': '^/g_', 'family': 'motion',
     \ 'test_sequence': ['^', 'g_']}
 endfunction

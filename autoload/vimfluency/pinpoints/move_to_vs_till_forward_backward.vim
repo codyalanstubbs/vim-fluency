@@ -1,10 +1,10 @@
-" move_to_till_forward_backward — 4-way composite over f / F / t / T.
+" move_to_vs_till_forward_backward — 4-way composite over f / F / t / T.
 " Mixes the by-find-vs-till split (move_to_char_forward_backward,
 " move_till_char_forward_backward) with the by-direction split
-" (move_to_till_forward, move_to_till_backward). The cognitive task
+" (move_to_vs_till_forward, move_to_vs_till_backward). The cognitive task
 " is: read the direction (cursor side), then pick find vs till by
 " which search char does NOT repeat in the span (the 2026-06-11
-" shapes — see move_to_till_backward for the worked rationale).
+" shapes — see move_to_vs_till_backward for the worked rationale).
 "
 " Cheat-defense is inherited from the underlying generators —
 " delegate to move_to_char_forward_backward.generate and
@@ -13,19 +13,19 @@
 " always lands off-target), so every item in this 4-way mix forces
 " BOTH axes. Optimal_motions is 1 for every item.
 
-function! vimfluency#pinpoints#move_to_till_forward_backward#meta() abort
-  return {'id': 'move_to_till_forward_backward',
+function! vimfluency#pinpoints#move_to_vs_till_forward_backward#meta() abort
+  return {'id': 'move_to_vs_till_forward_backward',
     \ 'name': 'find vs till, 4-way (f / F / t / T)',
     \ 'aim': 35, 'allowed_keys': 'fFtT',
     \ 'prereqs': ['move_to_char_forward_backward',
     \             'move_till_char_forward_backward',
-    \             'move_to_till_forward',
-    \             'move_to_till_backward'],
+    \             'move_to_vs_till_forward',
+    \             'move_to_vs_till_backward'],
     \ 'keys': 'f/F/t/T', 'family': 'motion',
     \ 'test_sequence': ['f', 't', 'F', 'T']}
 endfunction
 
-function! vimfluency#pinpoints#move_to_till_forward_backward#lesson() abort
+function! vimfluency#pinpoints#move_to_vs_till_forward_backward#lesson() abort
   " The first frame names the discrimination rule. The four try frames
   " walk through one example of each motion in the same buffer so the
   " learner sees the off-by-one shift between f and t side by side.
@@ -59,7 +59,7 @@ function! s:rand(n) abort
   return rand() % a:n
 endfunction
 
-function! vimfluency#pinpoints#move_to_till_forward_backward#generate() abort
+function! vimfluency#pinpoints#move_to_vs_till_forward_backward#generate() abort
   " 50/50 mix of f/F and t/T items. Each delegated generator already
   " handles its own cheat-defense, target uniqueness, and word-
   " margin constraints, so this composite inherits all of that. The

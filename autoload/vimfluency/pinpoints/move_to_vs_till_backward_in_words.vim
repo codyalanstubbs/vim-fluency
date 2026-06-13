@@ -1,11 +1,11 @@
-" move_to_till_backward_in_words — the realistic-content follow-on to
-" move_to_till_backward. Same F/T discrimination (pick the motion
+" move_to_vs_till_backward_in_words — the realistic-content follow-on to
+" move_to_vs_till_backward. Same F/T discrimination (pick the motion
 " whose search char does NOT repeat between target and cursor), but
 " embedded in real-word lines with variable geometry: the learner
 " has to find the target, read its char and left-neighbor, and skim
 " a span whose length changes every item.
 "
-" Prereq: move_to_till_backward (the constant-geometry version) — get
+" Prereq: move_to_vs_till_backward (the constant-geometry version) — get
 " the discrimination fluent there first, then add the skim load here.
 "
 " Shape constraints, enforced per generated item:
@@ -30,15 +30,15 @@ let s:WORDS = ['return', 'import', 'while', 'range', 'class', 'value',
   \ 'north', 'visit', 'spend', 'phone', 'movie', 'happy', 'lucky',
   \ 'jumbo', 'flash', 'crisp', 'blank', 'globe']
 
-function! vimfluency#pinpoints#move_to_till_backward_in_words#meta() abort
+function! vimfluency#pinpoints#move_to_vs_till_backward_in_words#meta() abort
   " Aim a tick below the constant-geometry drill's 50/min — the skim
   " span varies and the content is wordy. Starting guess.
-  return {'id': 'move_to_till_backward_in_words',
+  return {'id': 'move_to_vs_till_backward_in_words',
     \ 'name': 'find vs till in words, backward (F / T)',
     \ 'aim': 40, 'allowed_keys': 'FT',
-    \ 'prereqs': ['move_to_till_backward'],
+    \ 'prereqs': ['move_to_vs_till_backward'],
     \ 'keys': 'F/T', 'family': 'motion',
-    \ 'parallel_to': ['move_to_till_forward_in_words'],
+    \ 'parallel_to': ['move_to_vs_till_forward_in_words'],
     \ 'test_sequence': ['F', 'T']}
 endfunction
 
@@ -102,7 +102,7 @@ function! s:try_generate() abort
     \ 'optimal_motions': 1}
 endfunction
 
-function! vimfluency#pinpoints#move_to_till_backward_in_words#generate() abort
+function! vimfluency#pinpoints#move_to_vs_till_backward_in_words#generate() abort
   let attempts = 0
   while attempts < 30
     let attempts += 1
@@ -119,13 +119,13 @@ function! vimfluency#pinpoints#move_to_till_backward_in_words#generate() abort
     \ 'expected_motion': 'F', 'optimal_motions': 1}
 endfunction
 
-function! vimfluency#pinpoints#move_to_till_backward_in_words#lesson() abort
+function! vimfluency#pinpoints#move_to_vs_till_backward_in_words#lesson() abort
   let buf_T = ['fetch target results']
   let buf_F = ['brain saved margin']
   return [
     \ {'kind': 'show', 'lines': [], 'cursor': [1, 1],
     \  'prompt': [
-    \    'Same F/T rule as move_to_till_backward, now inside real words:',
+    \    'Same F/T rule as move_to_vs_till_backward, now inside real words:',
     \    '',
     \    '    F{c}  →  lands ON the previous c',
     \    '    T{c}  →  lands ONE CELL AFTER the previous c',

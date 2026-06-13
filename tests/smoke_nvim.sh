@@ -83,7 +83,7 @@ NS 'q'; settle
 chk "dashboard q closes it" 0 "$(NV 'bufexists("vf-dashboard-table")')"
 
 echo "== motion training: CursorMoved credit + timer expiry =="
-NS ':Vf move_to_line_edges_beginning_end 5<CR>'; settle
+NS ':Vf move_to_line_edges_start_end 5<CR>'; settle
 chk "session started" 1 "$(NV '!empty(vimfluency#statusline())')"
 for _ in 1 2 3 4 5; do NS '0'; settle; NS '$'; settle; done
 chk "timer expired the session" 0 "$(NV 'wait(8000, {-> empty(vimfluency#statusline())}, 200)')"
@@ -120,10 +120,10 @@ chk "list opens" 1 "$(NV 'bufexists("vf-list")')"
 NV 'win_gotoid(win_findbuf(bufnr("vf-list"))[0])' >/dev/null
 NS 'q'; settle
 chk "list q closes it" 0 "$(NV 'bufexists("vf-list")')"
-NS ':VfChart move_to_line_edges_beginning_end<CR>'; settle
-chk "chart opens" 1 "$(NV 'bufexists("vf-chart-move_to_line_edges_beginning_end")')"
+NS ':VfChart move_to_line_edges_start_end<CR>'; settle
+chk "chart opens" 1 "$(NV 'bufexists("vf-chart-move_to_line_edges_start_end")')"
 NS 'q'; settle
-chk "chart q closes it" 0 "$(NV 'bufexists("vf-chart-move_to_line_edges_beginning_end")')"
+chk "chart q closes it" 0 "$(NV 'bufexists("vf-chart-move_to_line_edges_start_end")')"
 
 echo "== error scan =="
 errs="$(NV 'execute("messages")' | grep -cE 'E[0-9]+:' || true)"

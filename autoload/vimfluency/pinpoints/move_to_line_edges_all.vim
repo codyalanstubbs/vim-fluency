@@ -6,7 +6,7 @@ let s:words = ['def', 'class', 'return', 'import', 'from', 'while', 'if',
 function! vimfluency#pinpoints#move_to_line_edges_all#meta() abort
   return {'id': 'move_to_line_edges_all', 'name': 'line edges, all (0 ^ $ g_)', 'aim': 50,
     \ 'allowed_keys': '0^$g_',
-    \ 'prereqs': ['move_to_line_edges_beginning_end',
+    \ 'prereqs': ['move_to_line_edges_start_end',
     \             'move_to_line_edges_non_white_space'],
     \ 'keys': '0/^/$/g_', 'family': 'motion',
     \ 'test_sequence': ['0', '^', '$', 'g_']}

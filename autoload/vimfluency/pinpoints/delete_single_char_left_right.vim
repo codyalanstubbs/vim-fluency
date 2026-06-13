@@ -21,7 +21,7 @@ function! vimfluency#pinpoints#delete_single_char_left_right#meta() abort
   return {'id': 'delete_single_char_left_right', 'name': 'delete one char (dl / dh)', 'aim': 40,
     \ 'allowed_keys': 'dlh', 'kind': 'editing',
     \ 'prereqs': ['move_single_char_left_right'],
-    \ 'parallel_to': ['delete_to_word_start_forward_backward', 'delete_to_line_edges_beginning_end'], 'keys': 'dl/dh', 'family': 'delete',
+    \ 'parallel_to': ['delete_to_word_start_forward_backward', 'delete_to_line_edges_start_end'], 'keys': 'dl/dh', 'family': 'delete',
     \ 'test_sequence': ['dl', 'dh']}
 endfunction
 

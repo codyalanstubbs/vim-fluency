@@ -1,4 +1,4 @@
-" move_to_till_backward — atomic 2-cell drill over the backward
+" move_to_vs_till_backward — atomic 2-cell drill over the backward
 " find/till pair (F, T). Both motions look BEHIND on the line for
 " the previous occurrence of a search character; they differ in
 " WHERE they land:
@@ -25,7 +25,7 @@
 " Pinpoint integrity over natural-looking content — same trade as
 " the vowel-soup alphabet in move_to_word_start_forward_backward.
 " The realistic-content version of this drill is
-" move_to_till_backward_in_words (prereq: this one).
+" move_to_vs_till_backward_in_words (prereq: this one).
 "
 " Cheat-defense:
 "   - the wrong member of the F/T pair always lands off-target (the
@@ -45,12 +45,12 @@ let s:LETTERS = ['a','b','c','d','e','f','g','h','j','k','m','n',
 " 8 and 12 and the col-7 slot's neighbors' specifics handled below.
 let s:REPEAT_COLS = [7, 9, 10, 11, 13, 14]
 
-function! vimfluency#pinpoints#move_to_till_backward#meta() abort
-  return {'id': 'move_to_till_backward',
+function! vimfluency#pinpoints#move_to_vs_till_backward#meta() abort
+  return {'id': 'move_to_vs_till_backward',
     \ 'name': 'find vs till, backward (F / T)',
     \ 'aim': 50, 'allowed_keys': 'FT',
     \ 'prereqs': [], 'keys': 'F/T', 'family': 'motion',
-    \ 'parallel_to': ['move_to_till_forward'],
+    \ 'parallel_to': ['move_to_vs_till_forward'],
     \ 'test_sequence': ['F', 'T']}
 endfunction
 
@@ -69,7 +69,7 @@ function! s:pick_letters() abort
   return picked
 endfunction
 
-function! vimfluency#pinpoints#move_to_till_backward#generate() abort
+function! vimfluency#pinpoints#move_to_vs_till_backward#generate() abort
   let [X, Y, n1, n2] = s:pick_letters()
   let is_T = s:rand(2) == 0
   let repeat_col = s:REPEAT_COLS[s:rand(len(s:REPEAT_COLS))]
@@ -98,7 +98,7 @@ function! vimfluency#pinpoints#move_to_till_backward#generate() abort
     \ 'optimal_motions': 1}
 endfunction
 
-function! vimfluency#pinpoints#move_to_till_backward#lesson() abort
+function! vimfluency#pinpoints#move_to_vs_till_backward#lesson() abort
   " Both try frames use the SAME target cell — the only thing that
   " changes between them is which char repeats in the span. That's
   " the juxtaposition: identical geometry, opposite answer.

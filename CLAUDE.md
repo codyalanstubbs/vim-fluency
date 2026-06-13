@@ -253,6 +253,19 @@ item-start position), not exercised natively.
 8. Run `tests/run.sh`
 9. Commit (no `Co-Authored-By: Claude` trailer; see auto-memory for this project)
 
+## Renaming a pinpoint slug
+
+Slugs are user data: they're typed into `:Vf` and stored as
+`pinpoint_id` in every JSONL session record. To rename one: `git mv`
+the file, update the three `vimfluency#pinpoints#<slug>#` function
+names and the meta `id`, update every in-repo reference (prereqs /
+`parallel_to` / `narrower_of` in sibling pinpoints, paths files,
+tests, CATALOG.md), and add an old → new entry to `s:LEGACY_IDS` in
+`autoload/vimfluency.vim`. The alias map canonicalizes old ids at
+every read path (commands, session log, aim overrides) so user
+history survives; never rewrite the JSONL log itself. Tests for the
+aliasing live at the bottom of `tests/test_settings.vim`.
+
 ## Conventions to remember
 
 - All aim numbers are starting guesses. Calibration against real data is

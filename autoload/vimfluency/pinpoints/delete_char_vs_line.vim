@@ -54,7 +54,7 @@ function! vimfluency#pinpoints#delete_char_vs_line#meta() abort
   " Discrimination training sessions carry a cognitive cost beyond fluency
   " training sessions (read the highlight, navigate, pick the operator), so
   " the aim is set lower than move_single_char_up_down_left_right's hjkl drill. Starting guess;
-  " revise on data. Same band as move_to_till_forward_backward and indent_vs_dedent disc training sessions.
+  " revise on data. Same band as move_to_vs_till_forward_backward and indent_vs_dedent disc training sessions.
   return {'id': 'delete_char_vs_line', 'name': 'delete char vs line (x / dd)',
     \ 'aim': 35, 'allowed_keys': 'xdjk', 'kind': 'editing',
     \ 'prereqs': [], 'keys': 'x/dd', 'family': 'delete',

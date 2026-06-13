@@ -1,4 +1,4 @@
-" switch_btwn_many_modes — composite-discrimination drill that mixes
+" switch_between_many_modes — composite-discrimination drill that mixes
 " all five canonical modes. Targets alternate strictly between Normal
 " and one of the four non-Normal modes: after every non-Normal entry
 " the next item demands a return to Normal; after every Normal
@@ -7,7 +7,7 @@
 " into a non-Normal mode, or Ctrl+[ when coming back to Normal.
 "
 " Why explicitly measure the Ctrl+[ transitions: under the predecessor
-" switch_btwn_non_normal_modes the Ctrl+[ portion of every 2-stroke
+" switch_between_non_normal_modes the Ctrl+[ portion of every 2-stroke
 " composite was attributed to the entry key it paired with, so the
 " learner never saw a per-stroke rate for the leave-key on its own.
 " Splitting them out makes Ctrl+[ a first-class measurement, and the
@@ -31,12 +31,12 @@
 
 let s:non_normal = ['i', 'v', 'r', 'c']
 
-function! vimfluency#pinpoints#switch_btwn_many_modes#meta() abort
+function! vimfluency#pinpoints#switch_between_many_modes#meta() abort
   " Aim 70/min. Single-stroke transitions on the atomics aim at
   " 80/min; this drill adds discrimination overhead (deciding which
   " key to press next based on the prompt + current mode), so a
   " slightly lower starting guess.
-  return {'id': 'switch_btwn_many_modes',
+  return {'id': 'switch_between_many_modes',
     \ 'name': 'switch between many modes (i v R : Ctrl+[)',
     \ 'aim': 70, 'allowed_keys': '', 'kind': 'mode_switch',
     \ 'prereqs': ['switch_mode_to_insert',
@@ -70,7 +70,7 @@ function! s:mode_canon(raw) abort
   return 'n'
 endfunction
 
-function! vimfluency#pinpoints#switch_btwn_many_modes#generate(...) abort
+function! vimfluency#pinpoints#switch_between_many_modes#generate(...) abort
   " Strict alternation: from Normal pick any non-Normal entry; from
   " any non-Normal pick the Ctrl+[ exit back to Normal. mode() is
   " read live at generate-time so the alternation tracks the
@@ -104,7 +104,7 @@ endfunction
 " four non-Normal entries each followed by a Ctrl+[ exit, so every
 " key on the keymap (i / v / R / : / C-[) gets at least one try
 " frame. The test phase randomizes via generate().
-function! vimfluency#pinpoints#switch_btwn_many_modes#lesson() abort
+function! vimfluency#pinpoints#switch_between_many_modes#lesson() abort
   return [
     \ {'kind': 'show', 'lines': [], 'cursor': [1, 1],
     \  'prompt': [

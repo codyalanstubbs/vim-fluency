@@ -1,4 +1,4 @@
-" move_to_till_forward — atomic 2-cell drill over the forward
+" move_to_vs_till_forward — atomic 2-cell drill over the forward
 " find/till pair (f, t). Both motions look AHEAD on the line for the
 " next occurrence of a search character; they differ in WHERE they
 " land:
@@ -17,11 +17,11 @@
 "   f-item:  C n n   n Z n   n X Z   n n n      ← Z repeats → t{Z}
 "            (X unique in the span)                stops early; f{X} ✓
 "
-" Item geometry is CONSTANT, mirroring move_to_till_backward
+" Item geometry is CONSTANT, mirroring move_to_vs_till_backward
 " (see that file for the 2026-06-11 diary rationale): 15-col line of
 " four 3-char blocks, cursor always col 1, target always col 10.
 " Four random letters per item provide the noise. The
-" realistic-content version is move_to_till_forward_in_words
+" realistic-content version is move_to_vs_till_forward_in_words
 " (prereq: this one).
 "
 " Cheat-defense:
@@ -40,14 +40,14 @@ let s:LETTERS = ['a','b','c','d','e','f','g','h','j','k','m','n',
 " cursor (col 1) and the target (col 10), skipping space cols 4 and 8.
 let s:REPEAT_COLS = [2, 3, 5, 6, 7, 9]
 
-function! vimfluency#pinpoints#move_to_till_forward#meta() abort
-  " Aim 50/min, matching move_to_till_backward. Single 2-cell
+function! vimfluency#pinpoints#move_to_vs_till_forward#meta() abort
+  " Aim 50/min, matching move_to_vs_till_backward. Single 2-cell
   " discrimination, single chord per item.
-  return {'id': 'move_to_till_forward',
+  return {'id': 'move_to_vs_till_forward',
     \ 'name': 'find vs till, forward (f / t)',
     \ 'aim': 50, 'allowed_keys': 'ft',
     \ 'prereqs': [], 'keys': 'f/t', 'family': 'motion',
-    \ 'parallel_to': ['move_to_till_backward'],
+    \ 'parallel_to': ['move_to_vs_till_backward'],
     \ 'test_sequence': ['f', 't']}
 endfunction
 
@@ -66,7 +66,7 @@ function! s:pick_letters() abort
   return picked
 endfunction
 
-function! vimfluency#pinpoints#move_to_till_forward#generate() abort
+function! vimfluency#pinpoints#move_to_vs_till_forward#generate() abort
   let [X, Z, n1, n2] = s:pick_letters()
   let is_t = s:rand(2) == 0
   let repeat_col = s:REPEAT_COLS[s:rand(len(s:REPEAT_COLS))]
@@ -95,7 +95,7 @@ function! vimfluency#pinpoints#move_to_till_forward#generate() abort
     \ 'optimal_motions': 1}
 endfunction
 
-function! vimfluency#pinpoints#move_to_till_forward#lesson() abort
+function! vimfluency#pinpoints#move_to_vs_till_forward#lesson() abort
   " Both try frames use the SAME target cell — the only thing that
   " changes between them is which char repeats in the span. That's
   " the juxtaposition: identical geometry, opposite answer.
