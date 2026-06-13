@@ -1,0 +1,70 @@
+name: Pinpoint proposal
+description: Propose a new training pinpoint. The cheat analysis gets reviewed here, before any code.
+title: "pinpoint: <proposed_slug>"
+labels: ["pinpoint-proposal"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Read the cheat-analysis section of CONTRIBUTING.md first — it's the merge gate.
+        Settle the design here before writing code: cheap to revise in an issue, expensive in a PR.
+  - type: input
+    id: slug
+    attributes:
+      label: Proposed slug
+      description: Descriptive snake_case, starts with a letter. Filename minus .vim, and what users type after `:Vf`.
+      placeholder: delete_to_char_forward_backward
+    validations:
+      required: true
+  - type: input
+    id: family
+    attributes:
+      label: Family
+      description: motion / delete / change / yank / paste / v / indent / survival / text-object-recall / …
+      placeholder: delete
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Behavior trained
+      description: What does the learner do, stated as a behavior — which keys, discriminated from what?
+      placeholder: "df{char} / dF{char}: delete from cursor through the first match of {char}, forward vs backward."
+    validations:
+      required: true
+  - type: input
+    id: prereqs
+    attributes:
+      label: Prereqs
+      description: Slugs of pinpoints that should be at aim first (diagnostic, not gating).
+      placeholder: move_to_char_forward_backward, delete_single_char_left_right
+  - type: textarea
+    id: non-redundancy
+    attributes:
+      label: Why this isn't redundant
+      description: Check CATALOG.md. What does this train that no existing pinpoint trains? If it's a narrower/parallel sibling of an existing pinpoint, say which (narrower_of / parallel_to).
+    validations:
+      required: true
+  - type: textarea
+    id: cheat-analysis
+    attributes:
+      label: Draft cheat analysis
+      description: |
+        The gate. Enumerate what a learner could press INSTEAD of the intended
+        motion to reach the target, and the content constraints that make every
+        alternative strictly longer. Think about: shorter operators, find/till
+        shortcuts, word motions vs char motions, line-edge motions, counts.
+      placeholder: |
+        Intended: df{char} (3 keystrokes).
+        Alternatives considered:
+        - dw / de — defeated by: target char never at a word boundary
+        - d$ / d0 — defeated by: surviving content required on both sides
+        - x spam — defeated by: distance ≥ 4 so 3 keystrokes beats x×n
+        - dt{char} — adjacent discrimination; content makes off-by-one visible because …
+    validations:
+      required: true
+  - type: textarea
+    id: lesson-sketch
+    attributes:
+      label: Lesson sketch (optional)
+      description: Rough frame list if you already know how you'd teach it — rule statement shape, try frames per motion, discriminations to juxtapose.

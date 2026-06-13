@@ -1,0 +1,34 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  vim:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install vim
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq vim
+      - name: Show version
+        run: vim --version | head -2
+      - name: Headless test suite
+        run: ./tests/run.sh
+
+  nvim:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Neovim (stable)
+        run: |
+          curl -fsSL https://github.com/neovim/neovim/releases/download/stable/nvim-linux-x86_64.tar.gz \
+            | sudo tar xz -C /opt
+          echo /opt/nvim-linux-x86_64/bin >> "$GITHUB_PATH"
+      - name: Show version
+        run: nvim --version | head -2
+      - name: Headless test suite under nvim
+        run: nvim --headless -Nu NONE -Es -S tests/run.vim
+      - name: Interactive smoke test (live nvim over RPC)
+        run: ./tests/smoke_nvim.sh
