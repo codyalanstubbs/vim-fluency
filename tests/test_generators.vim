@@ -761,7 +761,7 @@ function! s:assert_recall_common(id, item) abort
 endfunction
 
 " save/quit family (save_vs_quit, save_quit_vs_force_quit,
-" save_quit_ex_vs_normal_zz, force_quit_ex_vs_normal_zq) — binary
+" save_quit_vs_zz, force_quit_vs_zq) — binary
 " discrimination pinpoints. Each one picks between exactly two
 " answers. expected_motion mirrors the answer; optimal_motions equals
 " the answer's character count.
@@ -902,11 +902,11 @@ endfunction
 function! s:test_save_quit_vs_force_quit() abort
   call s:test_save_quit_pair('save_quit_vs_force_quit', 'save_quit_vs_force_quit', [':wq', ':q!'])
 endfunction
-function! s:test_save_quit_ex_vs_normal_zz() abort
-  call s:test_save_quit_pair('save_quit_ex_vs_normal_zz', 'save_quit_ex_vs_normal_zz', [':wq', 'ZZ'])
+function! s:test_save_quit_vs_zz() abort
+  call s:test_save_quit_pair('save_quit_vs_zz', 'save_quit_vs_zz', [':wq', 'ZZ'])
 endfunction
-function! s:test_force_quit_ex_vs_normal_zq() abort
-  call s:test_save_quit_pair('force_quit_ex_vs_normal_zq', 'force_quit_ex_vs_normal_zq', [':q!', 'ZQ'])
+function! s:test_force_quit_vs_zq() abort
+  call s:test_save_quit_pair('force_quit_vs_zq', 'force_quit_vs_zq', [':q!', 'ZQ'])
 endfunction
 
 " switch_mode_to_X atomics — each is a 2-cell {Normal, target} pinpoint.
@@ -1612,8 +1612,8 @@ call s:test_insert_before_after_char_start_end_line()
 call s:test_insert_line_above_below()
 call s:test_save_vs_quit()
 call s:test_save_quit_vs_force_quit()
-call s:test_save_quit_ex_vs_normal_zz()
-call s:test_force_quit_ex_vs_normal_zq()
+call s:test_save_quit_vs_zz()
+call s:test_force_quit_vs_zq()
 call s:test_undo_redo()
 call s:test_switch_mode_to_insert()
 call s:test_switch_mode_to_visual()

@@ -1,12 +1,12 @@
 " Fixture editing pinpoint (kind=editing). Items pulled from
 " g:vf_fixture_editing_items; index in g:vf_fixture_editing_idx.
 
-function! vimfluency#pinpoints#pTEST_editing#meta() abort
-  return {'id': 'TEST.editing', 'name': 'fixture editing',
+function! vimfluency#pinpoints#fixture_editing#meta() abort
+  return {'id': 'fixture_editing', 'name': 'fixture editing',
     \ 'aim': 30, 'allowed_keys': 'dwbe', 'kind': 'editing'}
 endfunction
 
-function! vimfluency#pinpoints#pTEST_editing#generate() abort
+function! vimfluency#pinpoints#fixture_editing#generate() abort
   let items = get(g:, 'vf_fixture_editing_items', [])
   if empty(items)
     return {'lines': ['hello world'], 'target_lines': ['world'],

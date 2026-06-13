@@ -6,12 +6,12 @@
 " Only loaded when tests/fixtures is on the runtimepath, so this never
 " pollutes a real :VfList.
 
-function! vimfluency#pinpoints#pTEST_motion#meta() abort
-  return {'id': 'TEST.motion', 'name': 'fixture motion',
+function! vimfluency#pinpoints#fixture_motion#meta() abort
+  return {'id': 'fixture_motion', 'name': 'fixture motion',
     \ 'aim': 60, 'allowed_keys': 'hjklwbe'}
 endfunction
 
-function! vimfluency#pinpoints#pTEST_motion#generate() abort
+function! vimfluency#pinpoints#fixture_motion#generate() abort
   let items = get(g:, 'vf_fixture_items', [])
   if empty(items)
     return {'lines': ['abcdefghij'], 'start': [1,1], 'target': [1,3],

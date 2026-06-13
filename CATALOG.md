@@ -48,8 +48,8 @@ is the source of truth for *what's actually shipped*.
 | `insert_line_above_below` | Open new line (`o`, `O`) — type a short payload on the new line | Mode | 40 | — |
 | `save_vs_quit` | Discriminate `:w` vs `:q` | Disc | 40 | — |
 | `save_quit_vs_force_quit` | Discriminate `:wq` vs `:q!` | Disc | 35 | — |
-| `save_quit_ex_vs_normal_zz` | Discriminate `:wq` vs `ZZ` (Ex vs normal-mode) | Disc | 35 | — |
-| `force_quit_ex_vs_normal_zq` | Discriminate `:q!` vs `ZQ` (Ex vs normal-mode) | Disc | 35 | — |
+| `save_quit_vs_zz` | Discriminate `:wq` vs `ZZ` (Ex vs normal-mode) | Disc | 35 | — |
+| `force_quit_vs_zq` | Discriminate `:q!` vs `ZQ` (Ex vs normal-mode) | Disc | 35 | — |
 | `undo_redo` | Undo / redo (`u`, `Ctrl-r`) | S→K | 50 | — |
 
 ## Motion family

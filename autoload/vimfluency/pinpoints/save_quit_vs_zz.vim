@@ -1,4 +1,4 @@
-" save_quit_ex_vs_normal_zz — Discriminate :wq vs ZZ. Same effect
+" save_quit_vs_zz — Discriminate :wq vs ZZ. Same effect
 " (save and quit), different syntax. The Goal text declares which
 " form the learner should use — minimal pair:
 "   :wq  →  'save and quit Ex mode'
@@ -11,8 +11,8 @@ let s:GOALS = {
 
 let s:CMDS = [':wq', 'ZZ']
 
-function! vimfluency#pinpoints#save_quit_ex_vs_normal_zz#meta() abort
-  return {'id': 'save_quit_ex_vs_normal_zz', 'name': 'save & quit, Ex vs normal (:wq / ZZ)',
+function! vimfluency#pinpoints#save_quit_vs_zz#meta() abort
+  return {'id': 'save_quit_vs_zz', 'name': 'save & quit, Ex vs normal (:wq / ZZ)',
     \ 'aim': 35, 'allowed_keys': ':wqZ', 'kind': 'command',
     \ 'prereqs': [], 'keys': ':wq/ZZ', 'family': 'survival',
     \ 'test_sequence': [':wq', 'ZZ']}
@@ -22,7 +22,7 @@ function! s:rand(n) abort
   return rand() % a:n
 endfunction
 
-function! vimfluency#pinpoints#save_quit_ex_vs_normal_zz#generate() abort
+function! vimfluency#pinpoints#save_quit_vs_zz#generate() abort
   let cmd = s:CMDS[s:rand(len(s:CMDS))]
   return {
     \ 'lines': [],
@@ -36,7 +36,7 @@ function! vimfluency#pinpoints#save_quit_ex_vs_normal_zz#generate() abort
     \ }
 endfunction
 
-function! vimfluency#pinpoints#save_quit_ex_vs_normal_zz#lesson() abort
+function! vimfluency#pinpoints#save_quit_vs_zz#lesson() abort
   let snippet = vimfluency#scenarios#snippet()
   return [
     \ {'kind': 'show', 'lines': [], 'cursor': [1, 1],

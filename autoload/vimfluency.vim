@@ -221,6 +221,8 @@ let s:LEGACY_IDS = {
   \ 'move_to_till_forward_backward':      'move_to_vs_till_forward_backward',
   \ 'move_to_till_forward_in_words':      'move_to_vs_till_forward_in_words',
   \ 'move_to_till_backward_in_words':     'move_to_vs_till_backward_in_words',
+  \ 'save_quit_ex_vs_normal_zz':          'save_quit_vs_zz',
+  \ 'force_quit_ex_vs_normal_zq':         'force_quit_vs_zq',
   \ }
 
 " Map a possibly-renamed drill id to its current slug.
@@ -574,7 +576,7 @@ let s:FAMILY_NAMES = [
   \ ['yank',              'Yank'],
   \ ['paste',             'Paste'],
   \ ['indent',            'Indent'],
-  \ ['text-object-recall', 'Text objects (recall, legacy)'],
+  \ ['text-object-recall', 'Text objects'],
   \ ]
 
 " Read sessions.jsonl once, return {pinpoint_id → list of records}.

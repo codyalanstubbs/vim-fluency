@@ -72,7 +72,7 @@ function! s:test_no_motion_count_inflation() abort
     \ {'lines': ['abcdefghij'], 'start': [1,1], 'target': [1,3],
     \  'expected_motion': 'l', 'optimal_motions': 2},
     \ ])
-  call vimfluency#start('TEST.motion', s:dur)
+  call vimfluency#start('fixture_motion', s:dur)
   call s:move_item(1, 2)
   call s:move_item(1, 3)
   call s:move_item(1, 4)
@@ -99,7 +99,7 @@ function! s:test_wrong_motion_free_operant() abort
     \  'start': [2,5], 'target': [2,7],
     \  'expected_motion': 'l', 'optimal_motions': 2},
     \ ])
-  call vimfluency#start('TEST.motion', s:dur)
+  call vimfluency#start('fixture_motion', s:dur)
   let st = vimfluency#_test_state()
   call s:move_item(3, 5)
   call AssertEq(st.items_correct, 0,
@@ -127,7 +127,7 @@ function! s:test_tab_skip() abort
     \ {'lines': ['abcdefghij'], 'start': [1,1], 'target': [1,3],
     \  'expected_motion': 'l', 'optimal_motions': 2},
     \ ])
-  call vimfluency#start('TEST.motion', s:dur)
+  call vimfluency#start('fixture_motion', s:dur)
   call Assert(!empty(maparg('<Tab>', 'n')),
     \ 'runner: <Tab> mapping installed on training buffer')
   call vimfluency#_test_skip()
@@ -146,7 +146,7 @@ function! s:test_per_motion_accounting() abort
     \  'start': [3,1], 'target': [2,1],
     \  'expected_motion': 'k', 'optimal_motions': 1},
     \ ])
-  call vimfluency#start('TEST.motion', s:dur)
+  call vimfluency#start('fixture_motion', s:dur)
   call s:move_item(1, 2)
   call s:move_item(1, 3)
   call s:move_item(2, 1)
@@ -178,7 +178,7 @@ function! s:test_editing_kind() abort
     \  'deletion_range': [[1,1,6]],
     \  'prompt': 'delete first word'},
     \ ])
-  call vimfluency#start('TEST.editing', s:dur)
+  call vimfluency#start('fixture_editing', s:dur)
   call s:edit_line(1, 1, 'world')
   let st = vimfluency#_test_state()
   call AssertEq(st.items_correct, 1, 'runner: editing dw credits item')
@@ -195,7 +195,7 @@ function! s:test_stop_persists_jsonl() abort
     \ {'lines': ['abcdefghij'], 'start': [1,1], 'target': [1,3],
     \  'expected_motion': 'l', 'optimal_motions': 2},
     \ ])
-  call vimfluency#start('TEST.motion', s:dur)
+  call vimfluency#start('fixture_motion', s:dur)
   call s:move_item(1, 2)
   call s:move_item(1, 3)
   call vimfluency#stop('test_persist')
@@ -205,7 +205,7 @@ function! s:test_stop_persists_jsonl() abort
   let raw = readfile(log)
   call Assert(!empty(raw), 'runner: sessions.jsonl has lines')
   let rec = json_decode(raw[-1])
-  call AssertEq(rec.pinpoint_id, 'TEST.motion',
+  call AssertEq(rec.pinpoint_id, 'fixture_motion',
     \ 'runner: record pinpoint_id')
   call AssertEq(rec.items_correct, 1,
     \ 'runner: record items_correct')
@@ -237,7 +237,7 @@ function! s:test_event_stream_motion() abort
     \ {'lines': ['abcdefghij'], 'start': [1,1], 'target': [1,4],
     \  'expected_motion': 'l', 'optimal_motions': 3},
     \ ])
-  call vimfluency#start('TEST.motion', s:dur)
+  call vimfluency#start('fixture_motion', s:dur)
   call s:move_item(1, 2)
   call s:move_item(1, 3)
   call s:move_item(1, 4)
@@ -282,7 +282,7 @@ function! s:test_event_stream_editing() abort
     \  'expected_motion': 'rx', 'optimal_motions': 2,
     \  'prompt': 'replace a with x'},
     \ ])
-  call vimfluency#start('TEST.editing', s:dur)
+  call vimfluency#start('fixture_editing', s:dur)
   " Type x into the buffer (replaces 'a' with 'x') to trigger a text event.
   call s:edit_line(1, 1, 'xbc')
 
@@ -320,7 +320,7 @@ function! s:test_visual_motion_mode_gate() abort
     \  'expected_motion': 'vl', 'optimal_motions': 2},
     \ ]
   let g:vf_fixture_visual_idx = 0
-  call vimfluency#start('TEST.visual_motion', s:dur)
+  call vimfluency#start('fixture_visual_motion', s:dur)
   " Cursor at the expected selection END position. In batch mode we
   " are NOT in visual mode (mode(1) returns 'cv', not 'v'), so the
   " mode gate in s:on_change should prevent credit.
