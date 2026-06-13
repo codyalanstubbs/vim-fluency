@@ -4,8 +4,8 @@
 " word motion. Everything else (find char, deletes, indent, etc.) is
 " left for a follow-on path.
 "
-" When `path_pinpoint_ids` lists an id that isn't in the registry
-" (e.g. a planned-but-not-shipped pinpoint or an id this path
+" When `path_drill_ids` lists an id that isn't in the registry
+" (e.g. a planned-but-not-shipped drill or an id this path
 " predates), s:filter_registry_by_path silently drops it — so the
 " path stays correct under rename / removal churn without
 " requiring a coordinated edit.
@@ -15,7 +15,7 @@ function! vimfluency#paths#foundational#meta() abort
     \ 'name': 'Foundational',
     \ 'description': 'Survival skills + basic motion — where every learner starts.',
     \ 'include_all': 0,
-    \ 'pinpoint_ids': [
+    \ 'drill_ids': [
     \   'switch_mode_to_insert',
     \   'switch_mode_to_visual',
     \   'switch_mode_to_replace',

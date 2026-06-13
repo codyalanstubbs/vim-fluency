@@ -1,43 +1,45 @@
 # Contributing
 
-Vim Fluency accepts pinpoint contributions, bug fixes, and doc
-improvements. Pinpoints are the interesting one — they have a review
+Vim Fluency accepts drill contributions, bug fixes, and doc
+improvements. Drills are the interesting one — they have a review
 gate that most projects don't, so read this before writing code.
 
-("Pinpoint" is the Precision Teaching term for a precisely specified
-behavior to measure — it's the internal name for what the UI calls a
-drill.)
+(A drill targets one precisely specified behavior — what Precision
+Teaching calls a *pinpoint*. This project used that term internally
+before standardizing on "drill"; it survives only in the legacy
+`pinpoint_id` / `pinpoint_name` fields of old session-log lines, still
+read for back-compat.)
 
 ## The cheat-analysis gate
 
-Every training item a pinpoint generates must make the **intended
+Every training item a drill generates must make the **intended
 motion the strictly shortest path** to the target. Not "a reasonable
 path" — the strictly shortest one. If a learner can reach the target
 with fewer or equally many keystrokes using a *different* motion, the
 drill silently trains the wrong behavior and its measurements lie.
 
-So every pinpoint starts with a **cheat analysis**: enumerate what a
+So every drill starts with a **cheat analysis**: enumerate what a
 learner could press *instead* of the intended motion, then constrain
 the generated content (alphabet, line layout, target distance, start
 position) until every alternative is strictly longer. The analysis is
-documented as a comment block at the top of the pinpoint file.
+documented as a comment block at the top of the drill file.
 
-**This is a merge gate, not a suggestion.** A pinpoint whose intended
+**This is a merge gate, not a suggestion.** A drill whose intended
 motion isn't strictly shortest doesn't get merged — the content gets
-revised until it is, or the pinpoint is rejected. Reviewers will probe
+revised until it is, or the drill is rejected. Reviewers will probe
 your generated items with alternative motions. Visual aesthetics are
 negotiable (some defended alphabets look like soup — intentionally);
-pinpoint integrity is not.
+drill integrity is not.
 
 Worked examples to study before writing your own:
 
-- `autoload/vimfluency/pinpoints/move_single_char_up_down_left_right.vim`
-- `autoload/vimfluency/pinpoints/move_to_word_start_forward_backward.vim`
-- `autoload/vimfluency/pinpoints/visual_select_single_char_left_right.vim`
+- `autoload/vimfluency/drills/move_single_char_up_down_left_right.vim`
+- `autoload/vimfluency/drills/move_to_word_start_forward_backward.vim`
+- `autoload/vimfluency/drills/visual_select_single_char_left_right.vim`
 
-## Pinpoint contribution flow
+## Drill contribution flow
 
-1. **Proposal issue first.** Open a "Pinpoint proposal" issue (there's
+1. **Proposal issue first.** Open a "Drill proposal" issue (there's
    a template). It captures the proposed slug, the behavior trained,
    prereqs, why it isn't redundant with the existing catalog, and a
    draft cheat analysis. Settle the design in the issue before writing
@@ -50,14 +52,14 @@ Worked examples to study before writing your own:
 
 ## Implementation requirements
 
-A pinpoint is one file: `autoload/vimfluency/pinpoints/<slug>.vim`.
+A drill is one file: `autoload/vimfluency/drills/<slug>.vim`.
 The slug is descriptive snake_case starting with a letter
 (`move_single_char_left_right`, `save_vs_quit`) — it's both the
 filename minus `.vim` and what users type after `:Vf`.
 
 - `meta()` returns `id` (= the slug), `name`, `aim`, `family`,
   `prereqs`, `allowed_keys` (advisory documentation only — the runner
-  doesn't enforce it), and `test_sequence`. See `:help vf-pinpoints`.
+  doesn't enforce it), and `test_sequence`. See `:help vf-drills`.
 - `generate()` returns one item including `expected_motion` (the
   canonical answer) and `optimal_motions` (expert keystroke count) —
   per-motion measurement depends on both being right.
@@ -92,7 +94,7 @@ behavior should come with coverage there or in `smoke_nvim.sh`.
 
 ## What contributors get
 
-Attribution in the pinpoint file header, your pinpoint's rate
+Attribution in the drill file header, your drill's rate
 distributions on the public dashboard once community data exists, and
 credit on the vimfluency.com contributors page. Not money — honestly,
 from day one. If that ever changes, the structure will be designed

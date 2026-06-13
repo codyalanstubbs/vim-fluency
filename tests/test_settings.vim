@@ -1,4 +1,4 @@
-" Tests for user settings — per-pinpoint aim overrides + global default
+" Tests for user settings — per-drill aim overrides + global default
 " duration. Both live in $XDG_DATA_HOME/vimfluency/settings.json and
 " thread through s:effective_aim / s:effective_duration. Tests point
 " $XDG_DATA_HOME at a tempdir so the user's real settings file is
@@ -10,7 +10,7 @@ let $XDG_DATA_HOME = s:tmp
 
 " -- effective_aim / effective_duration with no settings file --
 "
-" A fresh install (no settings.json) returns the pinpoint's meta.aim
+" A fresh install (no settings.json) returns the drill's meta.aim
 " and the 60s default duration. Nothing on disk yet at this point.
 let s:meta = {'aim': 50}
 call AssertEq(vimfluency#_test_effective_aim('foo', s:meta), 50,
@@ -28,7 +28,7 @@ call writefile([json_encode(s:settings)], s:tmp . '/vimfluency/settings.json')
 call AssertEq(vimfluency#_test_effective_aim('foo', s:meta), 75,
   \ 'effective_aim: override wins over meta.aim')
 call AssertEq(vimfluency#_test_effective_aim('bar', s:meta), 50,
-  \ 'effective_aim: pinpoint NOT in overrides → falls back to meta.aim')
+  \ 'effective_aim: drill NOT in overrides → falls back to meta.aim')
 call AssertEq(vimfluency#_test_effective_duration(), 90,
   \ 'effective_duration: default_duration override applied')
 
@@ -44,7 +44,7 @@ call AssertEq(vimfluency#_test_effective_duration(), 60,
 
 " -- the asterisk shows up in the rendered VfList row --
 "
-" When a pinpoint has an aim override, its row's aim field carries a
+" When a drill has an aim override, its row's aim field carries a
 " trailing '*'; rows without an override end with a space so all values
 " right-align to the same col.
 call delete(s:tmp . '/vimfluency/settings.json')
@@ -73,7 +73,7 @@ call Assert(s:bar_row =~# '50/min ',
 " meta.aim are equal.
 let s:av = vimfluency#_test_build_list_view(s:reg, {}, {}, 'aim', 0)
 let s:order = []
-for s:row in s:av.pinpoint_rows
+for s:row in s:av.drill_rows
   call add(s:order, s:av.mapping[s:row])
 endfor
 call AssertEq(s:order, ['bar', 'foo'],
@@ -86,8 +86,8 @@ call delete(s:tmp . '/vimfluency/settings.json')
 "
 " Renamed drill slugs keep working: vimfluency#canonical_id maps old →
 " new, aim overrides stored under an old id migrate on load, and
-" session records logged under an old pinpoint_id group under the new
-" id at read time. The JSONL log is never rewritten.
+" session records logged under an old id group under the new id at
+" read time. The JSONL log is never rewritten.
 call AssertEq(vimfluency#canonical_id('switch_btwn_many_modes'),
   \ 'switch_between_many_modes',
   \ 'canonical_id: renamed slug maps to current slug')
@@ -116,13 +116,24 @@ call AssertEq(vimfluency#_test_effective_aim('move_to_line_edges_start_end', s:m
   \ 'aims migration: override under new id wins over old-id override')
 call delete(s:tmp . '/vimfluency/settings.json')
 
-" Session records logged under the old id are visible under the new id.
+" A record written by an OLD version — the pre-rename pinpoint_id /
+" pinpoint_name field names AND an old slug — must still group under
+" the current id. Exercises both back-compat dimensions at once
+" (s:rec_id resolves field rename then slug rename).
 let s:old_rec = {'pinpoint_id': 'move_to_line_edges_beginning_end',
   \ 'pinpoint_name': 'line edges (0 / $)', 'timestamp': '2026-06-01T12:00:00',
   \ 'frequency_per_min': 42}
 call writefile([json_encode(s:old_rec)], s:tmp . '/vimfluency/sessions.jsonl')
-call Assert(vimfluency#_test_pinpoint_has_sessions('move_to_line_edges_start_end'),
-  \ 'sessions remap: old-id record groups under the new id')
-call Assert(!vimfluency#_test_pinpoint_has_sessions('move_to_line_edges_beginning_end'),
+call Assert(vimfluency#_test_drill_has_sessions('move_to_line_edges_start_end'),
+  \ 'sessions remap: legacy pinpoint_id record groups under the new id')
+call Assert(!vimfluency#_test_drill_has_sessions('move_to_line_edges_beginning_end'),
   \ 'sessions remap: nothing left grouped under the old id')
+
+" A record using the new drill_id field but a current slug also works
+" (the common go-forward case).
+let s:new_rec = {'drill_id': 'save_vs_quit', 'drill_name': 'save vs quit',
+  \ 'timestamp': '2026-06-02T12:00:00', 'frequency_per_min': 50}
+call writefile([json_encode(s:new_rec)], s:tmp . '/vimfluency/sessions.jsonl')
+call Assert(vimfluency#_test_drill_has_sessions('save_vs_quit'),
+  \ 'sessions: current drill_id field record groups correctly')
 call delete(s:tmp . '/vimfluency/sessions.jsonl')

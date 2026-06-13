@@ -1,4 +1,4 @@
-" Property tests over each pinpoint's meta(). Asserts the contract:
+" Property tests over each drill's meta(). Asserts the contract:
 " id, name, aim, allowed_keys, prereqs are all present and well-typed.
 " The :VfList navigator relies on prereqs to compute eligibility (now
 " diagnostic, not gating) — a missing field is a runtime hazard, not
@@ -61,12 +61,12 @@ let s:expected = [
   \               'visual_select_single_char_up_down']},
   \ ]
 
-let s:registry = vimfluency#discover_pinpoints()
+let s:registry = vimfluency#discover_drills()
 
 for s:e in s:expected
   let s:prefix = 'meta[' . s:e.id . ']: '
   call Assert(has_key(s:registry, s:e.id),
-    \ s:prefix . 'pinpoint discovered by runtime')
+    \ s:prefix . 'drill discovered by runtime')
   if !has_key(s:registry, s:e.id) | continue | endif
   let s:m = s:registry[s:e.id]
   call Assert(has_key(s:m, 'id'),           s:prefix . 'has id')

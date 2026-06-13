@@ -1,10 +1,10 @@
-" Shared scenario assets for the save / quit family. Each pinpoint
+" Shared scenario assets for the save / quit family. Each drill
 " in that family calls these helpers to render a realistic buffer
 " snippet with a single comment line at the top stating the goal.
 "
-" Why this lives outside autoload/vimfluency/pinpoints/: pinpoint
+" Why this lives outside autoload/vimfluency/drills/: drill
 " discovery globs that subdirectory and any file there is treated
-" as a pinpoint. Shared utilities belong one level up.
+" as a drill. Shared utilities belong one level up.
 
 " Snippet pool. Each entry pairs a list of buffer lines with the
 " language-appropriate comment prefix that the renderer uses for

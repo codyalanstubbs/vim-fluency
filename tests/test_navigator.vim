@@ -55,8 +55,8 @@ call AssertEq(
 " -- s:unmet_prereqs --
 "
 " Under the slug-based ID scheme each prereq references a specific
-" pinpoint by slug. If the prereq isn't in the registry, it counts
-" as satisfied (you can't be blocked by an unbuilt pinpoint).
+" drill by slug. If the prereq isn't in the registry, it counts
+" as satisfied (you can't be blocked by an unbuilt drill).
 
 let s:registry = {
   \ 'hjkl':           {'id': 'hjkl',           'name': 'hjkl',         'aim': 60, 'prereqs': []},
@@ -83,11 +83,11 @@ let s:u_c = vimfluency#_test_unmet_prereqs(s:registry['till_char'], s:registry, 
 call AssertEq(s:u_c, ['find_char'],
   \ 'unmet_prereqs: till_char blocked when find_char not at aim')
 
-" Case D: prereq names a pinpoint not yet in the registry — satisfied vacuously.
+" Case D: prereq names a drill not yet in the registry — satisfied vacuously.
 let s:vacuous = {'id': 'novel', 'name': 'novel', 'aim': 30, 'prereqs': ['not_yet_built']}
 let s:u_d = vimfluency#_test_unmet_prereqs(s:vacuous, s:registry, s:status)
 call AssertEq(s:u_d, [],
-  \ 'unmet_prereqs: prereq satisfied vacuously when pinpoint not in registry')
+  \ 'unmet_prereqs: prereq satisfied vacuously when drill not in registry')
 
 " -- s:per_motion_from_sessions --
 
@@ -118,8 +118,8 @@ call AssertEq(s:pm_recent, {'w': 50.0},
 
 " -- render_list smoke test --
 "
-" Family grouping: each pinpoint's `family` field determines the
-" section it appears in; family-less pinpoints fall into the 'other'
+" Family grouping: each drill's `family` field determines the
+" section it appears in; family-less drills fall into the 'other'
 " bucket.
 
 function! s:sess_pm(date, rate, pm) abort
@@ -181,7 +181,7 @@ for s:l in s:view.lines
   if s:l =~# '^ [▶✓○] line_edges\>' | let s:le_row = s:l | break | endif
 endfor
 call Assert(s:le_row =~# '^ ▶ line_edges',
-  \ 'render_list: climbing pinpoint leads with the ▶ bullet')
+  \ 'render_list: climbing drill leads with the ▶ bullet')
 call Assert(s:le_row !~# '\<climbing\>',
   \ 'render_list: status word does not appear inline on data rows')
 
@@ -214,7 +214,7 @@ for s:l in s:view.lines
   endif
 endfor
 call AssertEq(len(s:aim_cols), 1,
-  \ 'render_list: aim_rate column aligned across all pinpoint rows')
+  \ 'render_list: aim_rate column aligned across all drill rows')
 
 " Foundational-first ordering within a family: word_motions (depth 1,
 " prereq line_edges) renders after the depth-0 motions it builds on.
@@ -226,7 +226,7 @@ function! s:nav_line_idx(lines, pat) abort
 endfunction
 call Assert(s:nav_line_idx(s:view.lines, '^ [▶✓○] line_edges\>')
   \ < s:nav_line_idx(s:view.lines, '^ [▶✓○] word_motions\>'),
-  \ 'render_list: deeper-prereq pinpoint sorts after its prereq within family')
+  \ 'render_list: deeper-prereq drill sorts after its prereq within family')
 
 " -- expanded breakdown (B toggle) --
 "
@@ -246,7 +246,7 @@ call Assert(s:erendered =~# '✓ h\s\+80/min\s\+1\s\+80/min',
 call Assert(s:erendered =~# '✓ l\s\+60/min\s\+1\s\+60/min',
   \ 'render_list expanded: l command row with stroke_count + stroke_rate')
 call Assert(s:erendered !~# '├ prereqs:\|└ prereqs:',
-  \ 'render_list expanded: no prereqs sub-block when pinpoint has no prereqs')
+  \ 'render_list expanded: no prereqs sub-block when drill has no prereqs')
 
 " word_motions has line_edges as a prereq AND no session data. Expansion
 " shows ONLY the prereqs sub-block (no commands), closed with └. Prereq
@@ -264,7 +264,7 @@ call Assert(s:wrendered !~# '└ commands:\|├ commands:',
 
 " -- column sort --
 "
-" Fixture for sort tests: 4 pinpoints with different aims so order is
+" Fixture for sort tests: 4 drills with different aims so order is
 " observable. Two share the same aim to verify tiebreaker stability.
 let s:sort_reg = {
   \ 'foundation_a': {'id': 'foundation_a', 'name': 'a', 'aim': 60,
@@ -278,10 +278,10 @@ let s:sort_reg = {
   \ }
 let s:sort_sess = {}
 
-" Helper: list of pinpoint slugs in the rendered order.
-function! s:nav_pinpoint_order(view) abort
+" Helper: list of drill slugs in the rendered order.
+function! s:nav_drill_order(view) abort
   let out = []
-  for row in a:view.pinpoint_rows
+  for row in a:view.drill_rows
     call add(out, a:view.mapping[row])
   endfor
   return out
@@ -290,7 +290,7 @@ endfunction
 " Default sort: family curated order (survival, motion, delete) then
 " depth then alpha. No ▲/▼ marker.
 let s:dview = vimfluency#_test_build_list_view(s:sort_reg, s:sort_sess)
-call AssertEq(s:nav_pinpoint_order(s:dview),
+call AssertEq(s:nav_drill_order(s:dview),
   \ ['foundation_a', 'foundation_b', 'mid', 'top'],
   \ 'sort default: family → depth → slug')
 call Assert(join(s:dview.lines, "\n") !~# '[▲▼]',
@@ -298,7 +298,7 @@ call Assert(join(s:dview.lines, "\n") !~# '[▲▼]',
 
 " Sort by aim ascending: 40, 60, 60, 80 — ties broken by family/depth/slug.
 let s:av = vimfluency#_test_build_list_view(s:sort_reg, s:sort_sess, {}, 'aim', 0)
-call AssertEq(s:nav_pinpoint_order(s:av),
+call AssertEq(s:nav_drill_order(s:av),
   \ ['top', 'foundation_a', 'foundation_b', 'mid'],
   \ 'sort aim asc: 40 → 60 (tie: family then slug) → 80')
 call Assert(join(s:av.lines, "\n") =~# 'aim \+▲',
@@ -307,7 +307,7 @@ call Assert(join(s:av.lines, "\n") =~# 'aim \+▲',
 " Sort by aim descending: 80, 60, 60, 40 — tiebreaker stays asc so
 " two-60s order doesn't flip from the asc case.
 let s:dv = vimfluency#_test_build_list_view(s:sort_reg, s:sort_sess, {}, 'aim', 1)
-call AssertEq(s:nav_pinpoint_order(s:dv),
+call AssertEq(s:nav_drill_order(s:dv),
   \ ['mid', 'foundation_a', 'foundation_b', 'top'],
   \ 'sort aim desc: 80 → 60s (tiebreaker stays asc) → 40')
 call Assert(join(s:dv.lines, "\n") =~# 'aim \+▼',
@@ -315,31 +315,31 @@ call Assert(join(s:dv.lines, "\n") =~# 'aim \+▼',
 
 " Cursor preservation contract (under-test via row-index math):
 " two views with the same fixture but different sort orders share the
-" same pinpoint_rows LENGTH (one main row per pinpoint, no breakdowns
+" same drill_rows LENGTH (one main row per drill, no breakdowns
 " here). So the cursor's Nth-row index translates cleanly between
 " sorts, and the slug at row N is expected to change.
-call AssertEq(len(s:av.pinpoint_rows), len(s:dv.pinpoint_rows),
-  \ 'sort: pinpoint_rows length is invariant across sorts')
-call Assert(s:av.mapping[s:av.pinpoint_rows[0]]
-  \ !=# s:dv.mapping[s:dv.pinpoint_rows[0]],
-  \ 'sort: row 0 carries a different pinpoint across asc/desc')
+call AssertEq(len(s:av.drill_rows), len(s:dv.drill_rows),
+  \ 'sort: drill_rows length is invariant across sorts')
+call Assert(s:av.mapping[s:av.drill_rows[0]]
+  \ !=# s:dv.mapping[s:dv.drill_rows[0]],
+  \ 'sort: row 0 carries a different drill across asc/desc')
 
 " Sort by prereqs_n asc: 0, 0, 1, 2.
 let s:depth_v = vimfluency#_test_build_list_view(s:sort_reg, s:sort_sess, {}, 'prereqs_n', 0)
-call AssertEq(s:nav_pinpoint_order(s:depth_v),
+call AssertEq(s:nav_drill_order(s:depth_v),
   \ ['foundation_a', 'foundation_b', 'mid', 'top'],
   \ 'sort prereqs_n asc: 0s first, then 1, then 2')
 
 " Reset (col=''): same order as default, no marker.
 let s:rv = vimfluency#_test_build_list_view(s:sort_reg, s:sort_sess, {}, '', 0)
-call AssertEq(s:nav_pinpoint_order(s:rv), s:nav_pinpoint_order(s:dview),
+call AssertEq(s:nav_drill_order(s:rv), s:nav_drill_order(s:dview),
   \ 'sort reset: empty col reproduces the default order')
 call Assert(join(s:rv.lines, "\n") !~# '[▲▼]',
   \ 'sort reset: no marker in header')
 
 " -- sessions_count excludes zero-rate quits --
 "
-" A pinpoint with 2 usable sessions plus a 0-rate quit shows
+" A drill with 2 usable sessions plus a 0-rate quit shows
 " sessions_count = 2, not 3. Keeps the column consistent with
 " previous_rate / previous_session, which both read from the most
 " recent NON-ZERO session.
@@ -366,7 +366,7 @@ call Assert(s:zq_row =~# '\s\+45/min\s\+2026-01-02\s\+2\s\+motion',
 
 " -- stroke_counts override --
 "
-" A pinpoint can declare per-command stroke counts in meta() to
+" A drill can declare per-command stroke counts in meta() to
 " override the derived count. The breakdown uses the declared value
 " verbatim, and stroke_rate = last_rate / declared_count.
 let s:override_reg = {
@@ -385,14 +385,14 @@ call Assert(s:orendered =~# 'leader_w\s\+14/min\s\+7\s\+2/min',
 " -- coordinate map (interactive :VfList) --
 "
 " The view emits its own line→id map (no re-parsing of formatted
-" text). Each pinpoint row maps to its id; family headers, blank
+" text). Each drill row maps to its id; family headers, blank
 " lines, and the footer have no mapping entries. The separate
-" `pinpoint_rows` list — used by j/k navigation — contains only MAIN
+" `drill_rows` list — used by j/k navigation — contains only MAIN
 " rows, sorted ascending.
 
 let s:lines_for_map = s:view.lines
 let s:line_map = s:view.mapping
-let s:pp_rows = s:view.pinpoint_rows
+let s:pp_rows = s:view.drill_rows
 
 " Every registry id appears in the map at least once.
 let s:ids_in_map = {}
@@ -412,20 +412,20 @@ for s:i in range(len(s:lines_for_map))
     break
   endif
 endfor
-call Assert(s:row_hjkl > 0, 'line_map: hjkl pinpoint row found')
+call Assert(s:row_hjkl > 0, 'line_map: hjkl drill row found')
 call AssertEq(get(s:line_map, s:row_hjkl, ''), 'hjkl',
   \ 'line_map: hjkl row maps to "hjkl"')
 
-" pinpoint_rows: one entry per registry pinpoint, sorted ascending.
+" drill_rows: one entry per registry drill, sorted ascending.
 " Default (collapsed) view has no breakdown rows.
 call AssertEq(len(s:pp_rows), len(s:render_reg),
-  \ 'pinpoint_rows: one entry per registry pinpoint')
+  \ 'drill_rows: one entry per registry drill')
 let s:sorted = sort(copy(s:pp_rows), 'N')
 call AssertEq(s:pp_rows, s:sorted,
-  \ 'pinpoint_rows: sorted ascending')
+  \ 'drill_rows: sorted ascending')
 
 " In the EXPANDED view, breakdown rows map to the parent id but are
-" NOT in pinpoint_rows (j/k skips them).
+" NOT in drill_rows (j/k skips them).
 let s:erow_hjkl = -1
 for s:i in range(len(s:eview.lines))
   if s:eview.lines[s:i] =~# '^ [▶✓○] hjkl\>'
@@ -434,11 +434,11 @@ for s:i in range(len(s:eview.lines))
   endif
 endfor
 call AssertEq(get(s:eview.mapping, s:erow_hjkl + 1, ''), 'hjkl',
-  \ 'expanded: breakdown row inherits parent pinpoint id')
-call Assert(index(s:eview.pinpoint_rows, s:erow_hjkl + 1) == -1,
-  \ 'expanded: breakdown row excluded from pinpoint_rows')
-call Assert(index(s:eview.pinpoint_rows, s:erow_hjkl) >= 0,
-  \ 'expanded: hjkl main row still in pinpoint_rows')
+  \ 'expanded: breakdown row inherits parent drill id')
+call Assert(index(s:eview.drill_rows, s:erow_hjkl + 1) == -1,
+  \ 'expanded: breakdown row excluded from drill_rows')
+call Assert(index(s:eview.drill_rows, s:erow_hjkl) >= 0,
+  \ 'expanded: hjkl main row still in drill_rows')
 
 " Banner rows present, and don't carry mapping entries.
 let s:has_banner = 0
@@ -453,15 +453,15 @@ call Assert(s:has_banner, 'render_list: help banner present with B')
 " -- list_action pre-flight guards (bug #2) --
 "
 " list_action closes the list tab before dispatching, so Chart on a
-" pinpoint with no sessions and Learn on a pinpoint with no lesson
+" drill with no sessions and Learn on a drill with no lesson
 " must be caught BEFORE the close. These helpers back those guards.
-" (Real pinpoints are on the runtimepath; the session log points at a
+" (Real drills are on the runtimepath; the session log points at a
 " per-invocation temp dir that starts empty.)
 
-call AssertEq(vimfluency#_test_pinpoint_has_lesson('save_vs_quit'), 1,
-  \ 'has_lesson: a shipped pinpoint with a lesson() reports true')
-call AssertEq(vimfluency#_test_pinpoint_has_lesson('no_such_pinpoint'), 0,
+call AssertEq(vimfluency#_test_drill_has_lesson('save_vs_quit'), 1,
+  \ 'has_lesson: a shipped drill with a lesson() reports true')
+call AssertEq(vimfluency#_test_drill_has_lesson('no_such_drill'), 0,
   \ 'has_lesson: an unknown id reports false')
 
-call AssertEq(vimfluency#_test_pinpoint_has_sessions('no_such_pinpoint'), 0,
-  \ 'has_sessions: a pinpoint with no logged sessions reports false')
+call AssertEq(vimfluency#_test_drill_has_sessions('no_such_drill'), 0,
+  \ 'has_sessions: a drill with no logged sessions reports false')

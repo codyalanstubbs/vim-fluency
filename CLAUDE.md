@@ -25,80 +25,84 @@ Neovim-specific or Lua features — must run on every server you ssh into.
 ```
 plugin/vimfluency.vim                          commands + load guard
 autoload/vimfluency.vim                        runner (training + lesson + history + summary)
-autoload/vimfluency/pinpoints/<slug>.vim       one file per pinpoint
+autoload/vimfluency/drills/<slug>.vim       one file per drill
 doc/vimfluency.txt                             :help docs
 tests/                                  vim-headless test runner
 ```
 
-## Pinpoint contract
+## Drill contract
 
-Each `autoload/vimfluency/pinpoints/<slug>.vim` must export:
+Each `autoload/vimfluency/drills/<slug>.vim` must export:
 
-- `vimfluency#pinpoints#<slug>#meta()` → `{id, name, aim, allowed_keys, keys, prereqs}`
+- `vimfluency#drills#<slug>#meta()` → `{id, name, aim, allowed_keys, keys, prereqs}`
   (`allowed_keys` is advisory documentation of the intended key set —
   the runner never reads or enforces it, and encodings vary across
-  pinpoints; don't build logic on it without normalizing first.
+  drills; don't build logic on it without normalizing first.
   `keys` is the slash-separated display string of the drilled
   keystrokes, e.g. `'dl/dh'` — the runner reads it for the dashboard
   commands column and command sorting)
-- `vimfluency#pinpoints#<slug>#generate()` → `{lines, start, target, expected_motion, optimal_motions}`
-- `vimfluency#pinpoints#<slug>#lesson()` → list of show/try frames (optional)
+- `vimfluency#drills#<slug>#generate()` → `{lines, start, target, expected_motion, optimal_motions}`
+- `vimfluency#drills#<slug>#lesson()` → list of show/try frames (optional)
 
 `<slug>` is a descriptive snake_case id (e.g. `move_single_char_left_right`,
 `save_vs_quit`). The slug is the filename minus `.vim` and is the
 identifier the user types into `:Vf <id>`. Slug starts with a letter —
 no `p` prefix needed anymore (the old `p<ID>` tier-code names are gone).
 
-**Terminology note:** "pinpoint" is the internal/Precision-Teaching term
-(directory name, function namespace, JSONL `pinpoint_id`/`pinpoint_name`
-fields — do not rename those; the log fields are user data). All
-*user-facing* text (UI messages, statuslines, `:help`, README, CATALOG)
-says **drill** instead.
+**Terminology note:** "drill" is the name everywhere now — directory,
+function namespace (`vimfluency#drills#`), JSONL `drill_id`/`drill_name`
+fields, UI, and docs. The Precision Teaching term for the behavior a
+drill measures is a *pinpoint*; this project used it internally until
+it was renamed to "drill" project-wide. The only surviving trace is
+the legacy `pinpoint_id`/`pinpoint_name` log fields and the old slugs
+in `s:LEGACY_IDS`, both read for back-compat (see `s:rec_id` /
+`s:rec_name` and the "Renaming a drill slug" section). Never rewrite
+the on-disk log; the field/slug remap happens at read time.
 
-`prereqs` is a list of specific pinpoint slugs that must be at aim before
+`prereqs` is a list of specific drill slugs that must be at aim before
 drilling this one. No group/tier prefix matching — every entry names a
-real pinpoint by slug. Under the exhaustive-hierarchy framework, prereqs
+real drill by slug. Under the exhaustive-hierarchy framework, prereqs
 are *diagnostic, not gating* — `:VfList` surfaces them as suggestions
 ("your `delete_to_word_start_forward_backward` rate plateaued; drop back
 to `move_to_word_start_forward_backward`") rather than locking the
-learner out. A prereq that names a pinpoint not yet in the registry
+learner out. A prereq that names a drill not yet in the registry
 counts as satisfied (vacuous).
 
 Required `family` field: short identifier (`survival`, `motion`,
 `delete`, `change`, `yank`, `paste`, `v`, `indent`, `text-object-recall`,
-…) used by `:VfList` to group pinpoints visually. See
+…) used by `:VfList` to group drills visually. See
 [`.strategy/catalog-v2/verb-families.md`](.strategy/catalog-v2/verb-families.md)
 for the family taxonomy.
 
 Two optional structural-annotation fields formalize relationships across
-pinpoints (used by lessons for cross-reference; no impact on training
+drills (used by lessons for cross-reference; no impact on training
 behavior):
 
-- `narrower_of: '<id>'` — this pinpoint is a narrower sub-component of
-  the named broader pinpoint. Example: `move_single_char_left_right` has
+- `narrower_of: '<id>'` — this drill is a narrower sub-component of
+  the named broader drill. Example: `move_single_char_left_right` has
   `narrower_of: 'move_single_char_up_down_left_right'`. The broader form
   is the typical default drill; the narrower form is the fallback for
   learners who plateau on one axis specifically.
-- `parallel_to: ['<id>', ...]` — this pinpoint shares rule-statement
+- `parallel_to: ['<id>', ...]` — this drill shares rule-statement
   shape and matched lesson structure with the listed peers. Example:
   `move_to_word_start_forward_backward` is parallel-by-design with
-  `move_to_word_end_forward_backward`. Used to group related pinpoints
+  `move_to_word_end_forward_backward`. Used to group related drills
   visually and to let lessons reference their kin.
 
-Both fields default to absent / `[]`. Adding them to a pinpoint is
+Both fields default to absent / `[]`. Adding them to a drill is
 schema-additive — no runner work required to land them.
 
 ## Cheat-analysis discipline
 
-For every new pinpoint, work through what the learner could use *instead* of
+For every new drill, work through what the learner could use *instead* of
 the intended motion to reach the target. Adjust content (alphabet, line
 layout, target distance, start position) until the intended motion is
 **strictly the shortest path**. Document the analysis as comments at the top
-of the pinpoint file. See
-`autoload/vimfluency/pinpoints/move_single_char_up_down_left_right.vim`
+of the drill file. See
+`autoload/vimfluency/drills/move_single_char_up_down_left_right.vim`
 and `move_to_word_start_forward_backward.vim` for worked examples.
 
-Visual aesthetics are negotiable; pinpoint integrity is not. The
+Visual aesthetics are negotiable; drill integrity is not. The
 `move_to_word_start_forward_backward` vowel-heavy alphabet looks like
 soup — that's intentional.
 
@@ -114,7 +118,7 @@ minimum-1-line rule, leaving zero content rows. The runner's
 `getline(header_offset+1, '$')` returns `[]`, no match against `['']`, the
 frame never advances. See `delete_char_vs_line.vim` for a worked-around example: items
 use a 2-line buffer so any `dd` leaves a survivor line that satisfies the
-target check in either context. Future pinpoints that delete entire lines
+target check in either context. Future drills that delete entire lines
 should follow the same pattern.
 
 ## Per-motion tracking
@@ -125,7 +129,7 @@ accumulates per-motion rate, average actual motions, and total wasted motions
 (the SCC "errors" line). Summary shows per-motion breakdown with `← slow` and
 `← noisy` markers.
 
-`optimal_motions` formulas in current pinpoints:
+`optimal_motions` formulas in current drills:
 - `move_single_char_up_down_left_right`: manhattan distance
 - `move_to_line_edges_all`: constant 1
 - `move_to_word_start_forward_backward`, `move_to_word_end_forward_backward`:
@@ -160,13 +164,13 @@ accumulates per-motion rate, average actual motions, and total wasted motions
   has two phases: **setup** (the static frames returned from
   `lesson()`, where each motion is introduced and named in the
   prompt) followed by an automatic **test phase** (no code change
-  needed in the pinpoint — the runner does this for every lesson).
-  In the test phase the runner calls the pinpoint's `generate()` to
+  needed in the drill — the runner does this for every lesson).
+  In the test phase the runner calls the drill's `generate()` to
   produce novel items and shows them with a generic prompt ("Reach
   the target — figure out the motion"). The learner must apply the
   rule without being told the answer. Streak counter advances on
   first-try-correct (motion count ≤ optimal); resets on inefficient
-  reach. Each pinpoint declares `test_sequence` in meta — the cycle
+  reach. Each drill declares `test_sequence` in meta — the cycle
   of `expected_motion` values the test phase walks; required streak
   is 3 × len(test_sequence) (3 complete sequences). On reaching the
   streak the runner enters a `complete` phase and shows a
@@ -194,7 +198,7 @@ accumulates per-motion rate, average actual motions, and total wasted motions
 - For whitespace-sensitive motions (`$` vs `g_`), set
   `listchars=trail:·` in the lesson buffer so the difference is observable
 
-See `autoload/vimfluency/pinpoints/move_to_char_forward_backward.vim`
+See `autoload/vimfluency/drills/move_to_char_forward_backward.vim`
 for the active-introduction pattern; `move_to_line_edges_all.vim` for
 the whitespace-listchars pattern.
 
@@ -208,7 +212,7 @@ the whitespace-listchars pattern.
   `vf-dashboard-hover`, `vf-dashboard-last-session`
 
 (No standalone summary buffer anymore — sessions end by landing on the
-trained pinpoint's row in `:VfDashboard`.)
+trained drill's row in `:VfDashboard`.)
 
 **Avoid slashes** — vim's `pathshorten()` truncates path-like names when the
 tabline is cramped (`vimfluency://summary/1A.1` → `t//s/1A.1`).
@@ -224,7 +228,7 @@ the full items_log. View with `:VfHistory` or `jq` from the shell.
 
 `tests/run.sh` runs assertions vim-headless. Exits non-zero on failure.
 
-When adding a pinpoint, add property tests in `tests/test_generators.vim`
+When adding a drill, add property tests in `tests/test_generators.vim`
 covering its `optimal_motions` formula and `expected_motion` set.
 
 **Note:** `tests/test_runner.vim` is a 9-test runner integration suite.
@@ -239,11 +243,11 @@ streams, and the visual_motion mode gate. Caveat: vim's real
 deferred-autocmd timing is *simulated* (a manual CursorMoved fire at
 item-start position), not exercised natively.
 
-## Adding a new pinpoint (checklist)
+## Adding a new drill (checklist)
 
-1. Create `autoload/vimfluency/pinpoints/<slug>.vim`
+1. Create `autoload/vimfluency/drills/<slug>.vim`
 2. Define `meta()` with `id`, `name`, `aim` (starting guess), `allowed_keys`
-   (advisory only — see the pinpoint contract note), `keys`, `family`,
+   (advisory only — see the drill contract note), `keys`, `family`,
    `test_sequence`, and `kind`
 3. **Cheat analysis first** — document at top of file, then write `generate()`
 4. Include `expected_motion` and `optimal_motions` in the returned item
@@ -253,13 +257,13 @@ item-start position), not exercised natively.
 8. Run `tests/run.sh`
 9. Commit (no `Co-Authored-By: Claude` trailer; see auto-memory for this project)
 
-## Renaming a pinpoint slug
+## Renaming a drill slug
 
 Slugs are user data: they're typed into `:Vf` and stored as
-`pinpoint_id` in every JSONL session record. To rename one: `git mv`
-the file, update the three `vimfluency#pinpoints#<slug>#` function
+`drill_id` in every JSONL session record. To rename one: `git mv`
+the file, update the three `vimfluency#drills#<slug>#` function
 names and the meta `id`, update every in-repo reference (prereqs /
-`parallel_to` / `narrower_of` in sibling pinpoints, paths files,
+`parallel_to` / `narrower_of` in sibling drills, paths files,
 tests, CATALOG.md), and add an old → new entry to `s:LEGACY_IDS` in
 `autoload/vimfluency.vim`. The alias map canonicalizes old ids at
 every read path (commands, session log, aim overrides) so user
@@ -270,7 +274,7 @@ aliasing live at the bottom of `tests/test_settings.vim`.
 
 - All aim numbers are starting guesses. Calibration against real data is
   part of the actual research, not premature
-- Don't pre-create sub-pinpoints for "drill just this motion" — `:Vf <id> only=motion[,motion...]` exists for that
+- Don't pre-create sub-drills for "drill just this motion" — `:Vf <id> only=motion[,motion...]` exists for that
 - Don't add `Co-Authored-By: Claude` trailers to commits in this project
 
 ## Capturing learnings (marketing pipeline)

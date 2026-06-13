@@ -1,5 +1,5 @@
 " Runner integration tests. Drive the training state machine via cursor()
-" + doautocmd against fixture pinpoints, asserting on counters and state
+" + doautocmd against fixture drills, asserting on counters and state
 " transitions that generator-level tests can't observe.
 "
 " These tests exist because the 2026-04-30 motion-count regression
@@ -205,8 +205,8 @@ function! s:test_stop_persists_jsonl() abort
   let raw = readfile(log)
   call Assert(!empty(raw), 'runner: sessions.jsonl has lines')
   let rec = json_decode(raw[-1])
-  call AssertEq(rec.pinpoint_id, 'fixture_motion',
-    \ 'runner: record pinpoint_id')
+  call AssertEq(rec.drill_id, 'fixture_motion',
+    \ 'runner: record drill_id')
   call AssertEq(rec.items_correct, 1,
     \ 'runner: record items_correct')
   call AssertEq(rec.total_motions, 2,

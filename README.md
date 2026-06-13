@@ -67,7 +67,7 @@ JSONL appended to `$XDG_DATA_HOME/vimfluency/sessions.jsonl` (or `~/.local/share
 
 ## Adding a drill
 
-Internally a drill is called a "pinpoint" — the Precision Teaching term for a precisely specified behavior to measure. See `:help vf-pinpoints` or copy `autoload/vimfluency/pinpoints/move_single_char_up_down_left_right.vim` as a template. `meta()` returns the pinpoint metadata; `generate()` returns one item; an optional `lesson()` defines the `:VfLearn` walkthrough. 41 pinpoints shipped across the survival, motion, visual, delete, indent, and recall families — `CATALOG.md` is the shipped index.
+A drill targets one precisely specified behavior — what Precision Teaching calls a *pinpoint* (the term this project used internally before standardizing on "drill"). See `:help vf-drills` or copy `autoload/vimfluency/drills/move_single_char_up_down_left_right.vim` as a template. `meta()` returns the drill metadata; `generate()` returns one item; an optional `lesson()` defines the `:VfLearn` walkthrough. 41 drills shipped across the survival, motion, visual, delete, indent, and recall families — `CATALOG.md` is the shipped index.
 
 ## Limits
 

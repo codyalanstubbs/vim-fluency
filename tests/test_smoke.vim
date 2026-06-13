@@ -1,8 +1,8 @@
-" Plugin loads, discovery resolves the expected pinpoints, each meta() is well-formed.
+" Plugin loads, discovery resolves the expected drills, each meta() is well-formed.
 
-let s:registry = vimfluency#discover_pinpoints()
+let s:registry = vimfluency#discover_drills()
 
-call Assert(len(s:registry) >= 3, 'smoke: registry has at least 3 pinpoints')
+call Assert(len(s:registry) >= 3, 'smoke: registry has at least 3 drills')
 call Assert(has_key(s:registry, 'move_single_char_up_down_left_right'), 'smoke: move_single_char_up_down_left_right registered')
 call Assert(has_key(s:registry, 'move_to_line_edges_all'), 'smoke: move_to_line_edges_all registered')
 call Assert(has_key(s:registry, 'move_to_word_start_forward_backward'), 'smoke: move_to_word_start_forward_backward registered')

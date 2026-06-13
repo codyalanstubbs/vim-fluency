@@ -1,9 +1,10 @@
 # Vim Drill Catalog
 
-Drills currently shipped, grouped by **family**. (Internally a drill
-is called a "pinpoint" — the Precision Teaching term for a precisely
-specified behavior to measure.) The actual behavioral hierarchy lives
-in each drill's `prereqs` list; this catalog is the flat index. Use
+Drills currently shipped, grouped by **family**. (A drill targets one
+precisely specified behavior — what Precision Teaching calls a
+*pinpoint*, the term used internally before standardizing on "drill".)
+The actual behavioral hierarchy lives in each drill's `prereqs` list;
+this catalog is the flat index. Use
 `:VfList` to see status (rate, aim); press `B` on any row for a
 breakdown that lists every prereq with its own met/unmet status.
 

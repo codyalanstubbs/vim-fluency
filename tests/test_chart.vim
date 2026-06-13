@@ -6,7 +6,7 @@
 function! s:session(date, rate, ...) abort
   let erate = a:0 ? a:1 : 0
   return {'timestamp': a:date . 'T12:00:00',
-    \ 'pinpoint_id': 'TEST', 'pinpoint_name': 'test',
+    \ 'drill_id': 'TEST', 'drill_name': 'test',
     \ 'aim': 50, 'frequency_per_min': a:rate, 'errors_per_min': erate}
 endfunction
 
@@ -21,7 +21,7 @@ let s:rendered = vimfluency#_test_render_chart('TEST', s:sessions)
 let s:rendered_text = join(s:rendered, "\n")
 
 call Assert(s:rendered_text =~# 'progress chart — TEST',
-  \ 'render_chart: header includes pinpoint id')
+  \ 'render_chart: header includes drill id')
 call Assert(s:rendered_text =~# 'aim 50/min',
   \ 'render_chart: legend shows aim')
 call Assert(s:rendered_text =~# '●',

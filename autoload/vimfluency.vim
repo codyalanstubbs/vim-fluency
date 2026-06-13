@@ -34,12 +34,12 @@ function! vimfluency#_test_build_list_view(registry, sessions_by_id, ...) abort
     \ sort_col, sort_desc)
 endfunction
 
-function! vimfluency#_test_pinpoint_has_lesson(id) abort
-  return s:pinpoint_has_lesson(a:id)
+function! vimfluency#_test_drill_has_lesson(id) abort
+  return s:drill_has_lesson(a:id)
 endfunction
 
-function! vimfluency#_test_pinpoint_has_sessions(id) abort
-  return s:pinpoint_has_sessions(a:id)
+function! vimfluency#_test_drill_has_sessions(id) abort
+  return s:drill_has_sessions(a:id)
 endfunction
 
 function! vimfluency#_test_status_from_sessions(aim, sessions) abort
@@ -120,7 +120,7 @@ endfunction
 " VfDeletion highlight under the cursor block, making the item look
 " target-less. The ▼ row keeps the deletion position readable.
 "
-" Opt-in (and set on EVERY item of an opting pinpoint, both the
+" Opt-in (and set on EVERY item of an opting drill, both the
 " occluded and the visible direction) rather than auto-detected:
 " if the row only appeared when the cursor covers the deletion,
 " its mere presence would be a tell ('row visible → dl') and the
@@ -191,15 +191,15 @@ function! vimfluency#log_dir() abort
 endfunction
 
 " -----------------------------------------------------------------
-" User settings — per-pinpoint aim overrides + global default duration.
+" User settings — per-drill aim overrides + global default duration.
 " -----------------------------------------------------------------
 "
 " Settings live in $XDG_DATA_HOME/vimfluency/settings.json next to the
 " session log. Two fields are recognized:
-"   "aims":             {pinpoint_id → integer rate per minute}
+"   "aims":             {drill_id → integer rate per minute}
 "   "default_duration": integer seconds (applies when :Vf has no arg)
 "
-" Defaults stay in each pinpoint's meta(); the user's overrides sit on
+" Defaults stay in each drill's meta(); the user's overrides sit on
 " top via s:effective_aim() / s:effective_duration(). Status, charts,
 " the VfList view, the breakdown ✓ mark, and the runner ALL read
 " through the effective helpers, so a single override propagates
@@ -209,7 +209,8 @@ endfunction
 " everywhere — :Vf/:VfLearn/:VfChart args, session history, aim
 " overrides — because every read path canonicalizes through this map.
 " The JSONL log on disk is never rewritten; records that carry an old
-" pinpoint_id are remapped at read time so history and charts stay
+" id (or the pre-rename drill_id field's old name, pinpoint_id — see
+" s:rec_id) are remapped at read time so history and charts stay
 " continuous across a rename. When renaming a slug, git mv the file,
 " update every in-repo reference, and add one entry here.
 let s:LEGACY_IDS = {
@@ -228,6 +229,22 @@ let s:LEGACY_IDS = {
 " Map a possibly-renamed drill id to its current slug.
 function! vimfluency#canonical_id(id) abort
   return get(s:LEGACY_IDS, a:id, a:id)
+endfunction
+
+" Read a drill id from a session record. Two back-compat shapes are
+" tolerated: the log field was renamed pinpoint_id -> drill_id, and
+" some slugs were renamed (s:LEGACY_IDS). Both are normalized here so
+" logs written by older versions stay readable — the file is never
+" rewritten.
+function! s:rec_id(rec) abort
+  let id = get(a:rec, 'drill_id', get(a:rec, 'pinpoint_id', ''))
+  return get(s:LEGACY_IDS, id, id)
+endfunction
+
+" Display name from a session record, tolerating the same
+" pinpoint_name -> drill_name field rename.
+function! s:rec_name(rec) abort
+  return get(a:rec, 'drill_name', get(a:rec, 'pinpoint_name', ''))
 endfunction
 
 function! s:settings_path() abort
@@ -265,7 +282,7 @@ function! s:save_settings(settings) abort
   call writefile([json_encode(a:settings)], s:settings_path())
 endfunction
 
-" Effective aim for a pinpoint = user override (if set) else meta.aim.
+" Effective aim for a drill = user override (if set) else meta.aim.
 function! s:effective_aim(id, meta) abort
   let aims = get(s:load_settings(), 'aims', {})
   return get(aims, a:id, get(a:meta, 'aim', 0))
@@ -298,10 +315,10 @@ function! s:format_path(p) abort
   return join(out, ' ')
 endfunction
 
-" :VfSetAim <id> <rate>  — store an aim override for one pinpoint.
+" :VfSetAim <id> <rate>  — store an aim override for one drill.
 function! vimfluency#set_aim(id, rate) abort
   let id = vimfluency#canonical_id(a:id)
-  let registry = vimfluency#discover_pinpoints()
+  let registry = vimfluency#discover_drills()
   if !has_key(registry, id)
     echo 'unknown drill: ' . id . '  (try :VfList)'
     return
@@ -319,10 +336,10 @@ function! vimfluency#set_aim(id, rate) abort
     \ . ' (default ' . registry[id].aim . '/min)'
 endfunction
 
-" :VfResetAim <id>  — clear the aim override for one pinpoint.
+" :VfResetAim <id>  — clear the aim override for one drill.
 function! vimfluency#reset_aim(id) abort
   let id = vimfluency#canonical_id(a:id)
-  let registry = vimfluency#discover_pinpoints()
+  let registry = vimfluency#discover_drills()
   if !has_key(registry, id)
     echo 'unknown drill: ' . id . '  (try :VfList)'
     return
@@ -409,12 +426,12 @@ function! vimfluency#_test_effective_path() abort
   return s:effective_path()
 endfunction
 
-function! vimfluency#discover_pinpoints() abort
+function! vimfluency#discover_drills() abort
   let registry = {}
-  let files = globpath(&runtimepath, 'autoload/vimfluency/pinpoints/*.vim', 0, 1)
+  let files = globpath(&runtimepath, 'autoload/vimfluency/drills/*.vim', 0, 1)
   for f in files
     let mod = fnamemodify(f, ':t:r')
-    let MetaFn = function('vimfluency#pinpoints#' . mod . '#meta')
+    let MetaFn = function('vimfluency#drills#' . mod . '#meta')
     let info = MetaFn()
     let info.module = mod
     let registry[info.id] = info
@@ -423,21 +440,21 @@ function! vimfluency#discover_pinpoints() abort
 endfunction
 
 function! vimfluency#complete(arglead, cmdline, cursorpos) abort
-  let registry = vimfluency#discover_pinpoints()
+  let registry = vimfluency#discover_drills()
   return filter(sort(keys(registry)), 'v:val =~# "^" . a:arglead')
 endfunction
 
-" Path discovery mirrors pinpoint discovery: every
+" Path discovery mirrors drill discovery: every
 " autoload/vimfluency/paths/<id>.vim that exports #meta() shows up
 " in the returned dict, keyed by its declared id. Meta shape:
-"   { 'id', 'name', 'description', 'include_all', 'pinpoint_ids' }
+"   { 'id', 'name', 'description', 'include_all', 'drill_ids' }
 "
 " `include_all: 1` is the sentinel for the wildcard 'no curation'
 " path — s:filter_registry_by_path returns the full registry
-" unchanged. Without include_all, only the listed pinpoint_ids
-" survive the filter (ids that don't resolve to a current pinpoint
+" unchanged. Without include_all, only the listed drill_ids
+" survive the filter (ids that don't resolve to a current drill
 " are silently dropped, so paths don't need lockstep updates when
-" pinpoints rename or retire).
+" drills rename or retire).
 function! vimfluency#discover_paths() abort
   let registry = {}
   let files = globpath(&runtimepath, 'autoload/vimfluency/paths/*.vim', 0, 1)
@@ -473,7 +490,7 @@ function! s:current_path_meta() abort
   let paths = vimfluency#discover_paths()
   if has_key(paths, path_id) | return paths[path_id] | endif
   return {'id': path_id, 'name': s:format_path(path_id),
-    \ 'description': '', 'include_all': 1, 'pinpoint_ids': []}
+    \ 'description': '', 'include_all': 1, 'drill_ids': []}
 endfunction
 
 " Return the subset of `registry` that the current path covers.
@@ -481,7 +498,7 @@ function! s:filter_registry_by_path(registry) abort
   let meta = s:current_path_meta()
   if get(meta, 'include_all', 0) | return a:registry | endif
   let filtered = {}
-  for id in get(meta, 'pinpoint_ids', [])
+  for id in get(meta, 'drill_ids', [])
     if has_key(a:registry, id) | let filtered[id] = a:registry[id] | endif
   endfor
   return filtered
@@ -491,7 +508,7 @@ endfunction
 function! vimfluency#list_paths() abort
   let paths = vimfluency#discover_paths()
   let current = s:effective_path()
-  let registry = vimfluency#discover_pinpoints()
+  let registry = vimfluency#discover_drills()
   for id in sort(keys(paths))
     let meta = paths[id]
     let marker = id ==# current ? '▶' : ' '
@@ -500,7 +517,7 @@ function! vimfluency#list_paths() abort
       \ : printf('%d drills', len(s:filter_registry_by_path(registry)))
     if id !=# current && !get(meta, 'include_all', 0)
       " Compute size against this specific path, not the current one.
-      let scope = printf('%d drills', len(filter(copy(get(meta, 'pinpoint_ids', [])),
+      let scope = printf('%d drills', len(filter(copy(get(meta, 'drill_ids', [])),
         \ 'has_key(registry, v:val)')))
     endif
     echo printf('%s %-15s  %-20s  (%s)', marker, id, meta.name, scope)
@@ -508,7 +525,7 @@ function! vimfluency#list_paths() abort
 endfunction
 
 " Human-readable family labels for navigator display. Mirrors the
-" `family` value in each pinpoint's meta(). Unknown families fall
+" `family` value in each drill's meta(). Unknown families fall
 " back to the family slug itself. Order in this list defines the
 " display order in :VfList; add new families in the order you want
 " them to appear. Labels are plain section names — the header
@@ -533,7 +550,7 @@ endfunction
 " next column's header so the marker is unambiguously associated
 " with the column to its left.
 let s:S_BULLET       = 1     " ▶ / ✓ / ○
-let s:S_DRILL        = 3     " 'drill' column (values: pinpoint slug, max ~38 chars)
+let s:S_DRILL        = 3     " 'drill' column (values: drill slug, max ~38 chars)
 let s:S_COMMANDS     = 45    " 'commands' column (values: space-separated keys)
 let s:E_PREREQS_N    = 66    " 'prereqs_n' (9 cols)
 let s:E_AIM          = 76    " 'aim' (3) but value '%3d/min%s' (8) sets the width — the trailing %s is ' ' or '*' for user-override
@@ -561,7 +578,7 @@ let s:HEADER_COUNT = 7
 " the command name, and the three numeric columns at fixed cols.
 let s:BD_TREE         = 3
 let s:BD_BODY         = 5
-let s:BD_CMD_MARK     = 5     " ✓ if command's last_rate ≥ pinpoint aim
+let s:BD_CMD_MARK     = 5     " ✓ if command's last_rate ≥ drill aim
 let s:BD_CMD_NAME     = 7
 let s:BD_CMD_PREV     = 19    " 'last_rate' header (9 cols)
 let s:BD_CMD_STROKES  = 34    " 'stroke_count' (12 cols)
@@ -579,7 +596,7 @@ let s:FAMILY_NAMES = [
   \ ['text-object-recall', 'Text objects'],
   \ ]
 
-" Read sessions.jsonl once, return {pinpoint_id → list of records}.
+" Read sessions.jsonl once, return {drill_id → list of records}.
 function! s:load_sessions_grouped() abort
   let log_path = vimfluency#log_dir() . '/sessions.jsonl'
   let by_id = {}
@@ -588,7 +605,7 @@ function! s:load_sessions_grouped() abort
     if empty(line) | continue | endif
     try
       let r = json_decode(line)
-      let id = get(s:LEGACY_IDS, get(r, 'pinpoint_id', ''), get(r, 'pinpoint_id', ''))
+      let id = s:rec_id(r)
       if empty(id) | continue | endif
       if !has_key(by_id, id) | let by_id[id] = [] | endif
       call add(by_id[id], r)
@@ -669,7 +686,7 @@ function! s:per_motion_from_sessions(sessions) abort
 endfunction
 
 " Resolve prereqs against the registry. A prereq is either a specific
-" Under the slug-based ID scheme each prereq is a specific pinpoint
+" Under the slug-based ID scheme each prereq is a specific drill
 " slug (no group/tier prefix matching). If the prereq isn't yet built,
 " it counts as satisfied — you can't be blocked by what doesn't exist.
 function! s:unmet_prereqs(meta, registry, status_map) abort
@@ -684,18 +701,18 @@ function! s:unmet_prereqs(meta, registry, status_map) abort
 endfunction
 
 " Transitive prereq depth: max depth of in-registry prereqs + 1; a
-" pinpoint with no (in-registry) prereqs is 0. :VfList orders each
-" family foundational-first by this depth, so a pinpoint always sorts
+" drill with no (in-registry) prereqs is 0. :VfList orders each
+" family foundational-first by this depth, so a drill always sorts
 " after the ones it builds on (raw prereq count would misorder — a
 " word motion has one prereq but is deeper than a single-char motion
 " with two). The cache doubles as a cycle guard (in-progress = 0).
-function! s:pinpoint_depth(id, registry, cache) abort
+function! s:drill_depth(id, registry, cache) abort
   if has_key(a:cache, a:id) | return a:cache[a:id] | endif
   let a:cache[a:id] = 0
   let max_d = 0
   for prereq in get(a:registry[a:id], 'prereqs', [])
     if has_key(a:registry, prereq)
-      let max_d = max([max_d, s:pinpoint_depth(prereq, a:registry, a:cache) + 1])
+      let max_d = max([max_d, s:drill_depth(prereq, a:registry, a:cache) + 1])
     endif
   endfor
   let a:cache[a:id] = max_d
@@ -745,7 +762,7 @@ endfunction
 
 " Total physical keystrokes for a vim command string. Walks left-to-
 " right: <…> sequences are one chord, everything else is a sequence of
-" base characters. Auto-derived on every breakdown row; a pinpoint can
+" base characters. Auto-derived on every breakdown row; a drill can
 " override per-command via meta()'s `stroke_counts: {motion → N}`.
 "
 " Ex commands (anything starting with ':') don't execute until the
@@ -791,7 +808,7 @@ function! s:stroke_rate_field(rate, strokes) abort
   return printf('%.1f/min', raw)
 endfunction
 
-" Sort-primary string for one pinpoint, keyed by the user-chosen
+" Sort-primary string for one drill, keyed by the user-chosen
 " column. Returns a string so vim's lex sort matches the natural
 " order: numeric values are zero-padded, dates are ISO so lex == time.
 " Empty column (or 'family') falls through to the curated family
@@ -845,18 +862,18 @@ endfunction
 
 " Build the :VfList view in one pass: rendered lines PLUS the
 " line-coordinate map the interactive navigator needs. The renderer
-" is the single source of truth for which line is which pinpoint —
+" is the single source of truth for which line is which drill —
 " the coordinate map is recorded as each row is emitted, never
 " re-parsed from formatted text. Returns:
 "   lines         — buffer lines
-"   mapping       — 1-indexed line → pinpoint id (main rows AND
+"   mapping       — 1-indexed line → drill id (main rows AND
 "                   per-motion sub-rows, so action keys resolve from
 "                   either)
-"   pinpoint_rows — sorted line numbers of MAIN rows only; j/k
+"   drill_rows — sorted line numbers of MAIN rows only; j/k
 "                   navigation snaps to these
-" `expanded` is a dict {id: 1} of pinpoints whose per-motion
+" `expanded` is a dict {id: 1} of drills whose per-motion
 " breakdown should be shown (toggled by B). Breakdown rows are NOT
-" auto-shown — the default view is just the pinpoint rows.
+" auto-shown — the default view is just the drill rows.
 " Optional positional args:
 "   sort_col   — column name to sort by ('' = default family order)
 "   sort_desc  — 0 = ascending, 1 = descending. Tiebreaker is always
@@ -871,7 +888,7 @@ function! s:build_list_view(registry, sessions_by_id, expanded, ...) abort
   let prev_rate = {}
   let prev_date = {}
   let sessions_count = {}
-  let effective_aims = {}    " effective aim per pinpoint (override or meta.aim)
+  let effective_aims = {}    " effective aim per drill (override or meta.aim)
   for [id, m] in items(a:registry)
     let s = get(a:sessions_by_id, id, [])
     let effective_aims[id] = get(aim_overrides, id, get(m, 'aim', 0))
@@ -888,7 +905,7 @@ function! s:build_list_view(registry, sessions_by_id, expanded, ...) abort
   " Prereq depth: both a column and the within-family sort key.
   let depth = {}
   for id in keys(a:registry)
-    call s:pinpoint_depth(id, a:registry, depth)
+    call s:drill_depth(id, a:registry, depth)
   endfor
 
   " Curated family ordering from FAMILY_NAMES; unknown families fall
@@ -924,7 +941,7 @@ function! s:build_list_view(registry, sessions_by_id, expanded, ...) abort
 
   let lines = []
   let mapping = {}
-  let pinpoint_rows = []
+  let drill_rows = []
 
   call add(lines, printf('vim-fluency: %d drill(s) built',
     \ len(a:registry)))
@@ -976,7 +993,7 @@ function! s:build_list_view(registry, sessions_by_id, expanded, ...) abort
     let row = s:place(row,  s:S_FAMILY,           get(m, 'family', ''))
     call add(lines, substitute(row, '\s\+$', '', ''))
     let mapping[len(lines)] = id
-    call add(pinpoint_rows, len(lines))
+    call add(drill_rows, len(lines))
 
     if get(a:expanded, id, 0)
       call s:append_breakdown(lines, mapping, id, m, status_map,
@@ -986,15 +1003,15 @@ function! s:build_list_view(registry, sessions_by_id, expanded, ...) abort
   endfor
 
 
-  return {'lines': lines, 'mapping': mapping, 'pinpoint_rows': pinpoint_rows}
+  return {'lines': lines, 'mapping': mapping, 'drill_rows': drill_rows}
 endfunction
 
-" Append the B-toggle breakdown for one expanded pinpoint. Two
+" Append the B-toggle breakdown for one expanded drill. Two
 " sub-sections, in order:
 "   prereqs:   every in-registry prereq, ▶/✓/○ icon + name only
 "   commands:  per-command sub-table — last_rate, stroke_count, and
 "              stroke_rate (last_rate / strokes); ✓ if the command's
-"              last_rate ≥ pinpoint aim
+"              last_rate ≥ drill aim
 " Whichever sub-section is LAST gets the └ glyph so the tree closes;
 " the earlier one gets ├ and its body lines carry │ continuation.
 " Vacuous prereqs (slug not in registry) are skipped. All breakdown
@@ -1052,7 +1069,7 @@ function! s:append_breakdown(lines, mapping, id, meta, status_map, per_motion, a
 endfunction
 
 function! vimfluency#list() abort
-  let registry = vimfluency#discover_pinpoints()
+  let registry = vimfluency#discover_drills()
   if empty(registry)
     echo 'no drills built — see CATALOG.md'
     return
@@ -1095,7 +1112,7 @@ function! s:cleanup_list_header_window() abort
 endfunction
 
 " Split view.lines into the sticky-header slice and the scrollable
-" data slice, and translate view.mapping / view.pinpoint_rows (keyed
+" data slice, and translate view.mapping / view.drill_rows (keyed
 " by line numbers in the COMBINED output) to line numbers within the
 " data slice (so the navigator's b: vars line up with the data buffer).
 function! s:split_view(view) abort
@@ -1106,13 +1123,13 @@ function! s:split_view(view) abort
     let ln = str2nr(k) - s:HEADER_COUNT
     if ln >= 1 | let mapping[ln] = id | endif
   endfor
-  let pinpoint_rows = []
-  for r in a:view.pinpoint_rows
+  let drill_rows = []
+  for r in a:view.drill_rows
     let dr = r - s:HEADER_COUNT
-    if dr >= 1 | call add(pinpoint_rows, dr) | endif
+    if dr >= 1 | call add(drill_rows, dr) | endif
   endfor
   return {'header_lines': header_lines, 'data_lines': data_lines,
-    \ 'mapping': mapping, 'pinpoint_rows': pinpoint_rows}
+    \ 'mapping': mapping, 'drill_rows': drill_rows}
 endfunction
 
 " Replace the contents of the data window (assumed current) AND the
@@ -1127,7 +1144,7 @@ function! s:apply_view(view) abort
   call setline(1, split.data_lines)
   setlocal nomodifiable nomodified
   let b:vf_list_line_to_id    = split.mapping
-  let b:vf_list_pinpoint_rows = split.pinpoint_rows
+  let b:vf_list_drill_rows = split.drill_rows
   " --- Header window (find the buffer named 'vf-list-header' and
   " replace its lines without disturbing the cursor's window). ---
   let hdr_bufnr = bufnr('vf-list-header')
@@ -1166,7 +1183,7 @@ function! s:show_list_buffer(view) abort
   let b:vf_summary_tabnr = tabnr
   let b:vf_summary_prev_laststatus = &laststatus
   let b:vf_list_line_to_id    = split.mapping
-  let b:vf_list_pinpoint_rows = split.pinpoint_rows
+  let b:vf_list_drill_rows = split.drill_rows
   let b:vf_list_expanded = {}
   " Sort state: empty col = default (family, depth, slug). When a sort
   " key is pressed, list_sort() updates these and rebuilds the buffer.
@@ -1204,7 +1221,7 @@ function! s:show_list_buffer(view) abort
   nnoremap <buffer> <silent> s<Space> :call vimfluency#list_sort('')<CR>
   nnoremap <buffer> <silent> s :call vimfluency#list_sort_help()<CR>
 
-  " Pinpoint-only navigation. j/k snap between MAIN rows (no
+  " Drill-only navigation. j/k snap between MAIN rows (no
   " landing on sub-rows or headers); gg/G jump to first/last.
   nnoremap <buffer> <silent> j :call vimfluency#list_move('next')<CR>
   nnoremap <buffer> <silent> k :call vimfluency#list_move('prev')<CR>
@@ -1232,17 +1249,17 @@ function! s:show_list_buffer(view) abort
   " Return to the data window where the cursor lives.
   wincmd j
 
-  " Land cursor on the first pinpoint row.
-  let first_line = empty(split.pinpoint_rows) ? 1 : split.pinpoint_rows[0]
+  " Land cursor on the first drill row.
+  let first_line = empty(split.drill_rows) ? 1 : split.drill_rows[0]
   call cursor(first_line, 1)
 endfunction
 
-" Pinpoint-only cursor movement inside the :VfList buffer. Snaps to
-" the next/prev row in b:vf_list_pinpoint_rows; at the ends, stays
+" Drill-only cursor movement inside the :VfList buffer. Snaps to
+" the next/prev row in b:vf_list_drill_rows; at the ends, stays
 " put (no wrap, matches standard vim's no-wrap-by-default posture).
 function! vimfluency#list_move(action) abort
-  if !exists('b:vf_list_pinpoint_rows') | return | endif
-  let rows = b:vf_list_pinpoint_rows
+  if !exists('b:vf_list_drill_rows') | return | endif
+  let rows = b:vf_list_drill_rows
   if empty(rows) | return | endif
   let current = line('.')
   let target = current
@@ -1262,13 +1279,13 @@ function! vimfluency#list_move(action) abort
   call cursor(target, 1)
 endfunction
 
-" Invoked by the buffer-local L/T/C mappings. Reads the pinpoint id
+" Invoked by the buffer-local L/T/C mappings. Reads the drill id
 " off the cursor line, confirms the action can actually proceed, then
 " closes the list tab and launches it.
 "
 " The pre-flight check matters: close_summary() destroys the list tab,
 " so if we closed first and the action then no-op'd (Chart on a
-" pinpoint with no logged sessions, Learn on a pinpoint with no
+" drill with no logged sessions, Learn on a drill with no
 " lesson), the list would vanish with only a fleeting message. Check
 " before closing so a no-op leaves the list intact with a hint.
 function! vimfluency#list_action(action) abort
@@ -1279,11 +1296,11 @@ function! vimfluency#list_action(action) abort
     return
   endif
 
-  if a:action ==# 'chart' && !s:pinpoint_has_sessions(id)
+  if a:action ==# 'chart' && !s:drill_has_sessions(id)
     echo 'no sessions logged yet for ' . id . ' — train it first (T)'
     return
   endif
-  if a:action ==# 'learn' && !s:pinpoint_has_lesson(id)
+  if a:action ==# 'learn' && !s:drill_has_lesson(id)
     echo 'no lesson written for ' . id . ' yet'
     return
   endif
@@ -1298,27 +1315,27 @@ function! vimfluency#list_action(action) abort
   endif
 endfunction
 
-" True if sessions.jsonl has at least one record for this pinpoint.
+" True if sessions.jsonl has at least one record for this drill.
 " Mirrors the filter vimfluency#chart uses to decide it has data.
-function! s:pinpoint_has_sessions(id) abort
+function! s:drill_has_sessions(id) abort
   let grouped = s:load_sessions_grouped()
   return has_key(grouped, a:id) && !empty(grouped[a:id])
 endfunction
 
-" True if the pinpoint module exports a #lesson() function.
-function! s:pinpoint_has_lesson(id) abort
-  let registry = vimfluency#discover_pinpoints()
+" True if the drill module exports a #lesson() function.
+function! s:drill_has_lesson(id) abort
+  let registry = vimfluency#discover_drills()
   if !has_key(registry, a:id) | return 0 | endif
-  return exists('*vimfluency#pinpoints#' . registry[a:id].module . '#lesson')
+  return exists('*vimfluency#drills#' . registry[a:id].module . '#lesson')
 endfunction
 
 " True when B would show something useful: either the last session has
-" 2+ motions to break down, or the pinpoint declares at least one
+" 2+ motions to break down, or the drill declares at least one
 " in-registry prereq whose status the user can drill into. A
 " single-motion session with no prereqs just restates the row's
 " last_rate, so B stays a no-op there.
-function! s:pinpoint_has_breakdown(id) abort
-  let registry = vimfluency#discover_pinpoints()
+function! s:drill_has_breakdown(id) abort
+  let registry = vimfluency#discover_drills()
   let meta = get(registry, a:id, {})
   let prereqs = filter(copy(get(meta, 'prereqs', [])),
     \ 'has_key(registry, v:val)')
@@ -1327,10 +1344,10 @@ function! s:pinpoint_has_breakdown(id) abort
   return !empty(prereqs) || len(pm) >= 2
 endfunction
 
-" B toggles the breakdown for the pinpoint under the cursor — per-motion
+" B toggles the breakdown for the drill under the cursor — per-motion
 " rates from the last session AND a prereq status sub-list. Rebuilds
 " the whole buffer (cheap — a few dozen lines) with the expanded set
-" updated, then restores the cursor to the same pinpoint.
+" updated, then restores the cursor to the same drill.
 function! vimfluency#list_toggle_breakdown() abort
   if !exists('b:vf_list_line_to_id') | return | endif
   let id = get(b:vf_list_line_to_id, line('.'), '')
@@ -1338,7 +1355,7 @@ function! vimfluency#list_toggle_breakdown() abort
     echo 'cursor must be on a drill row'
     return
   endif
-  if !has_key(b:vf_list_expanded, id) && !s:pinpoint_has_breakdown(id)
+  if !has_key(b:vf_list_expanded, id) && !s:drill_has_breakdown(id)
     echo 'nothing to break down for ' . id
       \ . ' (no prereqs, and no multi-motion session yet)'
     return
@@ -1349,14 +1366,14 @@ function! vimfluency#list_toggle_breakdown() abort
     let b:vf_list_expanded[id] = 1
   endif
 
-  let registry = vimfluency#discover_pinpoints()
+  let registry = vimfluency#discover_drills()
   let view = s:build_list_view(registry, s:load_sessions_grouped(),
     \ b:vf_list_expanded,
     \ get(b:, 'vf_list_sort_col', ''),
     \ get(b:, 'vf_list_sort_desc', 0))
   call s:apply_view(view)
-  " Restore the cursor to the toggled pinpoint's main row.
-  for row in b:vf_list_pinpoint_rows
+  " Restore the cursor to the toggled drill's main row.
+  for row in b:vf_list_drill_rows
     if get(b:vf_list_line_to_id, row, '') ==# id
       call cursor(row, 1)
       break
@@ -1375,19 +1392,19 @@ endfunction
 " family/depth/slug order. Same col as the current sort flips
 " direction; a new col starts in ascending.
 "
-" Cursor stays on the SAME Nth pinpoint row across the resort — it
-" does NOT follow the pinpoint id. So if you sort and your row's
-" pinpoint moves to the bottom, the cursor stays put and the row
+" Cursor stays on the SAME Nth drill row across the resort — it
+" does NOT follow the drill id. So if you sort and your row's
+" drill moves to the bottom, the cursor stays put and the row
 " underneath you changes.
 function! vimfluency#list_sort(col) abort
   if !exists('b:vf_list_line_to_id') | return | endif
 
-  " Find which Nth pinpoint row the cursor is on (or just past, when
-  " sitting on a breakdown sub-row under that pinpoint).
+  " Find which Nth drill row the cursor is on (or just past, when
+  " sitting on a breakdown sub-row under that drill).
   let cur_line = line('.')
   let cur_idx = -1
-  for i in range(len(b:vf_list_pinpoint_rows))
-    if b:vf_list_pinpoint_rows[i] <= cur_line
+  for i in range(len(b:vf_list_drill_rows))
+    if b:vf_list_drill_rows[i] <= cur_line
       let cur_idx = i
     else
       break
@@ -1404,40 +1421,40 @@ function! vimfluency#list_sort(col) abort
     let b:vf_list_sort_desc = 0
   endif
 
-  let registry = vimfluency#discover_pinpoints()
+  let registry = vimfluency#discover_drills()
   let view = s:build_list_view(registry, s:load_sessions_grouped(),
     \ b:vf_list_expanded, b:vf_list_sort_col, b:vf_list_sort_desc)
   call s:apply_view(view)
-  if cur_idx >= 0 && cur_idx < len(b:vf_list_pinpoint_rows)
-    call cursor(b:vf_list_pinpoint_rows[cur_idx], 1)
-  elseif !empty(b:vf_list_pinpoint_rows)
-    call cursor(b:vf_list_pinpoint_rows[0], 1)
+  if cur_idx >= 0 && cur_idx < len(b:vf_list_drill_rows)
+    call cursor(b:vf_list_drill_rows[cur_idx], 1)
+  elseif !empty(b:vf_list_drill_rows)
+    call cursor(b:vf_list_drill_rows[0], 1)
   endif
 endfunction
 
 " Rebuild the VfList buffer in place and keep the cursor on the same
-" pinpoint id. Used after :A / :D updates so the user's eye stays on
+" drill id. Used after :A / :D updates so the user's eye stays on
 " the row they just modified, even if the row moves under the current
 " sort.
-function! s:rebuild_list_buffer_keeping_pinpoint(id) abort
-  let registry = vimfluency#discover_pinpoints()
+function! s:rebuild_list_buffer_keeping_drill(id) abort
+  let registry = vimfluency#discover_drills()
   let view = s:build_list_view(registry, s:load_sessions_grouped(),
     \ b:vf_list_expanded,
     \ get(b:, 'vf_list_sort_col', ''),
     \ get(b:, 'vf_list_sort_desc', 0))
   call s:apply_view(view)
-  for row in b:vf_list_pinpoint_rows
+  for row in b:vf_list_drill_rows
     if get(b:vf_list_line_to_id, row, '') ==# a:id
       call cursor(row, 1)
       return
     endif
   endfor
-  if !empty(b:vf_list_pinpoint_rows)
-    call cursor(b:vf_list_pinpoint_rows[0], 1)
+  if !empty(b:vf_list_drill_rows)
+    call cursor(b:vf_list_drill_rows[0], 1)
   endif
 endfunction
 
-" A on a pinpoint row → prompt for an aim. Positive int sets the
+" A on a drill row → prompt for an aim. Positive int sets the
 " override; 0 (or empty Esc) cancels; if the user types 0 AND there's
 " an existing override, it's cleared (so the same key handles set and
 " reset without separate bindings).
@@ -1448,7 +1465,7 @@ function! vimfluency#list_set_aim() abort
     echo 'cursor must be on a drill row'
     return
   endif
-  let registry = vimfluency#discover_pinpoints()
+  let registry = vimfluency#discover_drills()
   let meta = get(registry, id, {})
   let cur_aim = s:effective_aim(id, meta)
   let aims = get(s:load_settings(), 'aims', {})
@@ -1477,7 +1494,7 @@ function! vimfluency#list_set_aim() abort
   else
     call vimfluency#set_aim(id, response)
   endif
-  call s:rebuild_list_buffer_keeping_pinpoint(id)
+  call s:rebuild_list_buffer_keeping_drill(id)
 endfunction
 
 " D → prompt for the global default duration. Same set/reset
@@ -1547,7 +1564,7 @@ function! vimfluency#start(...) abort
   let only_filter = has_key(kwargs, 'only')
     \ ? filter(split(kwargs.only, ','), '!empty(v:val)') : []
 
-  let registry = vimfluency#discover_pinpoints()
+  let registry = vimfluency#discover_drills()
   if !has_key(registry, id)
     echo 'unknown drill: ' . id . '  (try :VfList)'
     return
@@ -1630,12 +1647,12 @@ endfunction
 
 function! s:next_item() abort
   let s:session.advancing = 1
-  let GenFn = function('vimfluency#pinpoints#' . s:session.module . '#generate')
+  let GenFn = function('vimfluency#drills#' . s:session.module . '#generate')
   let item = {}
   let attempts = 0
   let cur_canon = s:session.kind ==# 'mode_switch' ? s:mode_canonical(mode(1)) : ''
   " Anti-streak guard: reject candidates whose expected_motion would
-  " make the streak of identical commands hit 3. Pinpoints randomize
+  " make the streak of identical commands hit 3. Drills randomize
   " each call independently — without this, a 2-command drill rolls
   " 4-5 of the same command in a row often enough to feel mechanical,
   " especially when the on-screen scenario is static (save/quit).
@@ -1843,14 +1860,14 @@ function! s:install_autocmds() abort
       " then-undo paths still penalize via failed credits.
       autocmd InsertEnter <buffer> call s:on_insert_enter()
       autocmd InsertLeave <buffer> call s:on_insert_leave()
-      " Opt-in: when the pinpoint declares credit_on_text_typed,
+      " Opt-in: when the drill declares credit_on_text_typed,
       " the training credits the moment the buffer matches
       " target_lines_after_type (the post-typing target). The
       " learner doesn't have to press Esc — the leave-mode
       " keystroke is drilled separately in switch_mode_to_insert.
       " Each typed char fires TextChangedI so motion counting stays
       " honest. The o/O caveat above doesn't apply here because no
-      " current credit_on_text_typed pinpoint uses o/O.
+      " current credit_on_text_typed drill uses o/O.
       if get(s:session, 'credit_on_text_typed', 0)
         autocmd TextChangedI <buffer> call s:on_text_changed_i()
       endif
@@ -2498,7 +2515,7 @@ endfunction
 " (always target='n' under the no-repeat constraint, since current
 " mode is 'c' at next-item time). Net: user presses ':' then
 " Ctrl+[, gets two honest credits, drills both keystrokes —
-" exactly the pedagogy the pinpoint demands. The cnoremap that
+" exactly the pedagogy the drill demands. The cnoremap that
 " defangs <CR> in cmdline is session-wide (installed once in
 " s:install_autocmds), not per-press.
 function! s:on_cmdline_enter_train() abort
@@ -2713,7 +2730,7 @@ function! s:on_insert_leave() abort
   if !get(s:session, 'insert_entered', 0) | return | endif
   let s:session.current_item_motions += 1
   call s:item_event({'kind': 'insert_leave'})
-  " For credit_on_text_typed pinpoints, credit is exclusively the
+  " For credit_on_text_typed drills, credit is exclusively the
   " TextChangedI handler's job — pressing Esc without typing the
   " expected payload is a wrong attempt. Reset for retry; the
   " motion increment above already billed the leave.
@@ -2744,7 +2761,7 @@ function! s:on_insert_leave() abort
 endfunction
 
 " Training TextChangedI handler — fires after every keystroke while
-" in insert mode for pinpoints with credit_on_text_typed set. Mirrors
+" in insert mode for drills with credit_on_text_typed set. Mirrors
 " s:learn_on_text_changed_i, but routes credit through s:credit_item.
 " Per-char motion counting keeps the rate honest: a clean i+foo run
 " = 1 (InsertEnter) + 3 (TextChangedI per char) = 4 strokes.
@@ -2910,8 +2927,8 @@ function! vimfluency#stop(reason) abort
 
   let record = {
     \ 'timestamp': strftime('%Y-%m-%dT%H:%M:%S'),
-    \ 'pinpoint_id': s:session.id,
-    \ 'pinpoint_name': s:session.name,
+    \ 'drill_id': s:session.id,
+    \ 'drill_name': s:session.name,
     \ 'aim': s:session.aim,
     \ 'duration_seconds': s:session.duration,
     \ 'elapsed_seconds': s:round3(elapsed),
@@ -2942,7 +2959,7 @@ function! vimfluency#stop(reason) abort
 
   " Post-session return-to-dashboard flow. The standalone summary
   " buffer is gone — every session ends by landing the cursor on the
-  " just-trained pinpoint in :VfDashboard, where the new LAST SESSION
+  " just-trained drill in :VfDashboard, where the new LAST SESSION
   " pane shows the fresh stats. If a dashboard tab is already open
   " (e.g. the learner reached training via T from there),
   " vimfluency#dashboard switches to it and rebuilds in place;
@@ -2950,7 +2967,7 @@ function! vimfluency#stop(reason) abort
   let prev_laststatus = s:session.prev_laststatus
   let prev_ttimeoutlen = get(s:session, 'prev_ttimeoutlen', &ttimeoutlen)
   let you_win = get(s:session, 'you_win', -1)
-  let pinpoint_id = record.pinpoint_id
+  let drill_id = record.drill_id
   let s:session = {}
 
   " Resolve the tab by window id at close time — the tab NUMBER captured
@@ -2961,7 +2978,7 @@ function! vimfluency#stop(reason) abort
   endif
   let &laststatus = prev_laststatus
   let &ttimeoutlen = prev_ttimeoutlen
-  call vimfluency#dashboard(pinpoint_id)
+  call vimfluency#dashboard(drill_id)
 endfunction
 
 " Close the list/chart/dashboard tab the cursor is in. b:vf_summary_tabnr
@@ -3001,10 +3018,16 @@ function! vimfluency#history(...) abort
     try
       let rec = json_decode(line)
       " A JSON-valid line that isn't a session record (hand-edited
-      " log, older schema) must not crash the whole listing.
-      if type(rec) == type({}) && has_key(rec, 'pinpoint_id')
-        let rec.pinpoint_id = get(s:LEGACY_IDS, rec.pinpoint_id, rec.pinpoint_id)
-        call add(records, rec)
+      " log, older schema) must not crash the whole listing. s:rec_id
+      " also resolves the legacy pinpoint_id field and renamed slugs,
+      " so we stamp the normalized id back onto the record for the
+      " grouping and filtering below.
+      if type(rec) == type({})
+        let rid = s:rec_id(rec)
+        if !empty(rid)
+          let rec.drill_id = rid
+          call add(records, rec)
+        endif
       endif
     catch
       " skip malformed line
@@ -3012,7 +3035,7 @@ function! vimfluency#history(...) abort
   endfor
 
   if !empty(filter_id)
-    call filter(records, 'get(v:val, "pinpoint_id", "") ==# filter_id')
+    call filter(records, 'get(v:val, "drill_id", "") ==# filter_id')
     if empty(records)
       echo 'no sessions for drill ' . filter_id
       return
@@ -3024,15 +3047,15 @@ function! vimfluency#history(...) abort
     return
   endif
 
-  " group by pinpoint_id, chronological order preserved (file is append-only)
+  " group by drill_id, chronological order preserved (file is append-only)
   let groups = {}
   let order = []
   for r in records
-    if !has_key(groups, r.pinpoint_id)
-      let groups[r.pinpoint_id] = []
-      call add(order, r.pinpoint_id)
+    if !has_key(groups, r.drill_id)
+      let groups[r.drill_id] = []
+      call add(order, r.drill_id)
     endif
-    call add(groups[r.pinpoint_id], r)
+    call add(groups[r.drill_id], r)
   endfor
 
   echo printf('vimfluency history — %d session(s) across %d drill(s)',
@@ -3043,7 +3066,7 @@ function! vimfluency#history(...) abort
     " fields, and numbers may round-trip as Number or Float — the
     " 1.0* / float2nr coercions keep printf's %f and %d happy.
     let aim = float2nr(1.0 * get(g[0], 'aim', 0))
-    let name = get(g[0], 'pinpoint_name', pid)
+    let name = !empty(s:rec_name(g[0])) ? s:rec_name(g[0]) : pid
     let n = len(g)
     let first_rate = 1.0 * get(g[0], 'frequency_per_min', 0)
     let last_rate = 1.0 * get(g[-1], 'frequency_per_min', 0)
@@ -3081,13 +3104,13 @@ function! vimfluency#learn(...) abort
     return
   endif
   let id = vimfluency#canonical_id(a:1)
-  let registry = vimfluency#discover_pinpoints()
+  let registry = vimfluency#discover_drills()
   if !has_key(registry, id)
     echo 'unknown drill: ' . id
     return
   endif
   let info = registry[id]
-  let lesson_fn = 'vimfluency#pinpoints#' . info.module . '#lesson'
+  let lesson_fn = 'vimfluency#drills#' . info.module . '#lesson'
   if !exists('*' . lesson_fn)
     echo 'no lesson written for ' . id . ' yet'
     return
@@ -3241,7 +3264,7 @@ function! s:learn_show_frame() abort
   let is_command = kind ==# 'command'
 
   " prompt may be a string or a list of lines — multi-line lets a
-  " pinpoint wrap long instructions at a readable width instead of
+  " drill wrap long instructions at a readable width instead of
   " forcing a horizontal scroll. Command-kind try frames carry no
   " prompt (their cue is the status header + goal rendered inline by
   " the command-kind branch below); treat that case as empty.
@@ -3462,10 +3485,10 @@ function! s:learn_install_autocmds() abort
       " can disambiguate i/a/I/A, InsertLeave is when we evaluate.
       autocmd InsertEnter <buffer> call s:learn_on_insert_enter()
       autocmd InsertLeave <buffer> call s:learn_on_insert_leave()
-      " Opt-in fast path for pinpoints that drill the entry key by
+      " Opt-in fast path for drills that drill the entry key by
       " having the learner TYPE a known short text (e.g. 'foo') and
       " advance the moment the buffer matches target_lines_after_type.
-      " No Esc needed — mode-leave has its own dedicated pinpoint
+      " No Esc needed — mode-leave has its own dedicated drill
       " (switch_mode_to_insert), so we don't bill the learner twice
       " for it here. Mirrors s:install_autocmds in the training path.
       if get(s:session, 'credit_on_text_typed', 0)
@@ -3498,7 +3521,7 @@ function! s:learn_install_autocmds() abort
       " frame.target lookups since command-kind try frames don't
       " carry one.
     else
-      " TextChanged is needed for the test phase on editing-kind pinpoints
+      " TextChanged is needed for the test phase on editing-kind drills
       " where dw/db etc. modify the buffer without necessarily firing
       " CursorMoved (e.g. dw at col 1 leaves cursor at col 1).
       autocmd CursorMoved,CursorMovedI,TextChanged,TextChangedI <buffer>
@@ -3509,7 +3532,7 @@ function! s:learn_install_autocmds() abort
   " those are letters that appear in answer strings (e.g. :q, :wq).
   " Esc still quits the recall lesson via install_recall_maps. Space
   " and CR likewise override recall's bindings — none of the current
-  " recall pinpoints' answers contain Space or CR, so this is safe;
+  " recall drills' answers contain Space or CR, so this is safe;
   " a future answer-with-spaces would need a dispatcher.
   nnoremap <buffer> <silent> <Space> :call <SID>learn_advance_show()<CR>
   nnoremap <buffer> <silent> <CR> :call <SID>learn_advance_show()<CR>
@@ -3687,7 +3710,7 @@ endfunction
 " target_lines (the expected post-typing state). The learner doesn't
 " have to press Esc; the existing InsertLeave will see frame_complete=1
 " and no-op when our feedkeys <Esc> below lands. mode-leave fluency is
-" out of scope for this lesson — the switch_mode_to_insert pinpoint
+" out of scope for this lesson — the switch_mode_to_insert drill
 " drills that separately.
 function! s:learn_on_text_changed_i() abort
   if empty(s:session) || s:session.mode !=# 'learn' || s:session.advancing | return | endif
@@ -3759,7 +3782,7 @@ function! s:learn_on_insert_leave() abort
   if win_getid() != s:session.you_win | return | endif
   if s:session.phase ==# 'complete' || s:session.frame_complete | return | endif
   if !get(s:session, 'insert_entered', 0) | return | endif
-  " For credit_on_text_typed pinpoints, credit comes from
+  " For credit_on_text_typed drills, credit comes from
   " TextChangedI exclusively — a bare Esc just resets state.
   if get(s:session, 'credit_on_text_typed', 0)
     if s:session.phase ==# 'test'
@@ -3963,8 +3986,8 @@ function! s:learn_restart(reason) abort
   endif
 endfunction
 
-" Generate a fresh test item from the pinpoint and render it. Reuses the
-" pinpoint's generate() so test items have the same cheat-defense as
+" Generate a fresh test item from the drill and render it. Reuses the
+" drill's generate() so test items have the same cheat-defense as
 " training items — meaning the intended motion is the canonical answer and
 " optimal_motions is the criterion for "first-try correct".
 function! s:learn_test_next() abort
@@ -3978,7 +4001,7 @@ function! s:learn_test_next() abort
   " Reset recall input-row; we set it below if this is a recall item.
   if has_key(s:session, "input_row") | unlet s:session.input_row | endif
 
-  let GenFn = function('vimfluency#pinpoints#' . s:session.module . '#generate')
+  let GenFn = function('vimfluency#drills#' . s:session.module . '#generate')
   let kind = get(s:session, 'kind', 'motion')
   let cur_canon = kind ==# 'mode_switch' ? s:mode_canonical(mode(1)) : ''
   " test_sequence (declared in meta) drives the test phase through a
@@ -4273,7 +4296,7 @@ function! s:chart_render(id, bounds, variant) abort
     if empty(line) | continue | endif
     try
       let r = json_decode(line)
-      if get(s:LEGACY_IDS, get(r, 'pinpoint_id', ''), get(r, 'pinpoint_id', '')) ==# a:id
+      if s:rec_id(r) ==# a:id
         call add(sessions, r)
       endif
     catch
@@ -4294,12 +4317,12 @@ endfunction
 
 function! s:render_chart(id, sessions, bounds) abort
   let n = len(a:sessions)
-  let pinpoint_name = a:sessions[0].pinpoint_name
+  let drill_name = s:rec_name(a:sessions[0])
   " Current effective aim (override-aware), not the aim recorded in
   " the OLDEST session — after :VfSetAim the chart's aim line and
   " caption would otherwise disagree with the dashboard. Ids without
   " a registry entry (test fixtures) fall back to the recorded aim.
-  let registry = vimfluency#discover_pinpoints()
+  let registry = vimfluency#discover_drills()
   let aim = has_key(registry, a:id)
     \ ? s:effective_aim(a:id, registry[a:id])
     \ : a:sessions[0].aim
@@ -4427,7 +4450,7 @@ function! s:render_chart(id, sessions, bounds) abort
 
   " Compose output lines
   let out = []
-  call add(out, printf('vimfluency progress chart — %s (%s)', a:id, pinpoint_name))
+  call add(out, printf('vimfluency progress chart — %s (%s)', a:id, drill_name))
   call add(out, 'rate per minute (log Y) over calendar date · one column per day')
   call add(out, printf('aim %d/min   ·   %d session(s)   ·   ● corrects   × errors   - aim',
     \ aim, n))
@@ -4500,12 +4523,12 @@ let s:DASHBOARD_LAST_SESSION_WIDTH = 60
 " j/k — re-parsing sessions.jsonl there is the wrong cost model.
 let s:dashboard_cache = {}
 
-" :VfDashboard [pinpoint_id]. Optional id lands the cursor on that
+" :VfDashboard [drill_id]. Optional id lands the cursor on that
 " row (matching :Vf <id> / training-end auto-return). If a dashboard
 " tab already exists, switch to it and rebuild in place rather than
 " opening a duplicate.
 function! vimfluency#dashboard(...) abort
-  let registry = vimfluency#discover_pinpoints()
+  let registry = vimfluency#discover_drills()
   if empty(registry)
     echo 'no drills built — see CATALOG.md'
     return
@@ -4524,7 +4547,7 @@ function! vimfluency#dashboard(...) abort
         for win in range(1, winnr('$'))
           if winbufnr(win) == table_bufnr
             execute win . 'wincmd w'
-            call s:rebuild_dashboard_keeping_pinpoint(target_id)
+            call s:rebuild_dashboard_keeping_drill(target_id)
             return
           endif
         endfor
@@ -4539,7 +4562,7 @@ function! s:show_dashboard(registry, sessions, ...) abort
   let target_id = a:0 > 0 ? a:1 : ''
   " Filter the registry to the current path. The dashboard is a
   " curated view; :Vf <id> / :VfLearn <id> still work on every
-  " pinpoint regardless of which path is active.
+  " drill regardless of which path is active.
   let path_registry = s:filter_registry_by_path(a:registry)
   let view = s:build_list_view(path_registry, a:sessions, {})
   let split = s:split_view(view)
@@ -4553,7 +4576,7 @@ function! s:show_dashboard(registry, sessions, ...) abort
   for [k, id] in items(split.mapping)
     let mapping[str2nr(k) + 1] = id
   endfor
-  let pinpoint_rows = map(copy(split.pinpoint_rows), 'v:val + 1')
+  let drill_rows = map(copy(split.drill_rows), 'v:val + 1')
 
   tabnew
   let tabnr = tabpagenr()
@@ -4568,7 +4591,7 @@ function! s:show_dashboard(registry, sessions, ...) abort
   setlocal nomodifiable nomodified
   let table_winid = win_getid()
   let b:vf_list_line_to_id    = mapping
-  let b:vf_list_pinpoint_rows = pinpoint_rows
+  let b:vf_list_drill_rows = drill_rows
   let b:vf_list_expanded = {}
   let b:vf_list_sort_col = ''
   let b:vf_list_sort_desc = 0
@@ -4636,11 +4659,11 @@ function! s:show_dashboard(registry, sessions, ...) abort
   let b:vf_dashboard_last_session_bufnr = last_session_bufnr
 
   " Land on target_id when given (passed from :VfDashboard <id> or
-  " the post-training return path); fall back to the first pinpoint
+  " the post-training return path); fall back to the first drill
   " row otherwise.
-  let first_line = empty(pinpoint_rows) ? 2 : pinpoint_rows[0]
+  let first_line = empty(drill_rows) ? 2 : drill_rows[0]
   if !empty(target_id)
-    for row in pinpoint_rows
+    for row in drill_rows
       if get(mapping, row, '') ==# target_id
         let first_line = row | break
       endif
@@ -4693,7 +4716,7 @@ endfunction
 " Sort the dashboard table by the given column and rebuild in place.
 " Same flip semantics as vimfluency#list_sort (same col reverses,
 " empty col resets to default order), but the cursor FOLLOWS the
-" hovered pinpoint to its new row rather than staying on the same
+" hovered drill to its new row rather than staying on the same
 " Nth row — the hover panels (chart, LAST SESSION) track the
 " hovered drill, and having them silently switch to whatever row
 " slid under the cursor would be disorienting on a dashboard.
@@ -4709,7 +4732,7 @@ function! vimfluency#dashboard_sort(col) abort
     let b:vf_list_sort_desc = 0
   endif
   let id = get(b:vf_list_line_to_id, line('.'), '')
-  call s:rebuild_dashboard_keeping_pinpoint(id)
+  call s:rebuild_dashboard_keeping_drill(id)
 endfunction
 
 function! s:dashboard_on_cursor_moved() abort
@@ -4725,7 +4748,7 @@ function! s:dashboard_on_cursor_moved() abort
   " the log grows.
   if empty(s:dashboard_cache)
     let s:dashboard_cache = {
-      \ 'registry': vimfluency#discover_pinpoints(),
+      \ 'registry': vimfluency#discover_drills(),
       \ 'sessions': s:load_sessions_grouped(),
       \ }
   endif
@@ -4748,13 +4771,13 @@ function! s:dashboard_cleanup() abort
 endfunction
 
 " Rebuild the dashboard table + panels after a settings change
-" (aim, path, etc.). Mirrors s:rebuild_list_buffer_keeping_pinpoint
+" (aim, path, etc.). Mirrors s:rebuild_list_buffer_keeping_drill
 " but writes into the dashboard's vf-dashboard-table buffer and
 " refreshes the hover and profile side panels too. The column-header
 " row is prepended to the data lines (same +1 shift on row→id
 " mapping as the initial setup in s:show_dashboard).
-function! s:rebuild_dashboard_keeping_pinpoint(id) abort
-  let registry = vimfluency#discover_pinpoints()
+function! s:rebuild_dashboard_keeping_drill(id) abort
+  let registry = vimfluency#discover_drills()
   let path_registry = s:filter_registry_by_path(registry)
   let sessions = s:load_sessions_grouped()
   let s:dashboard_cache = {'registry': registry, 'sessions': sessions}
@@ -4767,17 +4790,17 @@ function! s:rebuild_dashboard_keeping_pinpoint(id) abort
   for [k, id] in items(split.mapping)
     let mapping[str2nr(k) + 1] = id
   endfor
-  let pinpoint_rows = map(copy(split.pinpoint_rows), 'v:val + 1')
+  let drill_rows = map(copy(split.drill_rows), 'v:val + 1')
 
   setlocal modifiable
   silent! %delete _
   call setline(1, table_lines)
   setlocal nomodifiable nomodified
   let b:vf_list_line_to_id    = mapping
-  let b:vf_list_pinpoint_rows = pinpoint_rows
+  let b:vf_list_drill_rows = drill_rows
 
-  let landing = empty(pinpoint_rows) ? 2 : pinpoint_rows[0]
-  for row in pinpoint_rows
+  let landing = empty(drill_rows) ? 2 : drill_rows[0]
+  for row in drill_rows
     if get(mapping, row, '') ==# a:id
       let landing = row | break
     endif
@@ -4790,7 +4813,7 @@ function! s:rebuild_dashboard_keeping_pinpoint(id) abort
   call s:dashboard_render_last_session(mapping, landing, path_registry, sessions)
 endfunction
 
-" A → prompt to set or reset the aim for the hovered pinpoint.
+" A → prompt to set or reset the aim for the hovered drill.
 " Same set/reset semantics as vimfluency#list_set_aim, but the
 " rebuild path targets the dashboard buffers.
 function! vimfluency#dashboard_set_aim() abort
@@ -4800,7 +4823,7 @@ function! vimfluency#dashboard_set_aim() abort
     echo 'cursor must be on a drill row'
     return
   endif
-  let registry = vimfluency#discover_pinpoints()
+  let registry = vimfluency#discover_drills()
   let meta = get(registry, id, {})
   let cur_aim = s:effective_aim(id, meta)
   let aims = get(s:load_settings(), 'aims', {})
@@ -4829,7 +4852,7 @@ function! vimfluency#dashboard_set_aim() abort
   else
     call vimfluency#set_aim(id, response)
   endif
-  call s:rebuild_dashboard_keeping_pinpoint(id)
+  call s:rebuild_dashboard_keeping_drill(id)
 endfunction
 
 " D → prompt for the global default duration. Duration doesn't
@@ -4860,7 +4883,7 @@ function! vimfluency#dashboard_set_path() abort
     call vimfluency#set_path(trimmed)
   endif
   let id = get(b:vf_list_line_to_id, line('.'), '')
-  call s:rebuild_dashboard_keeping_pinpoint(id)
+  call s:rebuild_dashboard_keeping_drill(id)
 endfunction
 
 " `B` action from the table: drop the cursor into the profile
@@ -5186,7 +5209,7 @@ function! s:dashboard_log_y(rate, plot_h, log_bot, log_top) abort
   return max([0, min([a:plot_h - 1, row])])
 endfunction
 
-" LAST SESSION + breakdown for the hovered pinpoint. Now lives in
+" LAST SESSION + breakdown for the hovered drill. Now lives in
 " half the profile-row width (was 1/4), so we have room for the
 " prereqs list and per-command sub-table the :VfList B-breakdown
 " surfaces.
@@ -5343,15 +5366,15 @@ endfunction
 " session totals.
 "
 " Session totals (total_sessions, total_elapsed) iterate over every
-" entry in a:sessions, NOT just those that match a pinpoint in the
+" entry in a:sessions, NOT just those that match a drill in the
 " current registry. The audit's renames left log entries under old
-" pinpoint ids (e.g. 'insert_basic', 'discriminate_find_vs_till'),
+" drill ids (e.g. 'insert_basic', 'discriminate_find_vs_till'),
 " and those still count as real training time the learner spent
 " even though the slug no longer maps to anything live.
 function! s:dashboard_render_banner(registry, sessions, cols) abort
   let aim_overrides = get(s:load_settings(), 'aims', {})
   let at_aim = 0 | let climbing = 0 | let not_started = 0
-  let total_pinpoints = len(a:registry)
+  let total_drills = len(a:registry)
 
   for [id, m] in items(a:registry)
     let runs = get(a:sessions, id, [])
@@ -5372,11 +5395,11 @@ function! s:dashboard_render_banner(registry, sessions, cols) abort
     endfor
   endfor
 
-  let fluent_pct = total_pinpoints > 0
-    \ ? float2nr(at_aim * 100.0 / total_pinpoints + 0.5)
+  let fluent_pct = total_drills > 0
+    \ ? float2nr(at_aim * 100.0 / total_drills + 0.5)
     \ : 0
-  let path_scope = total_pinpoints > 0
-    \ ? printf(' (%d/%d drills fluent · %d%%)', at_aim, total_pinpoints, fluent_pct)
+  let path_scope = total_drills > 0
+    \ ? printf(' (%d/%d drills fluent · %d%%)', at_aim, total_drills, fluent_pct)
     \ : ''
   let status_block = printf('✓ %d  ▶ %d  ○ %d',
     \ at_aim, climbing, not_started)

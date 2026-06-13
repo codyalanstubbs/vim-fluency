@@ -235,7 +235,7 @@ Each session appends one JSON line to:
     $XDG_DATA_HOME/vimfluency/sessions.jsonl   (if XDG_DATA_HOME is set)
     ~/.local/share/vimfluency/sessions.jsonl   (otherwise)
 
-Fields per record: timestamp, pinpoint_id, pinpoint_name, aim,
+Fields per record: timestamp, drill_id, drill_name, aim,
 duration_seconds, elapsed_seconds, items_correct, items_skipped,
 items_hit, frequency_per_min, hits_per_min, miss_per_min,
 errors_per_min, total_motions, total_optimal_motions, efficiency_pct,
@@ -255,7 +255,7 @@ User settings live alongside the log in:
 
 with the shape:
     {
-      "aims":             {<pinpoint_id>: <integer rate per minute>},
+      "aims":             {<drill_id>: <integer rate per minute>},
       "default_duration": <integer seconds>,
       "current_path":     <path id>
     }
@@ -273,20 +273,21 @@ file itself is never rewritten, so history and charts stay continuous
 across a rename.
 
 ==============================================================================
-ADDING A PINPOINT                                              *vf-pinpoints*
+ADDING A DRILL                                                 *vf-drills*
 
-Internally a drill is called a "pinpoint" — the Precision Teaching
-term for a precisely specified behavior to measure. The directory,
-function namespace, and session-log field names all use it; the UI
-says "drill".
+A drill targets one precisely specified behavior — what Precision
+Teaching calls a "pinpoint". This project used that term internally
+before standardizing on "drill"; it now survives only in the legacy
+pinpoint_id / pinpoint_name fields of old session-log lines, which are
+still read for back-compat.
 
-Drop a file at  autoload/vimfluency/pinpoints/<slug>.vim  defining:
+Drop a file at  autoload/vimfluency/drills/<slug>.vim  defining:
 
-    function! vimfluency#pinpoints#<slug>#meta() abort
+    function! vimfluency#drills#<slug>#meta() abort
         return {'id': '...', 'name': '...', 'aim': N, 'allowed_keys': '...'}
     endfunction
 
-    function! vimfluency#pinpoints#<slug>#generate() abort
+    function! vimfluency#drills#<slug>#generate() abort
         return {'lines': [...], 'start': [row, col], 'target': [row, col]}
     endfunction
 

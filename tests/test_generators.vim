@@ -1,5 +1,5 @@
-" Property tests over each pinpoint's generator. Generates many items and
-" asserts structural invariants + the pinpoint-specific optimal_motions
+" Property tests over each drill's generator. Generates many items and
+" asserts structural invariants + the drill-specific optimal_motions
 " formula and expected_motion vocabulary.
 
 let s:N = 50
@@ -32,7 +32,7 @@ function! s:assert_common(id, item) abort
 
   let trow = item.target[0]
   let tcol = item.target[1]
-  " For editing-kind pinpoints the cursor lands inside target_lines
+  " For editing-kind drills the cursor lands inside target_lines
   " (the post-edit buffer), not item.lines. For motion-only items
   " the two are the same. Always check against target_lines so
   " operations that lengthen the line (like indent_vs_dedent's >>) don't fail
@@ -48,7 +48,7 @@ endfunction
 " move_single_char_up_down_left_right: optimal_motions == manhattan(start, target);
 " expected_motion ∈ {h, j, k, l, diag}
 function! s:test_move_single_char_up_down_left_right() abort
-  let GenFn = function('vimfluency#pinpoints#move_single_char_up_down_left_right#generate')
+  let GenFn = function('vimfluency#drills#move_single_char_up_down_left_right#generate')
   let valid = ['h', 'j', 'k', 'l', 'diag']
   for i in range(s:N)
     let item = GenFn()
@@ -65,7 +65,7 @@ endfunction
 " move_to_line_edges_all: optimal_motions == 1; expected_motion ∈ {0, ^, $, g_};
 " target_col == 1 → motion is '0'; trailing whitespace items can be 'g_'.
 function! s:test_move_to_line_edges_all() abort
-  let GenFn = function('vimfluency#pinpoints#move_to_line_edges_all#generate')
+  let GenFn = function('vimfluency#drills#move_to_line_edges_all#generate')
   let valid = ['0', '^', '$', 'g_']
   for i in range(s:N)
     let item = GenFn()
@@ -95,7 +95,7 @@ endfunction
 " move_to_word_start_forward_backward: expected_motion ∈ {w, b}; optimal_motions == dist (which is
 " the same as the manhattan word-distance, in [2, 4]).
 function! s:test_move_to_word_start_forward_backward() abort
-  let GenFn = function('vimfluency#pinpoints#move_to_word_start_forward_backward#generate')
+  let GenFn = function('vimfluency#drills#move_to_word_start_forward_backward#generate')
   let valid = ['w', 'b']
   let seen = {}
   for i in range(s:N)
@@ -114,7 +114,7 @@ endfunction
 " move_to_word_end_forward_backward: expected_motion ∈ {e, ge}; optimal_motions == dist+1 for
 " forward (e), dist for backward (ge). Range [2, 5].
 function! s:test_move_to_word_end_forward_backward() abort
-  let GenFn = function('vimfluency#pinpoints#move_to_word_end_forward_backward#generate')
+  let GenFn = function('vimfluency#drills#move_to_word_end_forward_backward#generate')
   let valid = ['e', 'ge']
   let seen = {}
   for i in range(s:N)
@@ -148,7 +148,7 @@ endfunction
 " j or k to navigate, then the operator. Both motions appear over
 " many samples and both navigation directions are exercised.
 function! s:test_delete_char_vs_line() abort
-  let GenFn = function('vimfluency#pinpoints#delete_char_vs_line#generate')
+  let GenFn = function('vimfluency#drills#delete_char_vs_line#generate')
   let valid = ['x', 'dd']
   let seen = {}
   let nav_dirs = {}
@@ -224,7 +224,7 @@ endfunction
 " shiftwidths in the picked direction. Both motions and both step
 " counts appear over many samples.
 function! s:test_indent_vs_dedent() abort
-  let GenFn = function('vimfluency#pinpoints#indent_vs_dedent#generate')
+  let GenFn = function('vimfluency#drills#indent_vs_dedent#generate')
   let SW = 4
   let valid = ['>>', '<<']
   let seen = {}
@@ -281,7 +281,7 @@ endfunction
 " delete_to_word_start_forward_backward: editing kind; expected_motion ∈ {dw, db}; deletion_range matches
 " the actual delta between start_lines and target_lines.
 function! s:test_delete_to_word_start_forward_backward() abort
-  let GenFn = function('vimfluency#pinpoints#delete_to_word_start_forward_backward#generate')
+  let GenFn = function('vimfluency#drills#delete_to_word_start_forward_backward#generate')
   let valid = ['dw', 'db']
   let seen = {}
   for i in range(s:N)
@@ -327,7 +327,7 @@ function! s:test_delete_to_word_start_forward_backward() abort
   call Assert(get(seen, 'dw', 0) == 1, 'delete_to_word_start_forward_backward: dw appeared in samples')
   call Assert(get(seen, 'db', 0) == 1, 'delete_to_word_start_forward_backward: db appeared in samples')
 
-  let meta = vimfluency#pinpoints#delete_to_word_start_forward_backward#meta()
+  let meta = vimfluency#drills#delete_to_word_start_forward_backward#meta()
   call AssertEq(get(meta, 'kind', 'motion'), 'editing',
     \ 'delete_to_word_start_forward_backward: meta.kind == editing')
 endfunction
@@ -336,7 +336,7 @@ endfunction
 " line; target interior to its word (margin ≥2); cursor not on whitespace
 " or target_char; distance ≥4 from cursor.
 function! s:test_move_to_char_forward_backward() abort
-  let GenFn = function('vimfluency#pinpoints#move_to_char_forward_backward#generate')
+  let GenFn = function('vimfluency#drills#move_to_char_forward_backward#generate')
   let valid = ['f', 'F']
   let seen = {}
   for i in range(s:N)
@@ -403,7 +403,7 @@ endfunction
 " target_col - 1 (backward). Char must be unique in line, interior to
 " its word with direction-specific margins, and distance >= 3 from cursor.
 function! s:test_move_till_char_forward_backward() abort
-  let GenFn = function('vimfluency#pinpoints#move_till_char_forward_backward#generate')
+  let GenFn = function('vimfluency#drills#move_till_char_forward_backward#generate')
   let valid = ['t', 'T']
   let seen = {}
   for i in range(s:N)
@@ -483,7 +483,7 @@ endfunction
 " to its word with margin >= 2; cursor positioned per-scenario; distance
 " >= 3; exactly one waypoint at the canonical-sequence's first-stop.
 function! s:test_move_repeat_last_find_forward_backward() abort
-  let GenFn = function('vimfluency#pinpoints#move_repeat_last_find_forward_backward#generate')
+  let GenFn = function('vimfluency#drills#move_repeat_last_find_forward_backward#generate')
   let valid_motions = [';', ',']
   let seen = {}
   for i in range(s:N)
@@ -586,7 +586,7 @@ endfunction
 " motions appear over N samples and every item passes a baseline
 " structural check.
 function! s:test_move_to_vs_till_forward_backward() abort
-  let GenFn = function('vimfluency#pinpoints#move_to_vs_till_forward_backward#generate')
+  let GenFn = function('vimfluency#drills#move_to_vs_till_forward_backward#generate')
   let valid = ['f', 'F', 't', 'T']
   let seen = {}
   for i in range(s:N)
@@ -638,7 +638,7 @@ function! s:sim_forward(line, x_ch, z_ch, from) abort
   return [f_land, t_land]
 endfunction
 
-" Behavioral property shared by all four till pinpoints (2026-06-11
+" Behavioral property shared by all four till drills (2026-06-11
 " diary): the expected motion must land EXACTLY on the target, and
 " the OTHER member of the pair must NOT — otherwise the item doesn't
 " force the F-vs-T (f-vs-t) discrimination and the learner can answer
@@ -679,7 +679,7 @@ function! s:assert_till_shape(id, item, backward) abort
   endif
 endfunction
 
-" Variant for pinpoints whose items mix directions: derive the
+" Variant for drills whose items mix directions: derive the
 " backward flag from the motion's case (F/T backward, f/t forward).
 function! s:assert_till_shape_auto(id, item) abort
   call s:assert_till_shape(a:id, a:item,
@@ -687,7 +687,7 @@ function! s:assert_till_shape_auto(id, item) abort
 endfunction
 
 function! s:test_till_pair(id, valid, backward, constant_geom) abort
-  let GenFn = function('vimfluency#pinpoints#' . a:id . '#generate')
+  let GenFn = function('vimfluency#drills#' . a:id . '#generate')
   let seen = {}
   for i in range(s:N)
     let item = GenFn()
@@ -762,11 +762,11 @@ endfunction
 
 " save/quit family (save_vs_quit, save_quit_vs_force_quit,
 " save_quit_vs_zz, force_quit_vs_zq) — binary
-" discrimination pinpoints. Each one picks between exactly two
+" discrimination drills. Each one picks between exactly two
 " answers. expected_motion mirrors the answer; optimal_motions equals
 " the answer's character count.
 function! s:test_save_quit_pair(id, module, valid) abort
-  let GenFn = function('vimfluency#pinpoints#' . a:module . '#generate')
+  let GenFn = function('vimfluency#drills#' . a:module . '#generate')
   let seen = {}
   for i in range(s:N)
     let item = GenFn()
@@ -790,7 +790,7 @@ endfunction
 " `start_index`; the runner stages the states into the buffer's
 " undo log so 'u' / Ctrl-r have real targets.
 function! s:test_undo_redo() abort
-  let GenFn = function('vimfluency#pinpoints#undo_redo#generate')
+  let GenFn = function('vimfluency#drills#undo_redo#generate')
   let valid = ['u', '<C-r>']
   let seen = {}
   for i in range(s:N)
@@ -846,7 +846,7 @@ endfunction
 "     inner content
 "   - the cue line contains exactly two instances of the delim char
 function! s:test_recall_inner_quote(id, module, valid_delims) abort
-  let GenFn = function('vimfluency#pinpoints#' . a:module . '#generate')
+  let GenFn = function('vimfluency#drills#' . a:module . '#generate')
   let seen = {}
   for i in range(s:N)
     let item = GenFn()
@@ -909,12 +909,12 @@ function! s:test_force_quit_vs_zq() abort
   call s:test_save_quit_pair('force_quit_vs_zq', 'force_quit_vs_zq', [':q!', 'ZQ'])
 endfunction
 
-" switch_mode_to_X atomics — each is a 2-cell {Normal, target} pinpoint.
+" switch_mode_to_X atomics — each is a 2-cell {Normal, target} drill.
 " Over s:N samples we expect both cells to appear. expected_motion is
 " the actual keystroke ('C-[' for the Normal target, target's entry
 " key otherwise) so the summary displays honest labels.
 function! s:test_mode_atomic(id, target, target_key) abort
-  let GenFn = function('vimfluency#pinpoints#' . a:id . '#generate')
+  let GenFn = function('vimfluency#drills#' . a:id . '#generate')
   let valid = ['n', a:target]
   let seen = {}
   for i in range(s:N)
@@ -950,10 +950,10 @@ endfunction
 " switch_between_many_modes composite — strict alternation between
 " Normal and non-Normal. From Normal the generator picks any of
 " {i,v,r,c}; from any non-Normal it picks 'n'. Every item is 1
-" stroke. The pinpoint exposes the optional current-mode arg so we
+" stroke. The drill exposes the optional current-mode arg so we
 " can test both branches without contorting the test harness.
 function! s:test_switch_between_many_modes() abort
-  let GenFn = function('vimfluency#pinpoints#switch_between_many_modes#generate')
+  let GenFn = function('vimfluency#drills#switch_between_many_modes#generate')
   let non_normal = ['i', 'v', 'r', 'c']
   let expected = {'n': 'C-[', 'i': 'i', 'v': 'v', 'r': 'R', 'c': ':'}
 
@@ -1017,7 +1017,7 @@ endfunction
 " is 4 strokes (entry key + 'foo'); enter_at_col tracks i/a's
 " cursor-vs-insertion-point offset (i = cursor col, a = cursor+1).
 function! s:test_insert_before_after_char() abort
-  let GenFn = function('vimfluency#pinpoints#insert_before_after_char#generate')
+  let GenFn = function('vimfluency#drills#insert_before_after_char#generate')
   let valid = ['i', 'a']
   let seen = {}
   for i in range(s:N)
@@ -1056,7 +1056,7 @@ endfunction
 " IGNORE the cursor column and jump to a line edge (first-non-blank
 " for I, end-of-line+1 for A) before opening insert.
 function! s:test_insert_start_end_line() abort
-  let GenFn = function('vimfluency#pinpoints#insert_start_end_line#generate')
+  let GenFn = function('vimfluency#drills#insert_start_end_line#generate')
   let valid = ['I', 'A']
   let seen = {}
   for i in range(s:N)
@@ -1092,7 +1092,7 @@ endfunction
 " insert_before_after_char_start_end_line — enter / leave insert mode. Four keys, all optimal 2.
 " target_lines must equal lines (no buffer change for i/a/I/A).
 function! s:test_insert_before_after_char_start_end_line() abort
-  let GenFn = function('vimfluency#pinpoints#insert_before_after_char_start_end_line#generate')
+  let GenFn = function('vimfluency#drills#insert_before_after_char_start_end_line#generate')
   let valid = ['i', 'a', 'I', 'A']
   let seen = {}
   for i in range(s:N)
@@ -1168,7 +1168,7 @@ endfunction
 " with a new BLANK line between the brackets (pre-typing target);
 " target_lines_after_type is the same buffer with 'foo' on that line.
 function! s:test_insert_line_above_below() abort
-  let GenFn = function('vimfluency#pinpoints#insert_line_above_below#generate')
+  let GenFn = function('vimfluency#drills#insert_line_above_below#generate')
   let valid = ['o', 'O']
   let mark = '⏵'
   let seen = {}
@@ -1229,7 +1229,7 @@ endfunction
 " move_single_char_left_right: h vs l. Target on same row as start; dcol ∈ {-2,-1,1,2};
 " optimal_motions == abs(dcol); motion 'l' for positive dcol, 'h' otherwise.
 function! s:test_move_single_char_left_right() abort
-  let GenFn = function('vimfluency#pinpoints#move_single_char_left_right#generate')
+  let GenFn = function('vimfluency#drills#move_single_char_left_right#generate')
   let valid = ['h', 'l']
   let seen = {}
   for i in range(s:N)
@@ -1260,7 +1260,7 @@ endfunction
 " move_single_char_up_down: j vs k. Target on same column as start; drow ∈ {-2,-1,1,2};
 " optimal_motions == abs(drow); motion 'j' for positive drow, 'k' otherwise.
 function! s:test_move_single_char_up_down() abort
-  let GenFn = function('vimfluency#pinpoints#move_single_char_up_down#generate')
+  let GenFn = function('vimfluency#drills#move_single_char_up_down#generate')
   let valid = ['j', 'k']
   let seen = {}
   for i in range(s:N)
@@ -1291,7 +1291,7 @@ endfunction
 " move_to_line_edges_start_end: 0 vs $. Single line, no trailing whitespace, cursor in interior.
 " target column ∈ {1, llen}; motion '0' for col 1 else '$'.
 function! s:test_move_to_line_edges_start_end() abort
-  let GenFn = function('vimfluency#pinpoints#move_to_line_edges_start_end#generate')
+  let GenFn = function('vimfluency#drills#move_to_line_edges_start_end#generate')
   let valid = ['0', '$']
   let seen = {}
   for i in range(s:N)
@@ -1324,7 +1324,7 @@ endfunction
 " 0/$ sibling. Cursor sits strictly between first_nonblank and
 " last_nonblank so neither motion is a no-op.
 function! s:test_move_to_line_edges_non_white_space() abort
-  let GenFn = function('vimfluency#pinpoints#move_to_line_edges_non_white_space#generate')
+  let GenFn = function('vimfluency#drills#move_to_line_edges_non_white_space#generate')
   let valid = ['^', 'g_']
   let seen = {}
   for i in range(s:N)
@@ -1364,7 +1364,7 @@ endfunction
 " target_lines is the surviving slice; cursor ends at col 1 (d0) or
 " cursor-1 (d$).
 function! s:test_delete_to_line_edges_start_end() abort
-  let GenFn = function('vimfluency#pinpoints#delete_to_line_edges_start_end#generate')
+  let GenFn = function('vimfluency#drills#delete_to_line_edges_start_end#generate')
   let valid = ['d0', 'd$']
   let seen = {}
   for i in range(s:N)
@@ -1402,7 +1402,7 @@ endfunction
 " dl deletes char AT cursor (cursor stays); dh deletes char BEFORE cursor
 " (cursor moves left one column).
 function! s:test_delete_single_char_left_right() abort
-  let GenFn = function('vimfluency#pinpoints#delete_single_char_left_right#generate')
+  let GenFn = function('vimfluency#drills#delete_single_char_left_right#generate')
   let valid = ['dl', 'dh']
   let seen = {}
   for i in range(s:N)
@@ -1433,7 +1433,7 @@ endfunction
 " dj deletes rows [cursor, cursor+1]; dk deletes rows [cursor-1, cursor].
 " Survivors: 3 rows. Cursor lands at col 1 of the appropriate surviving row.
 function! s:test_delete_two_lines_down_up() abort
-  let GenFn = function('vimfluency#pinpoints#delete_two_lines_down_up#generate')
+  let GenFn = function('vimfluency#drills#delete_two_lines_down_up#generate')
   let valid = ['dj', 'dk']
   let seen = {}
   for i in range(s:N)
@@ -1480,7 +1480,7 @@ endfunction
 " no diagonals, expected_sub_mode == 'v', and the motion label
 " matches the chosen cardinal direction.
 function! s:test_visual_select_single_char_up_down_left_right() abort
-  let GenFn = function('vimfluency#pinpoints#visual_select_single_char_up_down_left_right#generate')
+  let GenFn = function('vimfluency#drills#visual_select_single_char_up_down_left_right#generate')
   let valid = ['vh', 'vj', 'vk', 'vl']
   let seen = {}
   let prefix = 'visual_select_single_char_up_down_left_right: '
@@ -1519,7 +1519,7 @@ endfunction
 " charwise pair on the vertical axis. Target on the same column as
 " start, target row = start ± 1, expected_sub_mode = 'v'.
 function! s:test_visual_select_single_char_up_down() abort
-  let GenFn = function('vimfluency#pinpoints#visual_select_single_char_up_down#generate')
+  let GenFn = function('vimfluency#drills#visual_select_single_char_up_down#generate')
   let valid = ['vj', 'vk']
   let seen = {}
   let prefix = 'visual_select_single_char_up_down: '
@@ -1557,7 +1557,7 @@ endfunction
 " charwise pair. Target on the same row as start, target column = start ± 1,
 " expected_sub_mode = 'v', selection start = start, selection end = target.
 function! s:test_visual_select_single_char_left_right() abort
-  let GenFn = function('vimfluency#pinpoints#visual_select_single_char_left_right#generate')
+  let GenFn = function('vimfluency#drills#visual_select_single_char_left_right#generate')
   let valid = ['vh', 'vl']
   let seen = {}
   let prefix = 'visual_select_single_char_left_right: '

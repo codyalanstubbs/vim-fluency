@@ -1,6 +1,6 @@
 " Tiny assertion library. Failures are appended to g:vf_test_failures and
 " surfaced by run.vim. No exceptions thrown — tests continue past failures
-" so a single broken pinpoint doesn't hide bugs in others.
+" so a single broken drill doesn't hide bugs in others.
 
 function! Assert(cond, msg) abort
   if !a:cond
