@@ -197,7 +197,7 @@ endfunction
 " Settings live in $XDG_DATA_HOME/vimfluency/settings.json next to the
 " session log. Two fields are recognized:
 "   "aims":             {drill_id → integer rate per minute}
-"   "default_duration": integer seconds (applies when :Vf has no arg)
+"   "default_duration": integer seconds (applies when :VfTrain has no arg)
 "
 " Defaults stay in each drill's meta(); the user's overrides sit on
 " top via s:effective_aim() / s:effective_duration(). Status, charts,
@@ -206,7 +206,7 @@ endfunction
 " everywhere.
 
 " Renamed drill slugs: old id → current id. Old ids keep working
-" everywhere — :Vf/:VfLearn/:VfChart args, session history, aim
+" everywhere — :VfTrain/:VfLearn/:VfChart args, session history, aim
 " overrides — because every read path canonicalizes through this map.
 " The JSONL log on disk is never rewritten; records that carry an old
 " id (or the pre-rename drill_id field's old name, pinpoint_id — see
@@ -288,8 +288,8 @@ function! s:effective_aim(id, meta) abort
   return get(aims, a:id, get(a:meta, 'aim', 0))
 endfunction
 
-" Effective default duration in seconds for :Vf with no explicit arg.
-" Explicit duration on :Vf <id> N is unaffected — this is JUST the
+" Effective default duration in seconds for :VfTrain with no explicit arg.
+" Explicit duration on :VfTrain <id> N is unaffected — this is JUST the
 " default when the user doesn't specify.
 function! s:effective_duration() abort
   return get(s:load_settings(), 'default_duration', 60)
@@ -1549,7 +1549,7 @@ function! vimfluency#start(...) abort
   endfor
 
   if empty(positional)
-    echo 'usage: :Vf <id> [duration] [only=motion[,motion...]]'
+    echo 'usage: :VfTrain <id> [duration] [only=motion[,motion...]]'
     return
   endif
   let id = vimfluency#canonical_id(positional[0])
@@ -2959,7 +2959,7 @@ function! vimfluency#stop(reason) abort
 
   " Post-session return-to-dashboard flow. The standalone summary
   " buffer is gone — every session ends by landing the cursor on the
-  " just-trained drill in :VfDashboard, where the new LAST SESSION
+  " just-trained drill in :Vf, where the new LAST SESSION
   " pane shows the fresh stats. If a dashboard tab is already open
   " (e.g. the learner reached training via T from there),
   " vimfluency#dashboard switches to it and rebuilds in place;
@@ -3942,8 +3942,8 @@ function! s:learn_show_complete() abort
     \ '  Each training writes a data point to the session log;',
     \ printf('  :VfChart %s plots your rate over days.', s:session.id),
     \ '',
-    \ printf('    t   start :Vf %s', s:session.id),
-    \ '    q   exit (run :Vf later when ready)',
+    \ printf('    t   start :VfTrain %s', s:session.id),
+    \ '    q   exit (run :VfTrain later when ready)',
     \ ])
   call cursor(1, 1)
   let s:session.advancing = 0
@@ -4190,7 +4190,7 @@ function! vimfluency#learn_stop() abort
   endif
   let &ttimeoutlen = prev_ttl
   let s:session = {}
-  echo 'lesson ended for ' . id . ' — try :Vf ' . id
+  echo 'lesson ended for ' . id . ' — try :VfTrain ' . id
 endfunction
 
 " -----------------------------------------------------------------
@@ -4488,7 +4488,7 @@ function! s:show_chart_buffer(id, lines, variant) abort
 endfunction
 
 " ─────────────────────────────────────────────────────────────────
-" :VfDashboard — multi-panel view with hover-reactive context panels
+" :Vf — multi-panel view with hover-reactive context panels
 "
 " Layout (top to bottom, fixed for now; could grow toggles later):
 "   profile         ~9 rows    learner-profile aggregates
@@ -4523,8 +4523,8 @@ let s:DASHBOARD_LAST_SESSION_WIDTH = 60
 " j/k — re-parsing sessions.jsonl there is the wrong cost model.
 let s:dashboard_cache = {}
 
-" :VfDashboard [drill_id]. Optional id lands the cursor on that
-" row (matching :Vf <id> / training-end auto-return). If a dashboard
+" :Vf [drill_id]. Optional id lands the cursor on that
+" row (matching :VfTrain <id> / training-end auto-return). If a dashboard
 " tab already exists, switch to it and rebuild in place rather than
 " opening a duplicate.
 function! vimfluency#dashboard(...) abort
@@ -4561,7 +4561,7 @@ endfunction
 function! s:show_dashboard(registry, sessions, ...) abort
   let target_id = a:0 > 0 ? a:1 : ''
   " Filter the registry to the current path. The dashboard is a
-  " curated view; :Vf <id> / :VfLearn <id> still work on every
+  " curated view; :VfTrain <id> / :VfLearn <id> still work on every
   " drill regardless of which path is active.
   let path_registry = s:filter_registry_by_path(a:registry)
   let view = s:build_list_view(path_registry, a:sessions, {})
@@ -4658,7 +4658,7 @@ function! s:show_dashboard(registry, sessions, ...) abort
   let b:vf_dashboard_banner_bufnr = banner_bufnr
   let b:vf_dashboard_last_session_bufnr = last_session_bufnr
 
-  " Land on target_id when given (passed from :VfDashboard <id> or
+  " Land on target_id when given (passed from :Vf <id> or
   " the post-training return path); fall back to the first drill
   " row otherwise.
   let first_line = empty(drill_rows) ? 2 : drill_rows[0]

@@ -19,13 +19,15 @@ For the "every server" use case: `scp -r vim-fluency/ user@host:~/.vim/pack/vimf
 
 ## Use
 
+`:Vf` opens the dashboard (home — browse drills, launch from a row); `:VfTrain {id}` runs a timed session directly.
+
 ```
-:VfDashboard                            " home view: drill table, charts, last session
+:Vf                                     " home view: drill table, charts, last session
 :VfList                                 " flat table of installed drills
 :VfLearn move_to_char_forward_backward  " DI-style lesson, hands off to training
-:Vf move_single_char_up_down_left_right       " 60-second training
-:Vf move_single_char_up_down_left_right 30    " 30 seconds
-:Vf move_to_line_edges_all only=g_,^    " drill only the listed motions
+:VfTrain move_single_char_up_down_left_right     " 60-second training
+:VfTrain move_single_char_up_down_left_right 30  " 30 seconds
+:VfTrain move_to_line_edges_all only=g_,^        " train only the listed motions
 :VfQuit                                 " end early; session logged
 :VfHistory                              " prior sessions with rate bars
 :VfChart {id}                           " progress chart (a Standard Celeration Chart)
@@ -38,7 +40,7 @@ Settings commands: `:VfSetAim` / `:VfResetAim` (per-drill aim override),
 `:help vimfluency` documents all of them.
 
 Tab skips the current item. Sessions open their own tab page and end by
-landing on the just-trained drill in `:VfDashboard`.
+landing on the just-trained drill in `:Vf` (the dashboard).
 
 ## How it works
 

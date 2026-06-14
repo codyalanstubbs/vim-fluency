@@ -11,20 +11,24 @@ Every drill has an "aim": the rate, in correct items per minute, at
 which the behavior counts as fluent. Aims start as rough guesses; set
 your own with :VfSetAim.
 
+Two entry points: :Vf opens the dashboard (the home view — browse
+drills, launch trainings and lessons from a row with T / L), and
+:VfTrain {id} starts a timed session on one drill directly.
+
 ==============================================================================
 COMMANDS                                                        *vf-commands*
 
-:Vf {id} [seconds] [only=motion[,motion...]]                          *:Vf*
+:VfTrain {id} [seconds] [only=motion[,motion...]]               *:VfTrain*
     Start a training on drill {id} for [seconds] (default 60, or
     your :VfSetDuration override). Use Tab to skip an item, :VfQuit
     to end early. When the session ends, the runner opens (or
-    rebuilds) :VfDashboard with the cursor on the just-trained
+    rebuilds) :Vf with the cursor on the just-trained
     drill, so the LAST SESSION pane shows the fresh stats.
 
     `only=` filters the generator to only produce items where the
     canonical answer is one of the listed motions. Example:
-        :Vf move_to_line_edges_all only=g_       drill only g_ items
-        :Vf move_to_line_edges_all only=g_,^     drill the slow pair
+        :VfTrain move_to_line_edges_all only=g_       drill only g_ items
+        :VfTrain move_to_line_edges_all only=g_,^     drill the slow pair
     Each generator labels every item with `expected_motion` and the
     end-of-session summary breaks down the rate per motion.
 
@@ -41,7 +45,7 @@ COMMANDS                                                        *vf-commands*
                       of demonstrated stability. So a row can show
                       last_rate well above aim and still display ▶
                       until the trend holds.
-        drill         the drill id (what you'd type after :Vf)
+        drill         the drill id (what you'd type after :VfTrain)
         commands      the keystrokes that produce this behavior,
                       space-separated
         prereqs_n     transitive prereq depth — 0 = no prereqs,
@@ -88,14 +92,14 @@ COMMANDS                                                        *vf-commands*
     drill rows (breakdown rows are skipped). On a drill row
     press:
         L     start a Learn session (:VfLearn) for this drill
-        T     start a Train session (:Vf) for this drill
+        T     start a Train session (:VfTrain) for this drill
         C     open the progress Chart (:VfChart) for this drill
         B     toggle the Breakdown beneath the drill — see below
         A     prompt to set the aim for THIS drill. Type a
               positive integer to store an override (same effect as
               :VfSetAim), 0 to clear an existing override (same as
               :VfResetAim), or press Esc to cancel.
-        D     prompt to set the GLOBAL default :Vf duration in
+        D     prompt to set the GLOBAL default :VfTrain duration in
               seconds. Same semantics as A: positive int stores
               (:VfSetDuration), 0 clears (:VfResetDuration), Esc
               cancels.
@@ -121,7 +125,7 @@ COMMANDS                                                        *vf-commands*
     `stroke_counts: {motion → N}` in meta() to override the derived
     count for a specific command.
 
-:VfDashboard [id]                                            *:VfDashboard*
+:Vf [id]                                                             *:Vf*
     Open the multi-panel dashboard: a one-line banner (current path,
     status counts, sessions trained), a hover panel showing progress
     charts for the drill under the cursor, the interactive drill
@@ -130,7 +134,7 @@ COMMANDS                                                        *vf-commands*
     per-command sub-table). The table rows and j/k navigation work
     like :VfList; the hover and LAST SESSION panels refresh as the
     cursor moves. The table is filtered to the current path (see
-    :VfSetPath); :Vf {id} and :VfLearn {id} still accept every
+    :VfSetPath); :VfTrain {id} and :VfLearn {id} still accept every
     drill regardless of path. Optional [id] lands the cursor on
     that row — every training session also ends here, on the
     just-trained drill. If a dashboard tab is already open it is
@@ -159,7 +163,7 @@ COMMANDS                                                        *vf-commands*
 :VfLearn {id}                                                    *:VfLearn*
     Walk through a scripted lesson for drill {id} (DI-style example/
     non-example sequencing followed by 'try it' frames) before timing the
-    skill with :Vf. Press <Space> or <CR> to advance through 'show'
+    skill with :VfTrain. Press <Space> or <CR> to advance through 'show'
     frames; reach the green target to advance through 'try' frames; press
     'q' or :VfQuit to stop early. Drills without a lesson() function
     will report "no lesson written for {id} yet".
@@ -194,12 +198,12 @@ COMMANDS                                                        *vf-commands*
     the drill's meta.aim default.
 
 :VfSetDuration {seconds}                                  *:VfSetDuration*
-    Store a personal global default duration (seconds) for :Vf runs
+    Store a personal global default duration (seconds) for :VfTrain runs
     that don't specify an explicit duration.
         :VfSetDuration 90
-    Per-invocation arg on :Vf <id> <seconds> still wins over both this
+    Per-invocation arg on :VfTrain <id> <seconds> still wins over both this
     override and the 60s built-in default. There is no per-drill
-    duration override; this is one knob that applies to every :Vf
+    duration override; this is one knob that applies to every :VfTrain
     that doesn't pass an explicit duration.
 
 :VfResetDuration                                        *:VfResetDuration*
@@ -208,7 +212,7 @@ COMMANDS                                                        *vf-commands*
 :VfSetPath {name}                                            *:VfSetPath*
     Store the current learning path. A path is a curated subset of
     the drill registry (defined by a file under
-    autoload/vimfluency/paths/) that filters what :VfDashboard shows.
+    autoload/vimfluency/paths/) that filters what :Vf shows.
         :VfSetPath foundational
     Tab-completion offers the discovered paths; unknown names are
     rejected with the list of what's available. The selection
@@ -262,12 +266,12 @@ with the shape:
 
 Set and clear via :VfSetAim, :VfSetDuration, and :VfSetPath; the file
 is rewritten on each change. A missing or malformed file is treated as
-"no overrides" so neither :VfList nor :Vf ever errors on a fresh
+"no overrides" so neither :VfList nor :VfTrain ever errors on a fresh
 install.
 
 Renamed drills: when a drill's id changes between releases, the old id
 keeps working — session records in the log, aim-override keys in
-settings.json, and ids typed into :Vf / :VfLearn / :VfChart /
+settings.json, and ids typed into :VfTrain / :VfLearn / :VfChart /
 :VfHistory are all mapped to the current id at read time. The log
 file itself is never rewritten, so history and charts stay continuous
 across a rename.
@@ -293,7 +297,7 @@ Drop a file at  autoload/vimfluency/drills/<slug>.vim  defining:
 
 {slug} is a descriptive snake_case identifier starting with a letter
 (e.g. move_single_char_left_right) — it is both the filename minus
-.vim and the {id} users type after :Vf.
+.vim and the {id} users type after :VfTrain.
 Rows and cols are 1-indexed (vim convention).
 'allowed_keys' is advisory documentation of the intended key set; the
 runner does not restrict input with it.

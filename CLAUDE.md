@@ -4,7 +4,7 @@ Context for future Claude sessions on **Vim Fluency** (plugin id `vimfluency`, r
 
 ## What this is
 
-A vim plugin that runs timed fluency training sessions (`:Vf`) and DI-style lessons
+A vim plugin that runs timed fluency training sessions (`:VfTrain`) and DI-style lessons
 (`:VfLearn`) on vim behaviors. The goal is to give aspiring and current vim
 users an explicit behavioral hierarchy they can drill, measure their real
 per-behavior rates against, and improve those rates over time.
@@ -46,7 +46,7 @@ Each `autoload/vimfluency/drills/<slug>.vim` must export:
 
 `<slug>` is a descriptive snake_case id (e.g. `move_single_char_left_right`,
 `save_vs_quit`). The slug is the filename minus `.vim` and is the
-identifier the user types into `:Vf <id>`. Slug starts with a letter —
+identifier the user types into `:VfTrain <id>`. Slug starts with a letter —
 no `p` prefix needed anymore (the old `p<ID>` tier-code names are gone).
 
 **Terminology note:** "drill" is the name everywhere now — directory,
@@ -174,7 +174,7 @@ accumulates per-motion rate, average actual motions, and total wasted motions
   of `expected_motion` values the test phase walks; required streak
   is 3 × len(test_sequence) (3 complete sequences). On reaching the
   streak the runner enters a `complete` phase and shows a
-  celebration screen with explicit options: **t** starts `:Vf <id>`
+  celebration screen with explicit options: **t** starts `:VfTrain <id>`
   (uses the configured default duration), **q** exits. Space/Enter
   and CursorMoved are no-ops on this screen — the handoff is
   deliberate. On either failure condition — 3 wrong in a row or the
@@ -212,7 +212,7 @@ the whitespace-listchars pattern.
   `vf-dashboard-hover`, `vf-dashboard-last-session`
 
 (No standalone summary buffer anymore — sessions end by landing on the
-trained drill's row in `:VfDashboard`.)
+trained drill's row in `:Vf`.)
 
 **Avoid slashes** — vim's `pathshorten()` truncates path-like names when the
 tabline is cramped (`vimfluency://summary/1A.1` → `t//s/1A.1`).
@@ -259,7 +259,7 @@ item-start position), not exercised natively.
 
 ## Renaming a drill slug
 
-Slugs are user data: they're typed into `:Vf` and stored as
+Slugs are user data: they're typed into `:VfTrain` and stored as
 `drill_id` in every JSONL session record. To rename one: `git mv`
 the file, update the three `vimfluency#drills#<slug>#` function
 names and the meta `id`, update every in-repo reference (prereqs /
@@ -274,7 +274,7 @@ aliasing live at the bottom of `tests/test_settings.vim`.
 
 - All aim numbers are starting guesses. Calibration against real data is
   part of the actual research, not premature
-- Don't pre-create sub-drills for "drill just this motion" — `:Vf <id> only=motion[,motion...]` exists for that
+- Don't pre-create sub-drills for "drill just this motion" — `:VfTrain <id> only=motion[,motion...]` exists for that
 - Don't add `Co-Authored-By: Claude` trailers to commits in this project
 
 ## Capturing learnings (marketing pipeline)

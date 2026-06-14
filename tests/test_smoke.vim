@@ -27,6 +27,7 @@ call Assert(exists('*vimfluency#list'),          'smoke: vimfluency#list exists'
 
 " Commands
 call Assert(exists(':Vf') == 2,        'smoke: :Vf defined')
+call Assert(exists(':VfTrain') == 2,   'smoke: :VfTrain defined')
 call Assert(exists(':VfList') == 2,    'smoke: :VfList defined')
 call Assert(exists(':VfQuit') == 2,    'smoke: :VfQuit defined')
 call Assert(exists(':VfHistory') == 2, 'smoke: :VfHistory defined')

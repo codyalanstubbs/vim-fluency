@@ -5,7 +5,7 @@
 # dashboard/list/chart buffers actually open and close. Exits non-zero
 # on any failure.
 #
-# Covers: plugin load, :Vf arg validation, mode_switch training
+# Covers: plugin load, :VfTrain arg validation, mode_switch training
 # (ModeChanged credit + the :VfQuit cnoremap escape hatch), motion
 # training (CursorMoved credit + timer-expiry stop + JSONL write +
 # dashboard handoff), visual_motion training, lesson open/teardown,
@@ -59,14 +59,14 @@ echo "== load =="
 chk "plugin loaded" 1 "$(NV 'exists("g:loaded_vimfluency")')"
 drill_count=$(ls "$ROOT"/autoload/vimfluency/drills/*.vim | wc -l | tr -d ' ')
 chk "registry has $drill_count drills (one per file)" "$drill_count" "$(NV 'len(vimfluency#discover_drills())')"
-chk "15 :Vf* commands" 15 "$(NV 'len(getcompletion("Vf", "command"))')"
+chk "15 Vf* commands" 15 "$(NV 'len(getcompletion("Vf", "command"))')"
 
 echo "== arg validation =="
-NS ':Vf save_vs_quit abc<CR>'; settle
+NS ':VfTrain save_vs_quit abc<CR>'; settle
 chk "bad duration rejected, no session" "" "$(NV 'vimfluency#statusline()')"
 
 echo "== mode_switch training: ModeChanged credit + VfQuit escape =="
-NS ':Vf switch_mode_to_insert 30<CR>'; settle
+NS ':VfTrain switch_mode_to_insert 30<CR>'; settle
 chk "session started" 1 "$(NV '!empty(vimfluency#statusline())')"
 chk "training buffer name" "vf-switch_mode_to_insert" "$(NV 'bufname("%")')"
 # First target must be insert (no-repeat constraint: current mode is n).
@@ -83,7 +83,7 @@ NS 'q'; settle
 chk "dashboard q closes it" 0 "$(NV 'bufexists("vf-dashboard-table")')"
 
 echo "== motion training: CursorMoved credit + timer expiry =="
-NS ':Vf move_to_line_edges_start_end 5<CR>'; settle
+NS ':VfTrain move_to_line_edges_start_end 5<CR>'; settle
 chk "session started" 1 "$(NV '!empty(vimfluency#statusline())')"
 for _ in 1 2 3 4 5; do NS '0'; settle; NS '$'; settle; done
 chk "timer expired the session" 0 "$(NV 'wait(8000, {-> empty(vimfluency#statusline())}, 200)')"
@@ -93,7 +93,7 @@ chk "dashboard reopened" 1 "$(NV 'bufexists("vf-dashboard-table")')"
 NS 'q'; settle
 
 echo "== visual_motion training =="
-NS ':Vf visual_select_single_char_left_right 30<CR>'; settle
+NS ':VfTrain visual_select_single_char_left_right 30<CR>'; settle
 chk "session started" 1 "$(NV '!empty(vimfluency#statusline())')"
 # Free-operant: a wrong-direction guess leaves the cursor displaced and
 # the learner must recover, so blind vh/vl alternation never credits.
@@ -113,6 +113,12 @@ chk "lesson buffer name" "vf-lesson-move_single_char_up_down_left_right" "$(NV '
 chkge "lesson frame rendered" 3 "$(NV 'line("$")')"
 NS ':VfQuit<CR>'; settle; nap 0.3; settle
 chk "lesson torn down" 0 "$(NV 'bufexists("vf-lesson-move_single_char_up_down_left_right")')"
+
+echo "== bare :Vf opens the dashboard =="
+NS ':Vf<CR>'; settle
+chk ":Vf opens dashboard" 1 "$(NV 'bufexists("vf-dashboard-table")')"
+NS 'q'; settle
+chk "dashboard q closes it" 0 "$(NV 'bufexists("vf-dashboard-table")')"
 
 echo "== list + chart open/close =="
 NS ':VfList<CR>'; settle

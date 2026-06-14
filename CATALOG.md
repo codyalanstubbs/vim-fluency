@@ -14,9 +14,9 @@ is the source of truth for *what's actually shipped*.
 
 ## Conventions
 
-- **id (slug)** — the identifier a user types into `:Vf <id>` /
+- **id (slug)** — the identifier a user types into `:VfTrain <id>` /
   `:VfLearn <id>` / `:VfChart <id>`. Slugs are descriptive snake_case
-  (e.g. `move_single_char_left_right`). Tab-completion in `:Vf` works.
+  (e.g. `move_single_char_left_right`). Tab-completion in `:VfTrain` works.
 - **Training format** — what the learner sees and produces:
   - `S→K` — show before/after state; learner types minimal keystrokes
   - `K→S` — show keystrokes; learner predicts state
