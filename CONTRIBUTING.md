@@ -55,11 +55,15 @@ Worked examples to study before writing your own:
 A drill is one file: `autoload/vimfluency/drills/<slug>.vim`.
 The slug is descriptive snake_case starting with a letter
 (`move_single_char_left_right`, `save_vs_quit`) — it's both the
-filename minus `.vim` and what users type after `:Vf`.
+filename minus `.vim` and what users type after `:VfTrain`.
 
 - `meta()` returns `id` (= the slug), `name`, `aim`, `family`,
-  `prereqs`, `allowed_keys` (advisory documentation only — the runner
-  doesn't enforce it), and `test_sequence`. See `:help vf-drills`.
+  `keys` (slash-separated display string of the drilled keystrokes,
+  e.g. `'dl/dh'`), `prereqs`, `allowed_keys` (advisory documentation
+  only — the runner doesn't enforce it), `test_sequence`, and `kind`
+  for non-motion drills (`editing`, `recall`, `mode`, `mode_switch`,
+  `command`, `visual_motion` — see `:help vf-kinds`; omit for the
+  default cursor-only `motion` kind). See `:help vf-drills`.
 - `generate()` returns one item including `expected_motion` (the
   canonical answer) and `optimal_motions` (expert keystroke count) —
   per-motion measurement depends on both being right.

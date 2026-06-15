@@ -12,7 +12,7 @@ body:
     id: slug
     attributes:
       label: Proposed slug
-      description: Descriptive snake_case, starts with a letter. Filename minus .vim, and what users type after `:Vf`.
+      description: Descriptive snake_case, starts with a letter. Filename minus .vim, and what users type after `:VfTrain`.
       placeholder: delete_to_char_forward_backward
     validations:
       required: true

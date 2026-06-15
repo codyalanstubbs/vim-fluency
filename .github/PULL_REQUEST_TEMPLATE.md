@@ -10,7 +10,7 @@ Proposal issue: #
 
 - [ ] Proposal issue exists and the cheat analysis was settled there
 - [ ] Cheat analysis documented as a comment block at the top of the drill file
-- [ ] `meta()` has `id` (= filename slug), `name`, `aim`, `family`, `prereqs`, `allowed_keys`, `test_sequence`
+- [ ] `meta()` has `id` (= filename slug), `name`, `aim`, `family`, `keys`, `prereqs`, `allowed_keys`, `test_sequence`, and `kind` (for non-motion drills)
 - [ ] `generate()` items carry `expected_motion` and `optimal_motions`
 - [ ] `lesson()` included (or a reason it isn't) — every motion introduction is a `try` frame
 - [ ] Property tests in `tests/test_generators.vim` cover the `optimal_motions` formula and the `expected_motion` set
