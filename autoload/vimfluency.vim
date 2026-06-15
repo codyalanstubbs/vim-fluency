@@ -1599,6 +1599,7 @@ function! vimfluency#start(...) abort
     \ 'waypoint_match_ids': [],
     \ 'prev_laststatus': &laststatus,
     \ 'prev_ttimeoutlen': &ttimeoutlen,
+    \ 'prev_cpoptions': &cpoptions,
     \ }
   " ttimeoutlen is what gates how long vim waits after Esc / Ctrl+[
   " to see if a function-key sequence is starting. Default is 100ms
@@ -1608,6 +1609,15 @@ function! vimfluency#start(...) abort
   " the byte as Esc. Drop it to 10ms during the session and restore
   " in vimfluency#stop.
   set ttimeoutlen=10
+  " Repeat-find drills (; / ,) depend on the modern t/T-repeat
+  " behavior: ; after t{c} skips to the NEXT match even though the
+  " cursor sits one cell before the current one. The vi-compat
+  " cpoptions ';' flag breaks that (; sticks in place), which would
+  " freeze a t-repeat item — it could never be credited. cpoptions
+  " is global-only, so strip ';' for the session and restore in
+  " vimfluency#stop. Harmless for non-t drills (f/F/;/, are
+  " unaffected by the flag).
+  set cpoptions-=;
 
   call s:setup_window()
   call s:next_item()
@@ -2966,6 +2976,7 @@ function! vimfluency#stop(reason) abort
   " otherwise it opens a new one.
   let prev_laststatus = s:session.prev_laststatus
   let prev_ttimeoutlen = get(s:session, 'prev_ttimeoutlen', &ttimeoutlen)
+  let prev_cpoptions = get(s:session, 'prev_cpoptions', &cpoptions)
   let you_win = get(s:session, 'you_win', -1)
   let drill_id = record.drill_id
   let s:session = {}
@@ -2978,6 +2989,7 @@ function! vimfluency#stop(reason) abort
   endif
   let &laststatus = prev_laststatus
   let &ttimeoutlen = prev_ttimeoutlen
+  let &cpoptions = prev_cpoptions
   call vimfluency#dashboard(drill_id)
 endfunction
 
@@ -3150,6 +3162,7 @@ function! vimfluency#learn(...) abort
     \ 'last_item_optimal': 0,
     \ 'current_test_item': {},
     \ 'prev_ttimeoutlen': &ttimeoutlen,
+    \ 'prev_cpoptions': &cpoptions,
     \ 'target_match_id': -1,
     \ 'deletion_match_id': -1,
     \ 'waypoint_match_ids': [],
@@ -3160,6 +3173,10 @@ function! vimfluency#learn(...) abort
   " mode_switch lesson's to-Normal try frames feel laggy compared
   " to to-Insert / to-Visual / to-Cmd transitions.
   set ttimeoutlen=10
+  " See vimfluency#start: strip the cpoptions ';' flag so ; / , after
+  " a t/T find skip to the next match instead of sticking. Restored
+  " in vimfluency#learn_stop.
+  set cpoptions-=;
 
   call s:learn_setup_window()
   call s:learn_show_frame()
@@ -4182,6 +4199,7 @@ function! vimfluency#learn_stop() abort
   call s:stop_learn_auto_advance()
   let id = s:session.id
   let prev_ttl = get(s:session, 'prev_ttimeoutlen', &ttimeoutlen)
+  let prev_cpo = get(s:session, 'prev_cpoptions', &cpoptions)
   " Resolve the tab by window id at close time — the tab NUMBER captured
   " at setup goes stale if the user opens/closes tabs mid-session.
   let tabnr = win_id2tabwin(get(s:session, 'you_win', -1))[0]
@@ -4189,6 +4207,7 @@ function! vimfluency#learn_stop() abort
     silent! execute 'tabclose ' . tabnr
   endif
   let &ttimeoutlen = prev_ttl
+  let &cpoptions = prev_cpo
   let s:session = {}
   echo 'lesson ended for ' . id . ' — try :VfTrain ' . id
 endfunction

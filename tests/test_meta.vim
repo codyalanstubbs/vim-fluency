@@ -36,6 +36,7 @@ let s:expected = [
   \ {'id': 'move_to_char_forward_backward', 'prereqs': ['move_single_char_up_down_left_right']},
   \ {'id': 'move_till_char_forward_backward', 'prereqs': ['move_to_char_forward_backward']},
   \ {'id': 'move_repeat_last_find_forward', 'prereqs': ['move_to_char_forward_backward']},
+  \ {'id': 'move_repeat_last_till_forward', 'prereqs': ['move_repeat_last_find_forward', 'move_till_char_forward_backward']},
   \ {'id': 'move_repeat_last_find_forward_backward', 'prereqs': ['move_repeat_last_find_forward', 'move_to_char_forward_backward']},
   \ {'id': 'move_to_vs_till_forward', 'prereqs': []},
   \ {'id': 'move_to_vs_till_backward', 'prereqs': []},
