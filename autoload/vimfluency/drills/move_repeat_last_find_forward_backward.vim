@@ -1,4 +1,9 @@
-" move_repeat_last_find_forward_backward — ; / , (repeat last find).
+" move_repeat_last_find_forward_backward — ; / , over BOTH a forward
+" find (f) and a backward find (F) setup. The harder sibling of
+" move_repeat_last_find_forward (which is f-only): this one adds the
+" Shift-key backward setup (Fc) and varies the cluster across real
+" word lines, so the learner must read direction AND repeat-key
+" against a noisier layout. Get the f-only drill to aim first.
 "
 " `;` repeats the last f/F/t/T in the same direction.
 " `,` repeats it in the opposite direction.
@@ -54,7 +59,7 @@ let s:WORDS = ['return', 'import', 'while', 'range', 'class', 'value',
 
 function! vimfluency#drills#move_repeat_last_find_forward_backward#meta() abort
   return {'id': 'move_repeat_last_find_forward_backward', 'name': 'repeat last find (; ,)',
-    \ 'aim': 40, 'allowed_keys': ';,fFtT', 'prereqs': ['move_to_char_forward_backward', 'move_till_char_forward_backward'], 'keys': ';/,', 'family': 'motion',
+    \ 'aim': 40, 'allowed_keys': ';,fF', 'prereqs': ['move_repeat_last_find_forward', 'move_to_char_forward_backward'], 'keys': ';/,', 'family': 'motion',
     \ 'test_sequence': [';', ',']}
 endfunction
 

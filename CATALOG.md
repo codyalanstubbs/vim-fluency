@@ -69,7 +69,8 @@ Cursor-only behaviors. No buffer change.
 | `move_to_word_end_forward_backward` | `e ge` | S→K | 40 | — |
 | `move_to_char_forward_backward` | `f{c} F{c}` | S→K | 50 | `move_single_char_up_down_left_right` |
 | `move_till_char_forward_backward` | `t{c} T{c}` | S→K | 45 | `move_to_char_forward_backward` |
-| `move_repeat_last_find_forward_backward` | Repeat last find (`;`, `,`) | S→K | 40 | `move_to_char_forward_backward`, `move_till_char_forward_backward` |
+| `move_repeat_last_find_forward` | Repeat last find (`;`, `,`) after `f` only — constant-shape geometry, `s`/`d`/`f` search chars | S→K | 40 | `move_to_char_forward_backward` |
+| `move_repeat_last_find_forward_backward` | Repeat last find (`;`, `,`) after `f` or `F` over word lines | S→K | 40 | `move_repeat_last_find_forward`, `move_to_char_forward_backward` |
 | `move_to_vs_till_forward` | 2-cell: `f{c}` (lands ON next c) vs `t{c}` (lands ONE BEFORE next c) | S→K | 50 | — |
 | `move_to_vs_till_backward` | 2-cell: `F{c}` (lands ON previous c) vs `T{c}` (lands ONE AFTER previous c) | S→K | 50 | — |
 | `move_to_vs_till_forward_in_words` | 2-cell: `f{c}` vs `t{c}` over word-shaped content (varying skim span) | S→K | 40 | `move_to_vs_till_forward` |

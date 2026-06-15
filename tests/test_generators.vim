@@ -479,6 +479,77 @@ function! s:test_move_till_char_forward_backward() abort
   call Assert(get(seen, 'T', 0) == 1, 'move_till_char_forward_backward: T appeared in samples')
 endfunction
 
+" move_repeat_last_find_forward: f-only ; / , with constant-shape
+" geometry. Verifies the two-step sequence (f{char} then ;/,) actually
+" lands on the target by simulating both finds, and that the cheat-
+" defense invariants hold (spaceless line, search char appears exactly
+" twice, interior margins, cursor not on a match).
+function! s:test_move_repeat_last_find_forward() abort
+  let GenFn = function('vimfluency#drills#move_repeat_last_find_forward#generate')
+  let valid = [';', ',']
+  let seen = {}
+  let prefix = 'move_repeat_last_find_forward: '
+  for i in range(s:N)
+    let item = GenFn()
+    call s:assert_common('move_repeat_last_find_forward', item)
+    call AssertIn(item.expected_motion, valid,
+      \ prefix . 'expected_motion in {; ,}')
+    call AssertEq(item.optimal_motions, 2, prefix . 'optimal_motions == 2')
+
+    let line = item.lines[0]
+    let llen = len(line)
+    let sc = item.start[1]
+    let tc = item.target[1]
+    let wp = item.waypoints[0][1]
+    let search = line[wp - 1]
+    let seen[item.expected_motion] = 1
+
+    " Single waypoint; line is spaceless; search char appears exactly twice.
+    call AssertEq(len(item.waypoints), 1, prefix . 'exactly one waypoint')
+    call Assert(stridx(line, ' ') < 0, prefix . 'line is spaceless')
+    let occ = []
+    for c in range(1, llen)
+      if line[c - 1] ==# search | call add(occ, c) | endif
+    endfor
+    call AssertEq(len(occ), 2, prefix . 'search char appears exactly twice')
+    " Waypoint and target are the two occurrences.
+    call Assert(index(occ, wp) >= 0, prefix . 'waypoint is an occurrence')
+    call Assert(index(occ, tc) >= 0, prefix . 'target is an occurrence')
+    call Assert(wp != tc, prefix . 'waypoint != target')
+
+    " Interior margins (defeat 0/^/$) and cursor not on a match.
+    for c in occ
+      call Assert(c >= 3 && c <= llen - 1, prefix . 'occurrence interior')
+    endfor
+    call Assert(line[sc - 1] !=# search, prefix . 'cursor not on search char')
+
+    " Simulate the canonical two-step. f{search} from the cursor lands
+    " on the first occurrence in the find's direction; then ; (same
+    " direction) or , (reverse) must land on the target.
+    let first = 0
+    for c in range(sc + 1, llen)
+      if line[c - 1] ==# search | let first = c | break | endif
+    endfor
+    call AssertEq(first, wp, prefix . 'f{c} lands on the waypoint')
+    if item.expected_motion ==# ';'
+      let second = 0
+      for c in range(first + 1, llen)
+        if line[c - 1] ==# search | let second = c | break | endif
+      endfor
+      call AssertEq(second, tc, prefix . '; continues forward to the target')
+    else
+      let back = 0
+      for c in range(first - 1, 1, -1)
+        if line[c - 1] ==# search | let back = c | break | endif
+      endfor
+      call AssertEq(back, tc, prefix . ', reverses back to the target')
+    endif
+  endfor
+  for m in valid
+    call Assert(get(seen, m, 0) == 1, prefix . m . ' appeared in samples')
+  endfor
+endfunction
+
 " move_repeat_last_find_forward_backward: expected_motion in {; ,}; optimal_motions == 2; target interior
 " to its word with margin >= 2; cursor positioned per-scenario; distance
 " >= 3; exactly one waypoint at the canonical-sequence's first-stop.
@@ -1597,6 +1668,7 @@ call s:test_move_to_word_start_forward_backward()
 call s:test_move_to_word_end_forward_backward()
 call s:test_move_to_char_forward_backward()
 call s:test_move_till_char_forward_backward()
+call s:test_move_repeat_last_find_forward()
 call s:test_move_repeat_last_find_forward_backward()
 call s:test_move_to_vs_till_forward_backward()
 call s:test_move_to_vs_till_forward()
