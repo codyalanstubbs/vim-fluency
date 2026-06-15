@@ -4,18 +4,21 @@ A vim plugin for behavioral-fluency training sessions on vim drills. Runs inside
 
 ## Install
 
-Manual:
+Plugin manager (vim-plug):
 ```vim
-" in your vimrc
-set runtimepath+=/path/to/vim-fluency
+Plug 'codyalanstubbs/vim-fluency'
 ```
 
-Plugin manager (vim-plug example):
-```vim
-Plug '/path/to/vim-fluency'
+lazy.nvim:
+```lua
+{ 'codyalanstubbs/vim-fluency' }
 ```
 
-For the "every server" use case: `scp -r vim-fluency/ user@host:~/.vim/pack/vimfluency/start/vimfluency/` and it's installed.
+Without a plugin manager, clone into a pack dir:
+```sh
+git clone https://github.com/codyalanstubbs/vim-fluency \
+  ~/.vim/pack/vimfluency/start/vimfluency
+```
 
 ## Use
 
@@ -75,4 +78,4 @@ A drill targets one precisely specified behavior — what Precision Teaching cal
 
 - **No raw keystroke counting.** Vim's autocmds fire post-aggregate (`5w` is one event), so the motion counts measure commands, not individual key presses. Stroke counts shown in breakdowns are derived from the command string.
 - **No input restriction.** A drill declares `allowed_keys` in its metadata, but the plugin doesn't remap forbidden keys. Honest measurement of what the user does. Can be added as opt-in later.
-- **Vim 8.1+** (with `rand()`, patch 8.1.2342) or **Neovim** required. The plugin is deliberately written in conservative legacy vimscript so it runs on every server you ssh into; the same baseline runs on Neovim unmodified (test suite and interactive use verified on nvim 0.11).
+- **Vim 8.1+** (with `rand()`, patch 8.1.2342) or **Neovim** required. The plugin is deliberately written in conservative legacy vimscript with no dependencies, so it runs on a stock vim install and on Neovim unmodified (test suite and interactive use verified on nvim 0.11).

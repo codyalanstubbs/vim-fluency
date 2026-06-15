@@ -82,8 +82,8 @@ filename minus `.vim` and what users type after `:VfTrain`.
 
 - **Vim 8.1 baseline** (with `rand()`, patch 8.1.2342). No
   Neovim-only features, no Lua, no vimscript9 — the plugin must run on
-  every server you ssh into, and the same legacy-vimscript baseline is
-  what makes Neovim support free.
+  a stock vim install with no dependencies, and the same legacy-vimscript
+  baseline is what makes Neovim support free.
 - Watch for functions newer than 8.1 sneaking in (`reduce()`,
   `matchfuzzy()`, Floats in `min()`/`max()` — that last one needs 9.1
   and has bitten this codebase before).

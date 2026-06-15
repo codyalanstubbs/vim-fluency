@@ -18,7 +18,8 @@ for the framing pivot.
 ## Vim version
 
 Vim 8.1+. Uses `rand()`, `json_encode()`, `timer_start()`, `keepalt file`. No
-Neovim-specific or Lua features — must run on every server you ssh into.
+Neovim-specific or Lua features — keep to a conservative, dependency-free
+baseline that runs on a stock vim install and on Neovim alike.
 
 ## File layout
 
