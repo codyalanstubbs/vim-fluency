@@ -9,7 +9,7 @@ jobs:
   vim:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install vim
         run: sudo apt-get update -qq && sudo apt-get install -y -qq vim
       - name: Show version
@@ -20,7 +20,7 @@ jobs:
   nvim:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install Neovim (stable)
         run: |
           curl -fsSL https://github.com/neovim/neovim/releases/download/stable/nvim-linux-x86_64.tar.gz \
