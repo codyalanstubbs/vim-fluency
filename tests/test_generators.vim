@@ -664,6 +664,39 @@ function! s:test_move_repeat_last_till_backward() abort
   endfor
 endfunction
 
+" move_repeat_last_till_forward_backward: t/T mix. Delegates to the two
+" single-direction generators (each independently shape-verified), so
+" this test confirms the delegation: valid {; ,} items, and that BOTH
+" setups appear. The first till always moves the cursor exactly one
+" cell to the waypoint, so |cursor - waypoint| == 1 and the sign
+" identifies the direction (cursor left of waypoint = forward t;
+" cursor right = backward T).
+function! s:test_move_repeat_last_till_forward_backward() abort
+  let GenFn = function('vimfluency#drills#move_repeat_last_till_forward_backward#generate')
+  let valid = [';', ',']
+  let seen = {}
+  let saw_t = 0 | let saw_T = 0
+  let prefix = 'move_repeat_last_till_forward_backward: '
+  for i in range(s:N)
+    let item = GenFn()
+    call s:assert_common('move_repeat_last_till_forward_backward', item)
+    call AssertIn(item.expected_motion, valid, prefix . 'expected_motion in {; ,}')
+    call AssertEq(item.optimal_motions, 2, prefix . 'optimal_motions == 2')
+    call AssertEq(len(item.waypoints), 1, prefix . 'exactly one waypoint')
+
+    let sc = item.start[1]
+    let wp = item.waypoints[0][1]
+    call AssertEq(abs(sc - wp), 1, prefix . 'cursor one cell from the waypoint')
+    if sc < wp | let saw_t = 1 | else | let saw_T = 1 | endif
+    let seen[item.expected_motion] = 1
+  endfor
+  for m in valid
+    call Assert(get(seen, m, 0) == 1, prefix . m . ' appeared in samples')
+  endfor
+  call Assert(saw_t, prefix . 'forward-till (t) setup appeared')
+  call Assert(saw_T, prefix . 'backward-till (T) setup appeared')
+endfunction
+
 " move_repeat_last_find_forward_backward: expected_motion in {; ,}; optimal_motions == 2; target interior
 " to its word with margin >= 2; cursor positioned per-scenario; distance
 " >= 3; exactly one waypoint at the canonical-sequence's first-stop.
@@ -1785,6 +1818,7 @@ call s:test_move_till_char_forward_backward()
 call s:test_move_repeat_last_find_forward()
 call s:test_move_repeat_last_till_forward()
 call s:test_move_repeat_last_till_backward()
+call s:test_move_repeat_last_till_forward_backward()
 call s:test_move_repeat_last_find_forward_backward()
 call s:test_move_to_vs_till_forward_backward()
 call s:test_move_to_vs_till_forward()
