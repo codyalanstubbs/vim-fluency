@@ -727,6 +727,52 @@ function! s:test_move_repeat_last_find_vs_till_forward() abort
   call Assert(saw_till, prefix . 'till (t) setup appeared')
 endfunction
 
+" move_repeat_last_find_backward: F-only ; / , — backward find mirror.
+" F lands ON the char, so BOTH waypoint and target are occurrences:
+"   ; : F -> q (waypoint), ; -> p (target)
+"   , : F -> p (waypoint), , -> q (target)
+function! s:test_move_repeat_last_find_backward() abort
+  let GenFn = function('vimfluency#drills#move_repeat_last_find_backward#generate')
+  let valid = [';', ',']
+  let seen = {}
+  let prefix = 'move_repeat_last_find_backward: '
+  for i in range(s:N)
+    let item = GenFn()
+    call s:assert_common('move_repeat_last_find_backward', item)
+    call AssertIn(item.expected_motion, valid, prefix . 'expected_motion in {; ,}')
+    call AssertEq(item.optimal_motions, 2, prefix . 'optimal_motions == 2')
+
+    let line = item.lines[0]
+    let llen = len(line)
+    let sc = item.start[1]
+    let tc = item.target[1]
+    let wp = item.waypoints[0][1]
+    let seen[item.expected_motion] = 1
+
+    call AssertEq(len(item.waypoints), 1, prefix . 'exactly one waypoint')
+    call Assert(stridx(line, ' ') < 0, prefix . 'line is spaceless')
+
+    " Both waypoint and target are the two occurrences (F lands ON).
+    call AssertEq(abs(wp - tc), 6, prefix . 'waypoint and target 6 cols apart')
+    call AssertEq(line[wp - 1], line[tc - 1], prefix . 'waypoint and target same char')
+    let search = line[wp - 1]
+    let occ = []
+    for c in range(1, llen)
+      if line[c - 1] ==# search | call add(occ, c) | endif
+    endfor
+    call AssertEq(len(occ), 2, prefix . 'search char appears exactly twice')
+
+    " Cursor is right of both occurrences (;) or between them (,);
+    " either way it sits to the RIGHT of the waypoint (backward find).
+    call Assert(sc > wp, prefix . 'cursor right of the waypoint')
+    call Assert(tc >= 3 && tc <= llen - 1, prefix . 'target interior')
+    call Assert(line[sc - 1] !=# search, prefix . 'cursor not on search char')
+  endfor
+  for m in valid
+    call Assert(get(seen, m, 0) == 1, prefix . m . ' appeared in samples')
+  endfor
+endfunction
+
 " move_repeat_last_find_forward_backward: expected_motion in {; ,}; optimal_motions == 2; target interior
 " to its word with margin >= 2; cursor positioned per-scenario; distance
 " >= 3; exactly one waypoint at the canonical-sequence's first-stop.
@@ -1850,6 +1896,7 @@ call s:test_move_repeat_last_till_forward()
 call s:test_move_repeat_last_till_backward()
 call s:test_move_repeat_last_till_forward_backward()
 call s:test_move_repeat_last_find_vs_till_forward()
+call s:test_move_repeat_last_find_backward()
 call s:test_move_repeat_last_find_forward_backward()
 call s:test_move_to_vs_till_forward_backward()
 call s:test_move_to_vs_till_forward()
