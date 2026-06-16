@@ -75,6 +75,7 @@ Cursor-only behaviors. No buffer change.
 | `move_repeat_last_till_forward_backward` | Repeat last till (`;`, `,`) after `t` or `T` — direction discrimination | S→K | 32 | `move_repeat_last_till_forward`, `move_repeat_last_till_backward` |
 | `move_repeat_last_find_backward` | Repeat last find (`;`, `,`) after `F` only — backward mirror (Shift + reverse) | S→K | 37 | `move_repeat_last_find_forward`, `move_to_char_forward_backward` |
 | `move_repeat_last_find_vs_till_forward` | Repeat last find vs till (`;`, `,`) after `f` or `t` — family discrimination (land on vs before) | S→K | 30 | `move_repeat_last_find_forward`, `move_repeat_last_till_forward` |
+| `move_repeat_last_find_vs_till_backward` | Repeat last find vs till (`;`, `,`) after `F` or `T` — backward family discrimination (land on vs after) | S→K | 28 | `move_repeat_last_find_backward`, `move_repeat_last_till_backward` |
 | `move_repeat_last_find_forward_backward` | Repeat last find (`;`, `,`) after `f` or `F` over word lines | S→K | 40 | `move_repeat_last_find_forward`, `move_to_char_forward_backward` |
 | `move_to_vs_till_forward` | 2-cell: `f{c}` (lands ON next c) vs `t{c}` (lands ONE BEFORE next c) | S→K | 50 | — |
 | `move_to_vs_till_backward` | 2-cell: `F{c}` (lands ON previous c) vs `T{c}` (lands ONE AFTER previous c) | S→K | 50 | — |
