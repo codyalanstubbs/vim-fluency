@@ -802,6 +802,39 @@ function! s:test_move_repeat_last_find_vs_till_backward() abort
   call Assert(saw_till, prefix . 'till (T) setup appeared')
 endfunction
 
+" move_repeat_last_find_vs_till_forward_backward: the f/F/t/T ceiling.
+" (cursor - waypoint) fully classifies each item: sign gives direction
+" (negative = forward, positive = backward), magnitude gives family
+" (1 = till, 2/3 = find). Confirms all four setups appear.
+function! s:test_move_repeat_last_find_vs_till_forward_backward() abort
+  let GenFn = function('vimfluency#drills#move_repeat_last_find_vs_till_forward_backward#generate')
+  let valid = [';', ',']
+  let seen = {}
+  let setups = {}
+  let prefix = 'move_repeat_last_find_vs_till_forward_backward: '
+  for i in range(s:N)
+    let item = GenFn()
+    call s:assert_common('move_repeat_last_find_vs_till_forward_backward', item)
+    call AssertIn(item.expected_motion, valid, prefix . 'expected_motion in {; ,}')
+    call AssertEq(item.optimal_motions, 2, prefix . 'optimal_motions == 2')
+    call AssertEq(len(item.waypoints), 1, prefix . 'exactly one waypoint')
+
+    let delta = item.start[1] - item.waypoints[0][1]
+    let mag = abs(delta)
+    call Assert(mag >= 1 && mag <= 3, prefix . 'cursor 1-3 cells from waypoint')
+    let dir = delta < 0 ? 'forward' : 'backward'
+    let fam = mag == 1 ? 'till' : 'find'
+    let setups[dir . '-' . fam] = 1
+    let seen[item.expected_motion] = 1
+  endfor
+  for m in valid
+    call Assert(get(seen, m, 0) == 1, prefix . m . ' appeared in samples')
+  endfor
+  for s in ['forward-find', 'forward-till', 'backward-find', 'backward-till']
+    call Assert(get(setups, s, 0) == 1, prefix . s . ' setup appeared')
+  endfor
+endfunction
+
 " move_repeat_last_find_forward_backward: expected_motion in {; ,}; optimal_motions == 2; target interior
 " to its word with margin >= 2; cursor positioned per-scenario; distance
 " >= 3; exactly one waypoint at the canonical-sequence's first-stop.
@@ -1927,6 +1960,7 @@ call s:test_move_repeat_last_till_forward_backward()
 call s:test_move_repeat_last_find_vs_till_forward()
 call s:test_move_repeat_last_find_backward()
 call s:test_move_repeat_last_find_vs_till_backward()
+call s:test_move_repeat_last_find_vs_till_forward_backward()
 call s:test_move_repeat_last_find_forward_backward()
 call s:test_move_to_vs_till_forward_backward()
 call s:test_move_to_vs_till_forward()
