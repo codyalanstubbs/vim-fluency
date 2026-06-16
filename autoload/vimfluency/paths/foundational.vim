@@ -1,7 +1,9 @@
 " foundational — the survival + basic-motion curriculum a vim learner
 " needs before anything more specialized. Mode-switching, the four
 " positional insert-entries, save/quit, undo, hjkl, line edges,
-" word motion. Everything else (find char, deletes, indent, etc.) is
+" word motion, and survival-tier delete (x/dd — you can't survive a
+" session without removing text). Everything else (find char, the
+" rest of the delete family, change/yank/paste, indent, etc.) is
 " left for a follow-on path.
 "
 " When `path_drill_ids` lists an id that isn't in the registry
@@ -30,6 +32,7 @@ function! vimfluency#paths#foundational#meta() abort
     \   'save_quit_vs_zz',
     \   'force_quit_vs_zq',
     \   'undo_redo',
+    \   'delete_char_vs_line',
     \   'move_single_char_left_right',
     \   'move_single_char_up_down',
     \   'move_single_char_up_down_left_right',
