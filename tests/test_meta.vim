@@ -33,6 +33,7 @@ let s:expected = [
   \ {'id': 'move_to_line_edges_non_white_space', 'prereqs': []},
   \ {'id': 'move_to_word_start_forward_backward', 'prereqs': []},
   \ {'id': 'move_to_word_end_forward_backward', 'prereqs': []},
+  \ {'id': 'move_to_file_edges', 'prereqs': ['move_single_char_up_down']},
   \ {'id': 'move_to_char_forward_backward', 'prereqs': ['move_single_char_up_down_left_right']},
   \ {'id': 'move_till_char_forward_backward', 'prereqs': ['move_to_char_forward_backward']},
   \ {'id': 'move_repeat_last_find_forward', 'prereqs': ['move_to_char_forward_backward']},

@@ -479,6 +479,60 @@ function! s:test_move_till_char_forward_backward() abort
   call Assert(get(seen, 'T', 0) == 1, 'move_till_char_forward_backward: T appeared in samples')
 endfunction
 
+" move_to_file_edges — gg / G whole-file jumps. Target is the first or
+" last line at column 1; edge lines are non-blank/non-indented; the
+" cursor sits >= 4 lines from each edge (j/k defense); and a blank line
+" sits strictly between the cursor and each edge ({ / } defense).
+function! s:test_move_to_file_edges() abort
+  let GenFn = function('vimfluency#drills#move_to_file_edges#generate')
+  let valid = ['gg', 'G']
+  let seen = {}
+  let prefix = 'move_to_file_edges: '
+  for i in range(s:N)
+    let item = GenFn()
+    call AssertIn(item.expected_motion, valid, prefix . 'expected_motion in {gg, G}')
+    call AssertEq(item.optimal_motions, 1, prefix . 'optimal_motions == 1')
+
+    let lines = item.lines
+    let n = len(lines)
+    let sc = item.start[0]
+    let tr = item.target[1]
+    let seen[item.expected_motion] = 1
+
+    " Target column is 1; row is line 1 (gg) or last line (G).
+    call AssertEq(tr, 1, prefix . 'target column == 1')
+    if item.expected_motion ==# 'gg'
+      call AssertEq(item.target[0], 1, prefix . 'gg target is line 1')
+    else
+      call AssertEq(item.target[0], n, prefix . 'G target is the last line')
+    endif
+
+    " Edge lines non-blank and non-indented (so gg/G land at col 1).
+    call Assert(lines[0] !=# '' && lines[0][0] !=# ' ',
+      \ prefix . 'line 1 is non-blank, non-indented')
+    call Assert(lines[n-1] !=# '' && lines[n-1][0] !=# ' ',
+      \ prefix . 'last line is non-blank, non-indented')
+
+    " Cursor on a content line, >= 4 from each edge.
+    call Assert(lines[sc-1] !=# '', prefix . 'cursor line is not blank')
+    call Assert(sc - 1 >= 4, prefix . 'cursor >= 4 lines from the top')
+    call Assert(n - sc >= 4, prefix . 'cursor >= 4 lines from the bottom')
+
+    " A blank line strictly between cursor and each edge (blocks { / }).
+    let blank_above = 0 | let blank_below = 0
+    for r in range(2, sc - 1)
+      if lines[r-1] ==# '' | let blank_above = 1 | endif
+    endfor
+    for r in range(sc + 1, n - 1)
+      if lines[r-1] ==# '' | let blank_below = 1 | endif
+    endfor
+    call Assert(blank_above, prefix . 'blank line between cursor and top (blocks {)')
+    call Assert(blank_below, prefix . 'blank line between cursor and bottom (blocks })')
+  endfor
+  call Assert(get(seen, 'gg', 0) == 1, prefix . 'gg appeared in samples')
+  call Assert(get(seen, 'G', 0) == 1, prefix . 'G appeared in samples')
+endfunction
+
 " A ; repeat item must NOT be reachable by any single f/F/t/T motion —
 " otherwise the learner can one-shot it and bypass the ; / , the drill
 " exists to teach. (The , scenario is intrinsically one-motion-
@@ -1975,6 +2029,7 @@ call s:test_move_to_word_start_forward_backward()
 call s:test_move_to_word_end_forward_backward()
 call s:test_move_to_char_forward_backward()
 call s:test_move_till_char_forward_backward()
+call s:test_move_to_file_edges()
 call s:test_move_repeat_last_find_forward()
 call s:test_move_repeat_last_till_forward()
 call s:test_move_repeat_last_till_backward()

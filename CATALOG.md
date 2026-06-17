@@ -67,6 +67,7 @@ Cursor-only behaviors. No buffer change.
 | `move_to_line_edges_non_white_space` | 2-cell: `^` (first non-blank) vs `g_` (last non-blank). Whitespace-edge sibling. | S→K | 55 | — |
 | `move_to_word_start_forward_backward` | `w b` | S→K | 45 | — |
 | `move_to_word_end_forward_backward` | `e ge` | S→K | 40 | — |
+| `move_to_file_edges` | 2-cell: `gg` (first line) vs `G` (last line) — whole-file jump | S→K | 50 | `move_single_char_up_down` |
 | `move_to_char_forward_backward` | `f{c} F{c}` | S→K | 50 | `move_single_char_up_down_left_right` |
 | `move_till_char_forward_backward` | `t{c} T{c}` | S→K | 45 | `move_to_char_forward_backward` |
 | `move_repeat_last_find_forward` | Repeat last find (`;`, `,`) after `f` only — constant-shape geometry, `s`/`d`/`f` search chars | S→K | 40 | `move_to_char_forward_backward` |
