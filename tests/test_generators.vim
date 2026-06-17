@@ -479,6 +479,19 @@ function! s:test_move_till_char_forward_backward() abort
   call Assert(get(seen, 'T', 0) == 1, 'move_till_char_forward_backward: T appeared in samples')
 endfunction
 
+" A ; repeat item must NOT be reachable by any single f/F/t/T motion —
+" otherwise the learner can one-shot it and bypass the ; / , the drill
+" exists to teach. (The , scenario is intrinsically one-motion-
+" reachable and exempt; assert only on ; items.)
+function! s:assert_no_semicolon_cheat(id, item) abort
+  if a:item.expected_motion !=# ';' | return | endif
+  let cheats = vimfluency#repeatfind#cheat_chars(
+    \ a:item.lines[0], a:item.start[1], a:item.target[1])
+  call Assert(empty(cheats),
+    \ a:id . ': ; item has no single-motion shortcut to target (got '
+    \ . string(cheats) . ' on "' . a:item.lines[0] . '")')
+endfunction
+
 " move_repeat_last_find_forward: f-only ; / , with constant-shape
 " geometry. Verifies the two-step sequence (f{char} then ;/,) actually
 " lands on the target by simulating both finds, and that the cheat-
@@ -492,6 +505,7 @@ function! s:test_move_repeat_last_find_forward() abort
   for i in range(s:N)
     let item = GenFn()
     call s:assert_common('move_repeat_last_find_forward', item)
+    call s:assert_no_semicolon_cheat('move_repeat_last_find_forward', item)
     call AssertIn(item.expected_motion, valid,
       \ prefix . 'expected_motion in {; ,}')
     call AssertEq(item.optimal_motions, 2, prefix . 'optimal_motions == 2')
@@ -564,6 +578,7 @@ function! s:test_move_repeat_last_till_forward() abort
   for i in range(s:N)
     let item = GenFn()
     call s:assert_common('move_repeat_last_till_forward', item)
+    call s:assert_no_semicolon_cheat('move_repeat_last_till_forward', item)
     call AssertIn(item.expected_motion, valid, prefix . 'expected_motion in {; ,}')
     call AssertEq(item.optimal_motions, 2, prefix . 'optimal_motions == 2')
 
@@ -622,6 +637,7 @@ function! s:test_move_repeat_last_till_backward() abort
   for i in range(s:N)
     let item = GenFn()
     call s:assert_common('move_repeat_last_till_backward', item)
+    call s:assert_no_semicolon_cheat('move_repeat_last_till_backward', item)
     call AssertIn(item.expected_motion, valid, prefix . 'expected_motion in {; ,}')
     call AssertEq(item.optimal_motions, 2, prefix . 'optimal_motions == 2')
 
@@ -680,6 +696,7 @@ function! s:test_move_repeat_last_till_forward_backward() abort
   for i in range(s:N)
     let item = GenFn()
     call s:assert_common('move_repeat_last_till_forward_backward', item)
+    call s:assert_no_semicolon_cheat('move_repeat_last_till_forward_backward', item)
     call AssertIn(item.expected_motion, valid, prefix . 'expected_motion in {; ,}')
     call AssertEq(item.optimal_motions, 2, prefix . 'optimal_motions == 2')
     call AssertEq(len(item.waypoints), 1, prefix . 'exactly one waypoint')
@@ -711,6 +728,7 @@ function! s:test_move_repeat_last_find_vs_till_forward() abort
   for i in range(s:N)
     let item = GenFn()
     call s:assert_common('move_repeat_last_find_vs_till_forward', item)
+    call s:assert_no_semicolon_cheat('move_repeat_last_find_vs_till_forward', item)
     call AssertIn(item.expected_motion, valid, prefix . 'expected_motion in {; ,}')
     call AssertEq(item.optimal_motions, 2, prefix . 'optimal_motions == 2')
     call AssertEq(len(item.waypoints), 1, prefix . 'exactly one waypoint')
@@ -739,6 +757,7 @@ function! s:test_move_repeat_last_find_backward() abort
   for i in range(s:N)
     let item = GenFn()
     call s:assert_common('move_repeat_last_find_backward', item)
+    call s:assert_no_semicolon_cheat('move_repeat_last_find_backward', item)
     call AssertIn(item.expected_motion, valid, prefix . 'expected_motion in {; ,}')
     call AssertEq(item.optimal_motions, 2, prefix . 'optimal_motions == 2')
 
@@ -786,6 +805,7 @@ function! s:test_move_repeat_last_find_vs_till_backward() abort
   for i in range(s:N)
     let item = GenFn()
     call s:assert_common('move_repeat_last_find_vs_till_backward', item)
+    call s:assert_no_semicolon_cheat('move_repeat_last_find_vs_till_backward', item)
     call AssertIn(item.expected_motion, valid, prefix . 'expected_motion in {; ,}')
     call AssertEq(item.optimal_motions, 2, prefix . 'optimal_motions == 2')
     call AssertEq(len(item.waypoints), 1, prefix . 'exactly one waypoint')
@@ -815,6 +835,7 @@ function! s:test_move_repeat_last_find_vs_till_forward_backward() abort
   for i in range(s:N)
     let item = GenFn()
     call s:assert_common('move_repeat_last_find_vs_till_forward_backward', item)
+    call s:assert_no_semicolon_cheat('move_repeat_last_find_vs_till_forward_backward', item)
     call AssertIn(item.expected_motion, valid, prefix . 'expected_motion in {; ,}')
     call AssertEq(item.optimal_motions, 2, prefix . 'optimal_motions == 2')
     call AssertEq(len(item.waypoints), 1, prefix . 'exactly one waypoint')
@@ -845,6 +866,7 @@ function! s:test_move_repeat_last_find_forward_backward() abort
   for i in range(s:N)
     let item = GenFn()
     call s:assert_common('move_repeat_last_find_forward_backward', item)
+    call s:assert_no_semicolon_cheat('move_repeat_last_find_forward_backward', item)
     call AssertIn(item.expected_motion, valid_motions,
       \ 'move_repeat_last_find_forward_backward: expected_motion in {; ,}')
     call AssertEq(item.optimal_motions, 2,

@@ -114,6 +114,7 @@ function! vimfluency#drills#move_repeat_last_find_forward#generate() abort
   endfor
   let chars[p - 1] = target
   let chars[q - 1] = target
+  let line = join(chars, '')
 
   if s:rand(2) == 0
     " ; scenario: cursor 2 cols left of the pair, before both matches.
@@ -121,6 +122,8 @@ function! vimfluency#drills#move_repeat_last_find_forward#generate() abort
     let waypoint_col = p
     let target_col = q
     let motion = ';'
+    " Strip any single-motion shortcut to the target (see repeatfind).
+    let line = vimfluency#repeatfind#decheat(line, cursor_col, target_col, waypoint_col, target)
   else
     " , scenario: cursor in the middle of the gap, between the matches.
     let cursor_col = p + 3
@@ -129,7 +132,7 @@ function! vimfluency#drills#move_repeat_last_find_forward#generate() abort
     let motion = ','
   endif
 
-  return {'lines': [join(chars, '')],
+  return {'lines': [line],
     \ 'start': [1, cursor_col], 'target': [1, target_col],
     \ 'waypoints': [[1, waypoint_col]],
     \ 'expected_motion': motion, 'optimal_motions': 2}

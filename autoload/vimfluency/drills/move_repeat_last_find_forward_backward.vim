@@ -197,18 +197,28 @@ endfunction
 
 function! vimfluency#drills#move_repeat_last_find_forward_backward#generate() abort
   let attempts = 0
+  let item = {}
   while attempts < 30
     let attempts += 1
     let item = s:try_generate()
-    if !empty(item)
-      return item
-    endif
+    if !empty(item) | break | endif
   endwhile
-  " Fallback: 'system pretend' — 'e' appears at cols 5, 10, 12. fe;
-  " from col 1 lands on col 5 then col 10 (interior to 'pretend' with
-  " margins 2 and 4). Distance 9.
-  return {'lines': ['system pretend'],
-    \ 'start': [1, 1], 'target': [1, 10],
-    \ 'waypoints': [[1, 5]],
-    \ 'expected_motion': ';', 'optimal_motions': 2}
+  if empty(item)
+    " Fallback: 'system pretend' — 'e' appears at cols 5, 10, 12. fe;
+    " from col 1 lands on col 5 then col 10 (interior to 'pretend').
+    let item = {'lines': ['system pretend'],
+      \ 'start': [1, 1], 'target': [1, 10],
+      \ 'waypoints': [[1, 5]],
+      \ 'expected_motion': ';', 'optimal_motions': 2}
+  endif
+  " Strip any single-motion shortcut to the target on ; items. Both ;
+  " scenarios here are find (fc; / Fc;), so the target sits on the
+  " search char — read it off the target cell. (See repeatfind.)
+  if item.expected_motion ==# ';'
+    let ln = item.lines[0]
+    let search = ln[item.target[1] - 1]
+    let item.lines[0] = vimfluency#repeatfind#decheat(
+      \ ln, item.start[1], item.target[1], item.waypoints[0][1], search)
+  endif
+  return item
 endfunction
