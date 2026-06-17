@@ -7,3 +7,6 @@ tags
 .strategy/
 .diary/
 .vimfluency.com/
+
+# Local-only AI/dev context — kept on disk, out of the public repo.
+CLAUDE.md

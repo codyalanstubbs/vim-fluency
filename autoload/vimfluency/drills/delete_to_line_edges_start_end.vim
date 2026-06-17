@@ -4,8 +4,8 @@
 " (line-start vs line-end).
 "
 " Replaces the unimplemented wide-grid spec row for "operator + line
-" motion." Built under the slice-01 exhaustive-hierarchy framework
-" — see .strategy/catalog-v2/slice-01-char-motions-and-simple-deletes.md.
+" motion." Built under the exhaustive-hierarchy framework for the
+" delete family's foundational char/line-motion layer.
 "
 " Design constraints:
 "   - single line of plain words, no leading or trailing whitespace

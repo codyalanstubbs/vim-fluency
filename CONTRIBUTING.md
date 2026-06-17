@@ -89,6 +89,47 @@ filename minus `.vim` and what users type after `:VfTrain`.
   and has bitten this codebase before).
 - Match the surrounding code's style and comment density.
 
+## Gotcha: drills that delete whole lines
+
+`dd` and other line-removing operators (`dG`, multi-line visual delete)
+behave differently in the standalone training buffer (no header rows) vs.
+the lesson buffer (header rows above the content). In the training buffer,
+vim's "buffer can't be empty" rule preserves a deleted-only-line as `''`,
+so `target_lines: ['']` works. In the lesson buffer the same operation
+removes the line entirely — the header rows above it already satisfy vim's
+minimum-one-line rule — leaving zero content rows, so the target check
+never matches and the frame never advances.
+
+Work around it the way `delete_char_vs_line.vim` does: use a 2-line buffer
+so any `dd` leaves a survivor line that satisfies the target check in
+either context. Any new drill that deletes entire lines should follow the
+same pattern.
+
+## Renaming a drill slug
+
+Slugs are user data — they're typed into `:VfTrain` and stored as
+`drill_id` in every session-log record. To rename one:
+
+1. `git mv` the file to the new slug.
+2. Update the three `vimfluency#drills#<slug>#` function names and the
+   `id` in `meta()`.
+3. Update every in-repo reference: `prereqs` / `parallel_to` /
+   `narrower_of` in sibling drills, any paths files, and tests.
+4. Add an old → new entry to `s:LEGACY_IDS` in `autoload/vimfluency.vim`.
+   The alias map canonicalizes old ids at every read path (commands,
+   session log, aim overrides) so user history survives. **Never rewrite
+   the JSONL log itself.** Aliasing tests live at the bottom of
+   `tests/test_settings.vim`.
+5. Regenerate the catalog: `./scripts/gen-catalog.sh` (it's generated from
+   drill metadata — see below).
+
+## The catalog is generated
+
+`CATALOG.md` is produced from each drill's `meta()` by
+`./scripts/gen-catalog.sh` — don't edit it by hand. Run that script after
+adding, removing, or changing a drill; CI fails if the committed copy is
+stale. The live, always-current index is `:VfList`.
+
 ## Bug fixes and docs
 
 Normal PRs, no proposal needed. For runner changes, note that

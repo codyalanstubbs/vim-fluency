@@ -16,6 +16,11 @@ jobs:
         run: vim --version | head -2
       - name: Headless test suite
         run: ./tests/run.sh
+      - name: CATALOG.md is fresh
+        run: |
+          ./scripts/gen-catalog.sh
+          git diff --exit-code CATALOG.md \
+            || { echo "CATALOG.md is stale — run scripts/gen-catalog.sh and commit."; exit 1; }
 
   nvim:
     runs-on: ubuntu-latest
