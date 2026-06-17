@@ -26,32 +26,39 @@ function! vimfluency#drills#move_to_vs_till_forward_backward#meta() abort
 endfunction
 
 function! vimfluency#drills#move_to_vs_till_forward_backward#lesson() abort
-  " The first frame names the discrimination rule. The four try frames
-  " walk through one example of each motion in the same buffer so the
-  " learner sees the off-by-one shift between f and t side by side.
-  " The test phase that runs after these frames generates novel items
-  " with no prompt naming the motion — that's where the discrimination
-  " is exercised cold.
-  let buf = ['the cat ran past us today']
+  " Conforms to the move_to_vs_till_* sibling lessons: an empty-buffer
+  " show frame that lists all four motions and states the two-axis read,
+  " then one try frame per motion that DEMONSTRATES the discrimination —
+  " the wrong member of the pair overshoots because its char repeats in
+  " the span. Geometry reused from the _in_words siblings (verified).
+  let buf_f = ['spend faster point']
+  let buf_t = ['point faster spend']
+  let buf_F = ['brain saved margin']
+  let buf_T = ['fetch target results']
   return [
-    \ {'kind': 'show', 'lines': buf, 'cursor': [1, 1],
+    \ {'kind': 'show', 'lines': [], 'cursor': [1, 1],
     \  'prompt': [
-    \    'f lands ON the next char; t lands ONE CELL BEFORE it.',
-    \    'F and T are the backward versions.',
+    \    'All four find/till keys together:',
     \    '',
-    \    'Two reads per item: direction first (is the target ahead or',
-    \    'behind?), then find vs till — any target is reachable BOTH',
-    \    'ways, so pick the motion whose search char does NOT appear',
-    \    'again between you and the target. The repeated one stops',
-    \    'too early.']},
-    \ {'kind': 'try', 'lines': buf, 'start': [1, 1], 'target': [1, 13],
-    \  'prompt': 'Target is ON the p — use fp.'},
-    \ {'kind': 'try', 'lines': buf, 'start': [1, 1], 'target': [1, 12],
-    \  'prompt': 'Target is ONE BEFORE the p — use tp.'},
-    \ {'kind': 'try', 'lines': buf, 'start': [1, 25], 'target': [1, 13],
-    \  'prompt': 'Target is ON the p — use Fp (backward).'},
-    \ {'kind': 'try', 'lines': buf, 'start': [1, 25], 'target': [1, 14],
-    \  'prompt': 'Target is ONE AFTER the p — use Tp (backward).'},
+    \    '    f{c}  →  lands ON the next c',
+    \    '    t{c}  →  lands ONE CELL BEFORE the next c',
+    \    '    F{c}  →  lands ON the previous c',
+    \    '    T{c}  →  lands ONE CELL AFTER the previous c',
+    \    '',
+    \    'Two reads per item: direction (is the target ahead or behind?),',
+    \    'then find vs till — any target is reachable both ways, so pick',
+    \    'the motion whose char does NOT repeat in the span. The repeated',
+    \    'one stops too early.',
+    \    '',
+    \    'Press <Space> to continue.']},
+    \ {'kind': 'try', 'lines': buf_f, 'start': [1, 1], 'target': [1, 16],
+    \  'prompt': 'Ahead, target ON the i in "point" — unique, so fi lands. (tn would stop at the n in "spend".)'},
+    \ {'kind': 'try', 'lines': buf_t, 'start': [1, 1], 'target': [1, 17],
+    \  'prompt': 'Ahead, target the n in "spend" — an earlier n sits in "point", so fn stops there. Press td (the d to its right is unique ahead).'},
+    \ {'kind': 'try', 'lines': buf_F, 'start': [1, 17], 'target': [1, 9],
+    \  'prompt': 'Behind, target the v — unique, so Fv lands on it. (Ta would stop after the a in "margin".)'},
+    \ {'kind': 'try', 'lines': buf_T, 'start': [1, 19], 'target': [1, 9],
+    \  'prompt': 'Behind, target the r in "target" — r repeats in "results", so Fr stops there. Press Ta (the a to its left is nearest).'},
     \ ]
 endfunction
 
