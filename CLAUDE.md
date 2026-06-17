@@ -122,6 +122,25 @@ use a 2-line buffer so any `dd` leaves a survivor line that satisfies the
 target check in either context. Future drills that delete entire lines
 should follow the same pattern.
 
+## Buffer-shape gotcha for whole-buffer motions
+
+Same root cause as the line-removing operators, mirror image. A
+*whole-buffer* motion (`gg`/`G`, and file-relative jumps generally)
+targets the buffer's first/last line — but the lesson buffer renders
+the prompt as header rows *above* the content, so the content's first
+line is at `header_offset+1`, not buffer line 1. In the training
+buffer (`header_offset` 0) `gg`/`G` work; in the lesson buffer a real
+`gg` lands on the prompt chrome and the item can never credit (`G`
+survives only because the content is the last thing in the buffer).
+The fix is the `fills_buffer` meta flag: when set, the lesson runner
+(`s:learn_setup_window`) installs a buffer-local `<expr>` remap of
+`gg` → `(header_offset+1)G` — a *real* counted jump so `CursorMoved`
+fires through the normal credit path (a `:call cursor()` map moves the
+cursor but doesn't trigger the autocmd). `G` needs no remap. See
+`move_to_file_edges.vim` (`fills_buffer: 1`) for the worked example;
+any future file-level motion drill should set the flag and keep edge
+content lines non-indented so the column-1 target matches.
+
 ## Per-motion tracking
 
 Every generator labels items with `expected_motion` (the canonical answer)

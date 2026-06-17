@@ -3141,6 +3141,7 @@ function! vimfluency#learn(...) abort
     \ 'module': info.module,
     \ 'kind': get(info, 'kind', 'motion'),
     \ 'credit_on_text_typed': get(info, 'credit_on_text_typed', 0),
+    \ 'fills_buffer': get(info, 'fills_buffer', 0),
     \ 'frames': frames,
     \ 'frame_idx': 0,
     \ 'frame_complete': 0,
@@ -3193,6 +3194,31 @@ function! s:learn_setup_window() abort
   setlocal shiftwidth=4 softtabstop=4 expandtab
   silent! execute 'keepalt file vf-lesson-' . s:session.id
   let s:session.you_win = win_getid()
+  " Whole-buffer-motion drills (fills_buffer, e.g. move_to_file_edges:
+  " gg / G) collide with the lesson's in-buffer prompt header. The
+  " content is rendered BELOW the header (rows header_offset+1 .. ), so
+  " a real gg would land on the prompt chrome — never on the first
+  " content line — and a gg item could never be credited. (G already
+  " lands correctly: the content is the last thing in the buffer, so
+  " G's last-line target IS the last content line — no remap needed.)
+  "
+  " Remap gg via <expr> to a REAL counted jump, "(header_offset+1)G",
+  " so it lands on the first content line and fires CursorMoved through
+  " the normal motion path (a :call cursor() mapping would move the
+  " cursor but not trigger the credit autocmd). The <expr> reads
+  " header_offset at press time, so it tracks every frame's offset and
+  " persists across the setup frames and the test phase (same reused
+  " buffer). Training (vf-<id>, header_offset 0) uses real gg untouched.
+  if get(s:session, 'fills_buffer', 0)
+    nnoremap <buffer> <expr> gg <SID>learn_top_keys()
+  endif
+endfunction
+
+" RHS of the fills_buffer gg remap. Edge content lines are non-indented
+" (the drill's cheat-analysis guarantees a column-1 target), so the
+" counted G lands at column 1 — gg / G's first-non-blank destination.
+function! s:learn_top_keys() abort
+  return (s:session.header_offset + 1) . 'G'
 endfunction
 
 " Build the lesson header line dynamically. Reads s:session.frame_complete

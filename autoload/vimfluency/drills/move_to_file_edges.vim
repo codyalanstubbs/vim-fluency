@@ -46,6 +46,7 @@ function! vimfluency#drills#move_to_file_edges#meta() abort
     \ 'prereqs': ['move_single_char_up_down'],
     \ 'parallel_to': ['move_to_line_edges_start_end'],
     \ 'keys': 'gg/G', 'family': 'motion',
+    \ 'fills_buffer': 1,
     \ 'test_sequence': ['gg', 'G']}
 endfunction
 
