@@ -90,11 +90,4 @@ this file is the static snapshot for browsing on GitHub.
 |---|---|---|---|---|---|
 | `indent_vs_dedent` | indent vs dedent (>> / <<) | `>>/<<` | `editing` | 35 | — |
 
-## Text objects
-
-| id (slug) | name | keys | kind | aim | prereqs |
-|---|---|---|---|---|---|
-| `recall_inner_quote_pair` | inner quote — i" vs i' | `i"/i'` | `recall` | 40 | — |
-| `recall_inner_quote_triple` | inner quote — add i` | `` i"/i'/i` `` | `recall` | 35 | `recall_inner_quote_pair` |
-
-_50 drills across 6 families. Regenerate with `scripts/gen-catalog.sh`._
+_48 drills across 5 families. Regenerate with `scripts/gen-catalog.sh`._

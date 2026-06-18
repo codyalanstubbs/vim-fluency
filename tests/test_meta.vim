@@ -55,8 +55,6 @@ let s:expected = [
   \               'move_to_vs_till_forward', 'move_to_vs_till_backward']},
   \ {'id': 'delete_char_vs_line', 'prereqs': []},
   \ {'id': 'indent_vs_dedent', 'prereqs': []},
-  \ {'id': 'recall_inner_quote_pair', 'prereqs': []},
-  \ {'id': 'recall_inner_quote_triple', 'prereqs': ['recall_inner_quote_pair']},
   \ {'id': 'delete_to_word_start_forward_backward', 'prereqs': ['move_to_word_start_forward_backward']},
   \ {'id': 'delete_to_line_edges_start_end',   'prereqs': ['move_to_line_edges_start_end']},
   \ {'id': 'delete_single_char_left_right',        'prereqs': ['move_single_char_left_right']},
