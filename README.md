@@ -2,6 +2,12 @@
 
 A vim plugin for behavioral-fluency training sessions on vim drills. Runs inside vim itself — no simulator divergence, you're using real vim. Project home: vimfluency.com.
 
+## What is behavioral fluency?
+
+Fluency is accuracy *plus* speed: a behavior you perform correctly, quickly, and without deliberation — available while your attention is on the code, not on the keystroke. It's a different axis from knowing. You can know exactly what `dw` does and still reach for it slowly; the motion isn't fluent until it's automatic under time pressure.
+
+That distinction comes from Precision Teaching (Lindsley / Morningside Academy), which measures learning as a *rate* — correct responses per minute — instead of whether you can do something once. A fluency *aim* is the rate above which a skill turns durable and stays available under distraction. A Vim Fluency drill mixes a small set of closely related behaviors — each generated scenario isolates and measures exactly one, so you train in a realistic but tightly controlled environment rather than rehearsing a single key in isolation. It tracks your real per-motion rate and charts it against an aim, so you can tell the motions you've genuinely made automatic from the ones you only think you have.
+
 ## Install
 
 Plugin manager (vim-plug):
