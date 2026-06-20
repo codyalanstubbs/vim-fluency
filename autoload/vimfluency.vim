@@ -1705,39 +1705,200 @@ function! vimfluency#demo(...) abort
   endif
 endfunction
 
-" Keystrokes that solve one item for demo auto-play. expected_motion is
-" NOT always a feedable key: for the 4-way char drill, diagonal items
-" report 'diag' (a label) with optimal_motions = Manhattan distance. So:
-" repeat the drilled key when it IS a single feedable motion key; else
-" synthesize an hjkl path from start to target (works for cursor-motion
-" drills on the uniform-grid buffers they use).
-function! s:demo_keys(item) abort
+" The demo solution for one item: {'seq': <keystrokes>, 'feed': <strategy>}.
+" Per-kind dispatch — each kind credits through a different mechanism, so
+" each needs its own "perform the canonical answer" keystrokes. The feed
+" strategy (consumed by s:demo_tick) is one of:
+"   'step'   — feed one key per tick, Normal-mode-gated. A visible cursor
+"              walk for plain motions.
+"   'repeat' — feed the whole sequence each tick until the buffer reaches
+"              target (then on_change credits and the item advances).
+"              Editing operators: atomic per press, and self-terminating,
+"              so a 2-shiftwidth indent gets its second >> while a single
+"              dd stops after one.
+"   'burst'  — feed the whole sequence once. For solves that change mode
+"              mid-flight (command/visual/insert), which the per-key
+"              Normal-mode gate can't step. mode_switch is driven
+"              separately as a state machine in s:demo_tick_mode_switch.
+function! s:demo_solution(item) abort
+  let kind = get(s:session, 'kind', 'motion')
   let em = get(a:item, 'expected_motion', '')
   let opt = get(a:item, 'optimal_motions', 1)
+
+  if kind ==# 'command'
+    " ':...' submits through the fake cmdline and needs <CR>; ZZ/ZQ run
+    " straight off the normal-mode map. Fed with remaps on (the ':' and
+    " ZZ/ZQ buffer maps must fire) — see s:demo_tick.
+    return {'seq': em[0] ==# ':' ? em . "\<CR>" : em, 'feed': 'burst'}
+  endif
+
+  if kind ==# 'visual_motion'
+    " expected_motion already encodes the v/V/<C-v> prefix and the motion
+    " (e.g. 'vl'); the runner feeds <C-\><C-n> itself once it credits.
+    return {'seq': em, 'feed': 'burst'}
+  endif
+
+  if kind ==# 'mode'
+    " Insert-family: entry key (i/a/I/A/o/O) + the payload the drill
+    " expects typed, derived from the item so we never hard-code it. The
+    " runner feeds <Esc> on credit (s:on_text_changed_i), so we don't.
+    return {'seq': em . s:demo_insert_payload(a:item), 'feed': 'burst'}
+  endif
+
+  if kind ==# 'editing'
+    " expected_motion is the literal operator keystrokes (dw, >>, x, dd,
+    " <C-r>, ...). Re-applied per tick until the buffer matches target —
+    " optimal_motions is NOT a reliable press count (it means keystrokes
+    " in some drills, operator-applications in others), so we converge on
+    " the buffer instead of multiplying.
+    return {'seq': s:demo_feedable(em), 'feed': 'repeat'}
+  endif
+
+  " motion (default): single feedable key repeated, else a synthesized
+  " hjkl path. expected_motion is NOT always a feedable key — the 4-way
+  " char drill labels diagonals 'diag' with optimal_motions = Manhattan
+  " distance, so fall back to a start→target path.
   if em =~# '^[hjklwbeWBE0$^]$' || em ==# 'ge' || em ==# 'g_'
-    return repeat(em, opt)
+    return {'seq': repeat(em, opt), 'feed': 'step'}
   endif
   if has_key(a:item, 'start') && has_key(a:item, 'target')
     let drow = a:item.target[0] - a:item.start[0]
     let dcol = a:item.target[1] - a:item.start[1]
-    return repeat(drow > 0 ? 'j' : 'k', abs(drow))
-      \ . repeat(dcol > 0 ? 'l' : 'h', abs(dcol))
+    return {'seq': repeat(drow > 0 ? 'j' : 'k', abs(drow))
+      \ . repeat(dcol > 0 ? 'l' : 'h', abs(dcol)), 'feed': 'step'}
   endif
-  return ''
+  return {'seq': '', 'feed': 'step'}
+endfunction
+
+" Translate a display token into feedable keys. expected_motion is a
+" human-readable label in a few drills (undo_redo's redo is the literal
+" five-char string '<C-r>', not the keycode).
+function! s:demo_feedable(token) abort
+  if a:token ==# '<C-r>' | return "\<C-r>" | endif
+  return a:token
+endfunction
+
+" The text an insert-family (mode-kind) item expects typed, derived from
+" the item rather than read from the drill's private constant. At
+" enter_at_row the line grows from target_lines[row] to
+" target_lines_after_type[row] by a pure insertion at enter_at_col; the
+" inserted run is the payload. Works uniformly for i/a/I/A (insert into
+" an existing line) and o/O (the opened blank line, where the "before"
+" line is '' and enter_at_col is 1).
+function! s:demo_insert_payload(item) abort
+  let row = get(a:item, 'enter_at_row', 1)
+  let col = get(a:item, 'enter_at_col', 1)
+  let after_lines = get(a:item, 'target_lines_after_type', [])
+  let before_lines = get(a:item, 'target_lines', get(a:item, 'lines', []))
+  if row > len(after_lines) | return '' | endif
+  let after = after_lines[row - 1]
+  let before = row <= len(before_lines) ? before_lines[row - 1] : ''
+  let n = len(after) - len(before)
+  if n <= 0 | return '' | endif
+  return strpart(after, col - 1, n)
 endfunction
 
 function! s:demo_tick(timer) abort
   if empty(s:session) | return | endif
   if get(s:session, 'advancing', 0) | return | endif
-  " Only feed in Normal mode — otherwise a fed motion key lands in the
-  " command line while the user (or the demo tape) is typing :VfQuit,
-  " corrupting it to :VfQuitw and aborting the quit.
-  if mode() !=# 'n' | return | endif
+  " mode_switch is a mode state machine, not a keystroke sequence.
+  if get(s:session, 'kind', 'motion') ==# 'mode_switch'
+    call s:demo_tick_mode_switch()
+    return
+  endif
   let seq = get(s:session, 'demo_seq', '')
   if empty(seq) | return | endif
-  " Feed one key per tick so the cursor visibly steps to the target.
+  let feed = get(s:session, 'demo_feed', 'step')
+
+  if feed ==# 'burst'
+    " Mode-changing solve: fire it whole, remaps ON so the command kind's
+    " ':' / ZZ buffer maps fire. Cleared first so later ticks don't
+    " re-fire it before s:next_item installs the next solution.
+    "
+    " Re-anchor at item.start first for insert (mode) kinds: the cursor
+    " can drift off its row before this tick, and o/O open relative to
+    " the cursor's line, so a drifted cursor opens the new line in the
+    " wrong place and the buffer never matches.
+    if s:session.kind ==# 'mode' && has_key(s:session.current_item, 'start')
+      call cursor(s:session.header_offset + s:session.current_item.start[0],
+        \ s:session.current_item.start[1])
+    endif
+    let s:session.demo_seq = ''
+    call feedkeys(seq, 'm')
+    return
+  endif
+
+  " Step / repeat both feed only in Normal mode — otherwise a fed key
+  " lands in a cmdline the tape opened to type :VfQuit, corrupting it.
+  if mode() !=# 'n' | return | endif
+
+  if feed ==# 'repeat'
+    " Editing operators: re-apply the whole operator until the buffer
+    " reaches target, then stop (the CursorMoved/TextChanged after the
+    " operator fires on_change, which credits and swaps in the next
+    " item). The match check prevents an over-press once we've arrived.
+    "
+    " Run via :normal!, not feedkeys: an operator fed async (feedkeys
+    " 'n') lands in operator-pending across the tick gap and mis-fires;
+    " feedkeys 'x' (execute-now) re-enters badly from inside the timer.
+    " :normal! runs it synchronously and atomically with no typeahead.
+    "
+    " Anchor the cursor before each press: between s:next_item and the
+    " first tick the cursor can drift off its row (a CursorMoved-driven
+    " repaint settles it elsewhere), which would aim a linewise operator
+    " (>>, dd, dj) at the wrong line. The operator runs from item.start
+    " for every editing drill EXCEPT the discrimination drills (e.g.
+    " delete_char_vs_line) that deliberately start the cursor on a
+    " different line than the one to operate on — there the j/k
+    " navigation is part of the skill. Those are flagged by a
+    " single-line deletion_range on a row other than the start; for the
+    " demo we jump straight to that row (keeping the start column). A
+    " multi-line range (delete_two_lines) operates from the start, since
+    " the range spans outward from the cursor.
+    "
+    " CursorMoved does NOT fire for a :normal! inside a timer callback,
+    " so we call the credit path (s:on_change) directly — the same
+    " explicit drive the batch test runner uses. A later real
+    " CursorMoved, if any, dedupes to a no-op.
+    let item = s:session.current_item
+    if getline(s:session.header_offset + 1, '$')
+      \ ==# get(item, 'target_lines', item.lines)
+      return
+    endif
+    let dr = get(item, 'deletion_range', [])
+    let row = (len(dr) == 1 && dr[0][0] != item.start[0])
+      \ ? dr[0][0] : item.start[0]
+    call cursor(s:session.header_offset + row, item.start[1])
+    execute 'normal! ' . seq
+    call s:on_change()
+    return
+  endif
+
+  " step: one key per tick for a visible cursor walk.
   call feedkeys(seq[0], 'n')
   let s:session.demo_seq = seq[1:]
+endfunction
+
+" mode_switch auto-play: drive vim's mode toward the item's target one
+" keystroke at a time. The runner credits the instant mode() matches, so
+" we just take the single step that makes progress and let the next tick
+" re-evaluate against the freshly-generated target.
+function! s:demo_tick_mode_switch() abort
+  let target = get(s:session.current_item, 'target_mode_canon', 'n')
+  let now = s:mode_canonical(mode(1))
+  if now ==# target | return | endif        " already there — wait for advance
+  if now !=# 'n'
+    " Leave the current mode first. Don't disturb a non-empty cmdline —
+    " that's the tape typing a real command (e.g. :VfQuit), not the empty
+    " ':' we open for a c-target item.
+    if now ==# 'c' && !empty(getcmdline()) | return | endif
+    call feedkeys("\<Esc>", 'n')
+    return
+  endif
+  " In Normal: press the one key that enters the target mode. ':' opens
+  " the real cmdline (credited via CmdlineEnter), leaving us in 'c'; the
+  " next item's first tick <Esc>s back out.
+  call feedkeys(get({'i': 'i', 'v': 'v', 'r': 'R', 'c': ':'}, target, ''), 'n')
 endfunction
 
 function! s:setup_window() abort
@@ -1828,6 +1989,22 @@ function! s:next_item() abort
   " same state and is skipped as a duplicate. Subsequent presses
   " produce distinct states and increment the count.
   let s:session.last_event_state = [item.start, copy(item.lines)]
+
+  " Demo mode: queue the solution s:demo_tick performs for this item.
+  " Set here, before the per-kind render branches that return early
+  " (recall / command / mode / mode_switch), so every kind gets it.
+  " mode_switch derives its own keystrokes live from mode() each tick,
+  " so it needs no queued sequence.
+  if get(s:session, 'demo', 0)
+    if s:session.kind ==# 'mode_switch'
+      let s:session.demo_seq = ''
+      let s:session.demo_feed = 'step'
+    else
+      let sol = s:demo_solution(item)
+      let s:session.demo_seq = sol.seq
+      let s:session.demo_feed = sol.feed
+    endif
+  endif
 
   " Recall and mode kinds have their own item-rendering paths; they share
   " bookkeeping with motion/editing but the buffer layout and credit
@@ -1922,11 +2099,6 @@ function! s:next_item() abort
   call s:add_waypoint_matches(item)
 
   redrawstatus
-  " Demo mode: queue the keystrokes that solve this item; s:demo_tick
-  " feeds them one per tick so the cursor steps visibly to the target.
-  if get(s:session, 'demo', 0)
-    let s:session.demo_seq = s:demo_keys(item)
-  endif
   let s:session.advancing = 0
 endfunction
 
