@@ -1705,6 +1705,27 @@ function! vimfluency#demo(...) abort
   endif
 endfunction
 
+" Keystrokes that solve one item for demo auto-play. expected_motion is
+" NOT always a feedable key: for the 4-way char drill, diagonal items
+" report 'diag' (a label) with optimal_motions = Manhattan distance. So:
+" repeat the drilled key when it IS a single feedable motion key; else
+" synthesize an hjkl path from start to target (works for cursor-motion
+" drills on the uniform-grid buffers they use).
+function! s:demo_keys(item) abort
+  let em = get(a:item, 'expected_motion', '')
+  let opt = get(a:item, 'optimal_motions', 1)
+  if em =~# '^[hjklwbeWBE0$^]$' || em ==# 'ge' || em ==# 'g_'
+    return repeat(em, opt)
+  endif
+  if has_key(a:item, 'start') && has_key(a:item, 'target')
+    let drow = a:item.target[0] - a:item.start[0]
+    let dcol = a:item.target[1] - a:item.start[1]
+    return repeat(drow > 0 ? 'j' : 'k', abs(drow))
+      \ . repeat(dcol > 0 ? 'l' : 'h', abs(dcol))
+  endif
+  return ''
+endfunction
+
 function! s:demo_tick(timer) abort
   if empty(s:session) | return | endif
   if get(s:session, 'advancing', 0) | return | endif
@@ -1712,11 +1733,11 @@ function! s:demo_tick(timer) abort
   " command line while the user (or the demo tape) is typing :VfQuit,
   " corrupting it to :VfQuitw and aborting the quit.
   if mode() !=# 'n' | return | endif
-  if get(s:session, 'demo_keys_left', 0) <= 0 | return | endif
-  let key = get(s:session, 'demo_key', '')
-  if empty(key) | return | endif
-  let s:session.demo_keys_left -= 1
-  call feedkeys(key, 'n')
+  let seq = get(s:session, 'demo_seq', '')
+  if empty(seq) | return | endif
+  " Feed one key per tick so the cursor visibly steps to the target.
+  call feedkeys(seq[0], 'n')
+  let s:session.demo_seq = seq[1:]
 endfunction
 
 function! s:setup_window() abort
@@ -1901,11 +1922,10 @@ function! s:next_item() abort
   call s:add_waypoint_matches(item)
 
   redrawstatus
-  " Demo mode: queue the canonical motion for this item (single key
-  " pressed optimal_motions times). s:demo_tick feeds it on a timer.
+  " Demo mode: queue the keystrokes that solve this item; s:demo_tick
+  " feeds them one per tick so the cursor steps visibly to the target.
   if get(s:session, 'demo', 0)
-    let s:session.demo_key = get(item, 'expected_motion', '')
-    let s:session.demo_keys_left = get(item, 'optimal_motions', 1)
+    let s:session.demo_seq = s:demo_keys(item)
   endif
   let s:session.advancing = 0
 endfunction
