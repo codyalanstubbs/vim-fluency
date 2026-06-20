@@ -1566,6 +1566,8 @@ function! vimfluency#list_set_duration() abort
   endif
 endfunction
 
+let s:pending_demo = {}
+
 function! vimfluency#start(...) abort
   if !empty(s:session)
     echo 'a session is already active; :VfQuit first'
@@ -1655,10 +1657,66 @@ function! vimfluency#start(...) abort
   " unaffected by the flag).
   set cpoptions-=;
 
+  " Self-driving demo: flag the session so a paced timer (below) plays
+  " it. NOTE: items are still random per render — byte-identical
+  " re-renders would need the generators to thread an explicit rand()
+  " seed list (vim's srand(N) does NOT seed the argless rand()). Not
+  " required for correctness: auto-play solves whatever item appears.
+  if !empty(s:pending_demo)
+    let s:session.demo = 1
+    let s:pending_demo = {}
+  endif
+
   call s:setup_window()
   call s:next_item()
   call s:install_autocmds()
   let s:session.timer = timer_start(200, function('s:on_tick'), {'repeat': -1})
+  if get(s:session, 'demo', 0)
+    " Feed the canonical motion for each item on a paced timer; the
+    " normal CursorMoved credit path does the rest, so the preview
+    " scores honestly. Per-item keys are set in s:next_item.
+    let s:session.demo_timer = timer_start(320, function('s:demo_tick'), {'repeat': -1})
+  endif
+endfunction
+
+" -----------------------------------------------------------------
+" Self-driving demo mode (content / preview generation)
+" -----------------------------------------------------------------
+" :VfDemo <id> [duration] runs a real training session, but the plugin
+" performs the optimal motion for each item itself — so previews score
+" honestly (the rate climbs) for content/GIFs. Prototype scope: motion
+" drills whose expected_motion is a single repeatable key pressed
+" optimal_motions times (w/b word motions are the worked example).
+" Other kinds simply don't auto-play yet (the session waits as usual).
+function! vimfluency#demo(...) abort
+  if !empty(s:session)
+    echo 'a session is already active; :VfQuit first'
+    return
+  endif
+  if a:0 < 1
+    echo 'usage: :VfDemo <id> [duration]'
+    return
+  endif
+  let s:pending_demo = {'on': 1}
+  if a:0 >= 2
+    call vimfluency#start(a:1, a:2)
+  else
+    call vimfluency#start(a:1)
+  endif
+endfunction
+
+function! s:demo_tick(timer) abort
+  if empty(s:session) | return | endif
+  if get(s:session, 'advancing', 0) | return | endif
+  " Only feed in Normal mode — otherwise a fed motion key lands in the
+  " command line while the user (or the demo tape) is typing :VfQuit,
+  " corrupting it to :VfQuitw and aborting the quit.
+  if mode() !=# 'n' | return | endif
+  if get(s:session, 'demo_keys_left', 0) <= 0 | return | endif
+  let key = get(s:session, 'demo_key', '')
+  if empty(key) | return | endif
+  let s:session.demo_keys_left -= 1
+  call feedkeys(key, 'n')
 endfunction
 
 function! s:setup_window() abort
@@ -1843,6 +1901,12 @@ function! s:next_item() abort
   call s:add_waypoint_matches(item)
 
   redrawstatus
+  " Demo mode: queue the canonical motion for this item (single key
+  " pressed optimal_motions times). s:demo_tick feeds it on a timer.
+  if get(s:session, 'demo', 0)
+    let s:session.demo_key = get(item, 'expected_motion', '')
+    let s:session.demo_keys_left = get(item, 'optimal_motions', 1)
+  endif
   let s:session.advancing = 0
 endfunction
 
@@ -2920,6 +2984,9 @@ function! vimfluency#stop(reason) abort
   if has_key(s:session, 'timer')
     call timer_stop(s:session.timer)
   endif
+  if has_key(s:session, 'demo_timer')
+    call timer_stop(s:session.demo_timer)
+  endif
   call s:stop_mode_polling()
   silent! augroup VfTrain | autocmd! | augroup END
 
@@ -2993,15 +3060,19 @@ function! vimfluency#stop(reason) abort
     \ 'per_motion': per_motion_out,
     \ 'items': s:session.items_log,
     \ }
+  " Demo sessions (:VfDemo) are auto-played at superhuman speed — they
+  " must NEVER touch the real session log or the contributed dataset.
   " A failed write must not abort teardown — the session would stay
   " marked active with the tab open and laststatus unrestored.
-  try
-    call writefile([json_encode(record)], vimfluency#log_dir() . '/sessions.jsonl', 'a')
-  catch
-    echohl WarningMsg
-    echom 'vimfluency: could not write session log: ' . v:exception
-    echohl None
-  endtry
+  if !get(s:session, 'demo', 0)
+    try
+      call writefile([json_encode(record)], vimfluency#log_dir() . '/sessions.jsonl', 'a')
+    catch
+      echohl WarningMsg
+      echom 'vimfluency: could not write session log: ' . v:exception
+      echohl None
+    endtry
+  endif
 
   " Post-session flow: land on the shared end screen (see
   " s:show_end_screen), which shows this drill's last-session
