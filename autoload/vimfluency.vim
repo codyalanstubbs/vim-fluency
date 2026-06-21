@@ -1758,16 +1758,19 @@ function! s:demo_solution(item) abort
   " hjkl path. expected_motion is NOT always a feedable key — the 4-way
   " char drill labels diagonals 'diag' with optimal_motions = Manhattan
   " distance, so fall back to a start→target path.
+  " 'atom' is the length of one keystroke unit, so the step feeder never
+  " splits a multi-char motion (ge/g_) across :normal! calls — feeding 'g'
+  " then 'e' separately would run 'e' (forward) instead of 'ge' (back).
   if em =~# '^[hjklwbeWBE0$^]$' || em ==# 'ge' || em ==# 'g_'
-    return {'seq': repeat(em, opt), 'feed': 'step'}
+    return {'seq': repeat(em, opt), 'feed': 'step', 'atom': strlen(em)}
   endif
   if has_key(a:item, 'start') && has_key(a:item, 'target')
     let drow = a:item.target[0] - a:item.start[0]
     let dcol = a:item.target[1] - a:item.start[1]
     return {'seq': repeat(drow > 0 ? 'j' : 'k', abs(drow))
-      \ . repeat(dcol > 0 ? 'l' : 'h', abs(dcol)), 'feed': 'step'}
+      \ . repeat(dcol > 0 ? 'l' : 'h', abs(dcol)), 'feed': 'step', 'atom': 1}
   endif
-  return {'seq': '', 'feed': 'step'}
+  return {'seq': '', 'feed': 'step', 'atom': 1}
 endfunction
 
 " Translate a display token into feedable keys. expected_motion is a
@@ -1807,8 +1810,24 @@ function! s:demo_tick(timer) abort
     return
   endif
   let seq = get(s:session, 'demo_seq', '')
-  if empty(seq) | return | endif
   let feed = get(s:session, 'demo_feed', 'step')
+  if empty(seq)
+    " A step-fed motion exhausted its keys without crediting — the
+    " canonical keys didn't land exactly on this item (a rare off-by-one
+    " on some motions). Skip it after a grace tick so one stuck item
+    " doesn't freeze the preview; the drill's rate keeps climbing on the
+    " items that do solve. (Burst/mode_switch legitimately idle on an
+    " empty seq while waiting to credit, so only step skips.)
+    if feed ==# 'step' && get(s:session, 'mode', 'train') ==# 'train'
+      let s:session.demo_stall = get(s:session, 'demo_stall', 0) + 1
+      if s:session.demo_stall >= 2
+        let s:session.demo_stall = 0
+        call s:skip()
+      endif
+    endif
+    return
+  endif
+  let s:session.demo_stall = 0
 
   if feed ==# 'burst'
     " Mode-changing solve: fire it whole, remaps ON so the command kind's
@@ -1891,9 +1910,9 @@ function! s:demo_tick(timer) abort
   " which silently broke every vertical-motion demo. :normal! is
   " synchronous and faithful; CursorMoved doesn't fire for it inside a
   " timer, so we credit via s:on_change directly.
-  let chunk = get(s:session, 'demo_step_chunk', 1)
-  execute 'normal! ' . seq[0 : chunk - 1]
-  let s:session.demo_seq = seq[chunk :]
+  let n = get(s:session, 'demo_step_chunk', 1) * get(s:session, 'demo_step_atom', 1)
+  execute 'normal! ' . seq[0 : n - 1]
+  let s:session.demo_seq = seq[n :]
   call s:on_change()
 endfunction
 
@@ -2015,6 +2034,7 @@ function! s:next_item() abort
   " so it needs no queued sequence.
   if get(s:session, 'demo', 0)
     let s:session.demo_anchored = 0
+    let s:session.demo_stall = 0
     if s:session.kind ==# 'mode_switch'
       let s:session.demo_seq = ''
       let s:session.demo_feed = 'step'
@@ -2022,11 +2042,15 @@ function! s:next_item() abort
       let sol = s:demo_solution(item)
       let s:session.demo_seq = sol.seq
       let s:session.demo_feed = sol.feed
-      " Step-feed chunk size: 1 key per tick for short motions (a visible
-      " walk), more per tick for long ones so a far target (f/t across a
-      " line, big diagonals) still completes in a handful of ticks rather
-      " than crawling one cell per 320ms. Caps any motion at ~6 ticks.
-      let s:session.demo_step_chunk = max([1, len(sol.seq) / 6])
+      " Step-feed chunk, counted in keystroke atoms (so a multi-char
+      " motion like ge/g_ is never split): 1 atom per tick for short
+      " motions (a visible walk), more for long ones so a far target
+      " (f/t across a line, big diagonals) completes in a handful of
+      " ticks rather than crawling. Caps any motion at ~6 ticks.
+      let s:session.demo_step_atom = get(sol, 'atom', 1)
+      let natoms = s:session.demo_step_atom > 0
+        \ ? len(sol.seq) / s:session.demo_step_atom : len(sol.seq)
+      let s:session.demo_step_chunk = max([1, natoms / 6])
     endif
   endif
 
