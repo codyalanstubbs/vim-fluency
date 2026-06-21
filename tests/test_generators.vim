@@ -546,6 +546,15 @@ function! s:assert_no_semicolon_cheat(id, item) abort
     \ . string(cheats) . ' on "' . a:item.lines[0] . '")')
 endfunction
 
+" The demo solve plan (consumed by :VfDemo) for a repeat-find/till item:
+" two motion atoms — prime the search with f/t/F/T + the char, then repeat
+" with the item's ;/,. Asserts the plan matches the expected prime/char.
+function! s:assert_solve(prefix, item, prime, ch) abort
+  call Assert(has_key(a:item, 'solve'), a:prefix . 'has a solve plan')
+  call AssertEq(a:item.solve, [a:prime . a:ch, a:item.expected_motion],
+    \ a:prefix . 'solve = [prime+char, repeat]')
+endfunction
+
 " move_repeat_last_find_forward: f-only ; / , with constant-shape
 " geometry. Verifies the two-step sequence (f{char} then ;/,) actually
 " lands on the target by simulating both finds, and that the cheat-
@@ -571,6 +580,7 @@ function! s:test_move_repeat_last_find_forward() abort
     let wp = item.waypoints[0][1]
     let search = line[wp - 1]
     let seen[item.expected_motion] = 1
+    call s:assert_solve(prefix, item, 'f', search)
 
     " Single waypoint; line is spaceless; search char appears exactly twice.
     call AssertEq(len(item.waypoints), 1, prefix . 'exactly one waypoint')
@@ -664,6 +674,7 @@ function! s:test_move_repeat_last_till_forward() abort
     call AssertEq(q - p, 6, prefix . 'occurrences are 6 cols apart')
     call AssertEq(line[p - 1], line[q - 1], prefix . 'both occurrences same char')
     let search = line[p - 1]
+    call s:assert_solve(prefix, item, 't', search)
     let occ = []
     for c in range(1, llen)
       if line[c - 1] ==# search | call add(occ, c) | endif
@@ -720,6 +731,7 @@ function! s:test_move_repeat_last_till_backward() abort
     call AssertEq(q - p, 6, prefix . 'occurrences are 6 cols apart')
     call AssertEq(line[p - 1], line[q - 1], prefix . 'both occurrences same char')
     let search = line[p - 1]
+    call s:assert_solve(prefix, item, 'T', search)
     let occ = []
     for c in range(1, llen)
       if line[c - 1] ==# search | call add(occ, c) | endif
@@ -829,6 +841,7 @@ function! s:test_move_repeat_last_find_backward() abort
     call AssertEq(abs(wp - tc), 6, prefix . 'waypoint and target 6 cols apart')
     call AssertEq(line[wp - 1], line[tc - 1], prefix . 'waypoint and target same char')
     let search = line[wp - 1]
+    call s:assert_solve(prefix, item, 'F', search)
     let occ = []
     for c in range(1, llen)
       if line[c - 1] ==# search | call add(occ, c) | endif
@@ -950,6 +963,10 @@ function! s:test_move_repeat_last_find_forward_backward() abort
     let wp_col = item.waypoints[0][1]
     call Assert(abs(target_col - wp_col) >= 2,
       \ 'move_repeat_last_find_forward_backward: target and waypoint at least 2 cols apart')
+    " All four scenarios are find; the prime direction follows the
+    " geometry (forward when the waypoint is right of the cursor).
+    call s:assert_solve('move_repeat_last_find_forward_backward: ',
+      \ item, wp_col > start_col ? 'f' : 'F', target_char)
 
     if item.expected_motion ==# ';'
       if start_col < target_col

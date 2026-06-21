@@ -1766,22 +1766,29 @@ function! s:demo_solution(item) abort
     return {'seq': s:demo_feedable(em), 'feed': 'repeat', 'nav': nav}
   endif
 
-  " motion (default): single feedable key repeated, else a synthesized
-  " hjkl path. expected_motion is NOT always a feedable key — the 4-way
-  " char drill labels diagonals 'diag' with optimal_motions = Manhattan
-  " distance, so fall back to a start→target path. 'atom' is the length of
-  " one keystroke unit, so the step feeder never splits a multi-char motion
-  " (ge/g_) — feeding 'g' then 'e' would run 'e' (forward) not 'ge' (back).
-  if em =~# '^[hjklwbeWBE0$^]$' || em ==# 'ge' || em ==# 'g_'
-    return {'seq': repeat(em, opt), 'feed': 'step', 'atom': strlen(em)}
+  " motion (default): a list of keystroke atoms played one (or a chunk)
+  " per tick via :normal!. An atom is one complete motion, so a multi-char
+  " motion (ge/g_, or a primed find like 'fx') is never split mid-key.
+  if has_key(a:item, 'solve')
+    " Drill-provided plan for motions the demo can't synthesize from
+    " start→target — repeat-find/till, where the expert primes with
+    " f/t/F/T then repeats with ;/, (two visible jumps via the waypoint).
+    return {'atoms': a:item.solve, 'feed': 'step'}
   endif
+  " A single feedable key, repeated optimal_motions times.
+  if em =~# '^[hjklwbeWBE0$^]$' || em ==# 'ge' || em ==# 'g_'
+    return {'atoms': repeat([em], opt), 'feed': 'step'}
+  endif
+  " Otherwise synthesize a start→target hjkl path. expected_motion is NOT
+  " always a feedable key — the 4-way char drill labels diagonals 'diag'
+  " with optimal_motions = Manhattan distance.
   if has_key(a:item, 'start') && has_key(a:item, 'target')
     let drow = a:item.target[0] - a:item.start[0]
     let dcol = a:item.target[1] - a:item.start[1]
-    return {'seq': repeat(drow > 0 ? 'j' : 'k', abs(drow))
-      \ . repeat(dcol > 0 ? 'l' : 'h', abs(dcol)), 'feed': 'step', 'atom': 1}
+    return {'atoms': repeat([drow > 0 ? 'j' : 'k'], abs(drow))
+      \ + repeat([dcol > 0 ? 'l' : 'h'], abs(dcol)), 'feed': 'step'}
   endif
-  return {'seq': '', 'feed': 'step', 'atom': 1}
+  return {'atoms': [], 'feed': 'step'}
 endfunction
 
 " Translate a display token into feedable keys. expected_motion is a
@@ -1856,22 +1863,22 @@ function! s:demo_stall_skip() abort
   endif
 endfunction
 
-" motion: play the next chunk of the path (1 key for short motions — a
-" visible walk — more for far targets so they don't crawl) via :normal!,
-" crediting through s:on_change. :normal! not feedkeys: a motion fed async
-" from a timer loses curswant, so j/k land in column 1.
+" motion: play the next chunk of atoms (1 for short motions — a visible
+" walk — more for far targets so they don't crawl) via :normal!, crediting
+" through s:on_change. :normal! not feedkeys: a motion fed async from a
+" timer loses curswant, so j/k land in column 1.
 function! s:demo_play_motion() abort
-  let seq = get(s:session, 'demo_seq', '')
-  if empty(seq) | call s:demo_stall_skip() | return | endif
+  let atoms = get(s:session, 'demo_atoms', [])
+  if empty(atoms) | call s:demo_stall_skip() | return | endif
   let s:session.demo_stall = 0
   " Only in Normal mode — else a fed key lands in a cmdline the tape opened
   " to type :VfQuit, corrupting it.
   if mode() !=# 'n' | return | endif
   call s:demo_anchor()
-  let n = get(s:session, 'demo_step_chunk', 1)
-    \ * get(s:session, 'demo_step_atom', 1)
-  execute 'normal! ' . seq[0 : n - 1]
-  let s:session.demo_seq = seq[n :]
+  let chunk = get(s:session, 'demo_step_chunk', 1)
+  let take = atoms[0 : chunk - 1]
+  let s:session.demo_atoms = atoms[chunk :]
+  execute 'normal! ' . join(take, '')
   call s:on_change()
 endfunction
 
@@ -2056,24 +2063,27 @@ function! s:next_item() abort
     let s:session.demo_anchored = 0
     let s:session.demo_stall = 0
     if s:session.kind ==# 'mode_switch'
-      let s:session.demo_seq = ''
+      " mode_switch is driven by s:demo_tick_mode_switch (a state machine),
+      " dispatched before the feed is read — these are just safe defaults.
+      let s:session.demo_atoms = []
       let s:session.demo_feed = 'step'
     else
       let sol = s:demo_solution(item)
-      let s:session.demo_seq = sol.seq
       let s:session.demo_feed = sol.feed
-      " Editing navigation prefix (j/k to the operation row); '' for the
-      " drills that operate at the cursor's start.
-      let s:session.demo_nav = get(sol, 'nav', '')
-      " Step-feed chunk, counted in keystroke atoms (so a multi-char
-      " motion like ge/g_ is never split): 1 atom per tick for short
-      " motions (a visible walk), more for long ones so a far target
-      " (f/t across a line, big diagonals) completes in a handful of
-      " ticks rather than crawling. Caps any motion at ~6 ticks.
-      let s:session.demo_step_atom = get(sol, 'atom', 1)
-      let natoms = s:session.demo_step_atom > 0
-        \ ? len(sol.seq) / s:session.demo_step_atom : len(sol.seq)
-      let s:session.demo_step_chunk = max([1, natoms / 6])
+      if sol.feed ==# 'step'
+        " motion: a list of keystroke atoms. Play 1 atom per tick for
+        " short motions (a visible walk), more for long ones so a far
+        " target (f/t across a line, big diagonals) completes in a handful
+        " of ticks rather than crawling. Caps any motion at ~6 ticks.
+        let s:session.demo_atoms = sol.atoms
+        let s:session.demo_step_chunk = max([1, len(sol.atoms) / 6])
+      else
+        " editing / type / burst all play from a keystroke string.
+        let s:session.demo_seq = sol.seq
+        " Editing navigation prefix (j/k to the operation row); '' for the
+        " drills that operate at the cursor's start.
+        let s:session.demo_nav = get(sol, 'nav', '')
+      endif
     endif
   endif
 

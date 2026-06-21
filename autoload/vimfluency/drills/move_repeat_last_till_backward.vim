@@ -121,8 +121,11 @@ function! vimfluency#drills#move_repeat_last_till_backward#generate() abort
     let motion = ','
   endif
 
-  return {'lines': [line],
+  let item = {'lines': [line],
     \ 'start': [1, cursor_col], 'target': [1, target_col],
     \ 'waypoints': [[1, waypoint_col]],
     \ 'expected_motion': motion, 'optimal_motions': 2}
+  " Demo keystroke plan: T{c} to the waypoint, then ; / , to the target.
+  let item.solve = vimfluency#repeatfind#solve(item, 1, target)
+  return item
 endfunction

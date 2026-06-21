@@ -98,3 +98,17 @@ function! vimfluency#repeatfind#decheat(line, sc, tc, wp, search) abort
   endwhile
   return line
 endfunction
+
+" The expert keystroke plan for a repeat-find/till item, as a list of two
+" motion atoms for the demo player (:VfDemo) to perform as two visible
+" jumps: prime the search with f/t/F/T + the char (landing on the
+" waypoint), then repeat it with the item's ; or , (landing on the
+" target). The prime direction is taken from the geometry — forward when
+" the waypoint is right of the cursor, backward otherwise — so the same
+" helper serves the forward, backward, and mixed drills. `is_till` picks
+" t/T over f/F; `ch` is the search character.
+function! vimfluency#repeatfind#solve(item, is_till, ch) abort
+  let fwd = a:item.waypoints[0][1] > a:item.start[1]
+  let prime = a:is_till ? (fwd ? 't' : 'T') : (fwd ? 'f' : 'F')
+  return [prime . a:ch, a:item.expected_motion]
+endfunction

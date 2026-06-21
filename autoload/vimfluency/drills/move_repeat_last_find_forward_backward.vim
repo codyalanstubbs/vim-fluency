@@ -226,5 +226,9 @@ function! vimfluency#drills#move_repeat_last_find_forward_backward#generate() ab
     let item.lines[0] = vimfluency#repeatfind#decheat(
       \ ln, item.start[1], item.target[1], item.waypoints[0][1], search)
   endif
+  " Demo keystroke plan: f/F{c} to the waypoint, then ; / , to the target.
+  " All four scenarios are find, so the search char sits on the target cell.
+  let item.solve = vimfluency#repeatfind#solve(
+    \ item, 0, item.lines[0][item.target[1] - 1])
   return item
 endfunction
