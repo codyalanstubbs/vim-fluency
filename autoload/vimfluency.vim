@@ -1874,9 +1874,27 @@ function! s:demo_tick(timer) abort
     return
   endif
 
-  " step: one key per tick for a visible cursor walk.
-  call feedkeys(seq[0], 'n')
-  let s:session.demo_seq = seq[1:]
+  " step (plain motions): re-anchor at item.start on the first key — the
+  " cursor can settle off-row between s:next_item and this tick, and a
+  " vertical or synthesized start→target path computed from item.start
+  " would then step from the wrong place. Single-line motions are already
+  " at start, so it's a no-op.
+  if !get(s:session, 'demo_anchored', 0)
+    call cursor(s:session.header_offset + s:session.current_item.start[0],
+      \ s:session.current_item.start[1])
+    let s:session.demo_anchored = 1
+  endif
+  " Play a chunk of the path per tick (1 key for short motions — a
+  " visible walk — more for long ones so far targets don't crawl). Use
+  " :normal!, not feedkeys: a motion fed async ('n') from a timer loses
+  " curswant, so j/k land in column 1 instead of preserving the column —
+  " which silently broke every vertical-motion demo. :normal! is
+  " synchronous and faithful; CursorMoved doesn't fire for it inside a
+  " timer, so we credit via s:on_change directly.
+  let chunk = get(s:session, 'demo_step_chunk', 1)
+  execute 'normal! ' . seq[0 : chunk - 1]
+  let s:session.demo_seq = seq[chunk :]
+  call s:on_change()
 endfunction
 
 " mode_switch auto-play: drive vim's mode toward the item's target one
@@ -1996,6 +2014,7 @@ function! s:next_item() abort
   " mode_switch derives its own keystrokes live from mode() each tick,
   " so it needs no queued sequence.
   if get(s:session, 'demo', 0)
+    let s:session.demo_anchored = 0
     if s:session.kind ==# 'mode_switch'
       let s:session.demo_seq = ''
       let s:session.demo_feed = 'step'
@@ -2003,6 +2022,11 @@ function! s:next_item() abort
       let sol = s:demo_solution(item)
       let s:session.demo_seq = sol.seq
       let s:session.demo_feed = sol.feed
+      " Step-feed chunk size: 1 key per tick for short motions (a visible
+      " walk), more per tick for long ones so a far target (f/t across a
+      " line, big diagonals) still completes in a handful of ticks rather
+      " than crawling one cell per 320ms. Caps any motion at ~6 ticks.
+      let s:session.demo_step_chunk = max([1, len(sol.seq) / 6])
     endif
   endif
 
