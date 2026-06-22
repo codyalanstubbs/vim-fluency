@@ -1,0 +1,4 @@
+# Generated preview tapes and raw renders — regenerate with
+# ./gen-previews.sh. Commit only curated hero assets (e.g. demo.gif).
+/build/
+/renders/
