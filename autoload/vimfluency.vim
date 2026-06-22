@@ -1775,8 +1775,26 @@ function! s:demo_solution(item) abort
     " f/t/F/T then repeats with ;/, (two visible jumps via the waypoint).
     return {'atoms': a:item.solve, 'feed': 'step'}
   endif
-  " A single feedable key, repeated optimal_motions times.
-  if em =~# '^[hjklwbeWBE0$^]$' || em ==# 'ge' || em ==# 'g_'
+  " Char-search motions (f/F/t/T): one jump straight to the target. The
+  " search char is read off the item by universal vim semantics — f/F land
+  " ON the char (at the target), t/T land one cell short (the char sits
+  " just past the landing). Without this they'd fall to the hjkl crawl
+  " below, hiding the single find that IS the skill.
+  if em =~# '^[fFtT]$' && has_key(a:item, 'target')
+    let tc = a:item.target[1]
+    let line = a:item.lines[a:item.target[0] - 1]
+    if em ==# 't'
+      let ch = line[tc]          " forward till stops one before the char
+    elseif em ==# 'T'
+      let ch = line[tc - 2]      " backward till stops one after the char
+    else                          " f / F land on the char itself
+      let ch = line[tc - 1]
+    endif
+    return {'atoms': [em . ch], 'feed': 'step'}
+  endif
+  " A single feedable key, repeated optimal_motions times. Includes the
+  " whole-file jumps gg / G (one press lands on the first/last line).
+  if em =~# '^[hjklwbeWBE0$^G]$' || em ==# 'ge' || em ==# 'g_' || em ==# 'gg'
     return {'atoms': repeat([em], opt), 'feed': 'step'}
   endif
   " Otherwise synthesize a start→target hjkl path. expected_motion is NOT
