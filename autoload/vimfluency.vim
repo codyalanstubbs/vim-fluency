@@ -1882,22 +1882,38 @@ function! s:demo_stall_skip() abort
 endfunction
 
 " motion: play the next chunk of atoms (1 for short motions — a visible
-" walk — more for far targets so they don't crawl) via :normal!, crediting
-" through s:on_change. :normal! not feedkeys: a motion fed async from a
-" timer loses curswant, so j/k land in column 1.
+" walk — more for far targets so they don't crawl) via :normal!. :normal!
+" not feedkeys: a motion fed async from a timer loses curswant, so j/k land
+" in column 1.
+"
+" Crediting is deferred by one tick: we play the path to exhaustion, and
+" only on the FOLLOWING tick (cursor now resting on the target, that frame
+" already rendered) call s:on_change to credit and advance. Without the
+" pause a single-jump motion (f/t/$/gg/…) lands on the target and credits
+" inside one tick — no frame ever shows the cursor on the target, so the
+" jump is invisible in the preview. The pause makes every landing visible.
 function! s:demo_play_motion() abort
-  let atoms = get(s:session, 'demo_atoms', [])
-  if empty(atoms) | call s:demo_stall_skip() | return | endif
-  let s:session.demo_stall = 0
   " Only in Normal mode — else a fed key lands in a cmdline the tape opened
   " to type :VfQuit, corrupting it.
   if mode() !=# 'n' | return | endif
-  call s:demo_anchor()
-  let chunk = get(s:session, 'demo_step_chunk', 1)
-  let take = atoms[0 : chunk - 1]
-  let s:session.demo_atoms = atoms[chunk :]
-  execute 'normal! ' . join(take, '')
+  let atoms = get(s:session, 'demo_atoms', [])
+  if !empty(atoms)
+    let s:session.demo_stall = 0
+    call s:demo_anchor()
+    let chunk = get(s:session, 'demo_step_chunk', 1)
+    let take = atoms[0 : chunk - 1]
+    let s:session.demo_atoms = atoms[chunk :]
+    execute 'normal! ' . join(take, '')
+    return
+  endif
+  " Path exhausted — the cursor landed on the target a tick ago (that frame
+  " was rendered, so the jump/walk is visible). Credit now; if it didn't
+  " land (a rare off-by-one), skip after a few grace ticks.
+  let before = s:session.items_correct
   call s:on_change()
+  if s:session.items_correct == before
+    call s:demo_stall_skip()
+  endif
 endfunction
 
 " editing: walk the visible j/k navigation first, then apply the operator
