@@ -1,13 +1,9 @@
-# Shared VHS setup — Source'd by every generated preview tape so they all
-# look like a set (same theme/font/dims) and launch vim the same way.
+# Shared VHS "look" + sandbox env — Source'd FIRST by every preview/scene
+# tape so they share one theme/font/dims and write to a throwaway data dir.
+# It only configures (Set/Env); it launches nothing, so a scene can seed
+# history before starting vim. Source "_launch.tape" next to start vim.
 #
-# Do NOT render this file directly; it has no Output and no on-camera
-# beats. The generator (gen-previews.sh) emits per-drill tapes that
-# `Source "_setup.tape"` and then add Output + the drill-specific beats.
-#
-# This dir (preview/) sits at the plugin repo root, so the plugin is one
-# dir up (..). vim --clean does NOT source plugin/*.vim from a prepended
-# runtimepath, so launch with -u NONE + explicit `runtime`.
+# Do NOT render this file directly; it has no Output and no on-camera beats.
 
 Set Shell "bash"
 Set FontSize 20
@@ -22,11 +18,6 @@ Set TypingSpeed 80ms
 
 # Demo/preview sessions auto-play at superhuman speed and MUST never touch
 # real data — vimfluency#stop skips the log write for demo sessions, and
-# we point XDG at a throwaway dir as belt-and-suspenders.
+# we point XDG at a throwaway dir as belt-and-suspenders. Seeded scenes
+# (dashboard/list/chart/history) populate THIS dir via seed-history.sh.
 Env XDG_DATA_HOME "/tmp/vf-preview"
-
-Hide
-Type "vim -u NONE -N --cmd 'set rtp^=..' -c 'runtime plugin/vimfluency.vim'"
-Enter
-Sleep 1500ms
-Show

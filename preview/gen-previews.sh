@@ -59,7 +59,8 @@ fi
 gen_one() {
   local id="$1" name="$2"
   local tape="$BUILD/$id-train.tape"
-  local out="$RENDERS/$id-train.gif"
+  # OUTPUT is a base path (no extension); the template appends .gif/.mp4.
+  local out="$RENDERS/$id-train"
   sed -e "s|{{DRILL_ID}}|$id|g" \
       -e "s|{{DRILL_NAME}}|$name|g" \
       -e "s|{{DURATION}}|$DURATION|g" \
@@ -68,11 +69,11 @@ gen_one() {
       "$TEMPLATE" > "$tape"
   echo "  wrote $tape"
   if [ "$RENDER" = 1 ]; then
-    # VHS resolves Source relative to cwd, so render from the demo dir.
+    # VHS resolves Source relative to cwd, so render from the preview dir.
     # Reap orphaned ttyd from a failed prior render first (it makes the
     # next render fail with ERR_CONNECTION_REFUSED).
     pkill -f ttyd 2>/dev/null || true
-    ( cd "$DEMO_DIR" && vhs "$tape" ) && echo "  rendered $out"
+    ( cd "$DEMO_DIR" && vhs "$tape" ) && echo "  rendered $out.{gif,mp4}"
   fi
 }
 
