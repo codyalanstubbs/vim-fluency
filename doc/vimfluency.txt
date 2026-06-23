@@ -21,9 +21,10 @@ COMMANDS                                                        *vf-commands*
 :VfTrain {id} [seconds] [only=motion[,motion...]]               *:VfTrain*
     Start a training on drill {id} for [seconds] (default 60, or
     your :VfSetDuration override). Use Tab to skip an item, :VfQuit
-    to end early. When the session ends, the runner opens (or
-    rebuilds) :Vf with the cursor on the just-trained
-    drill, so the LAST SESSION pane shows the fresh stats.
+    to end early. When the session ends, the runner lands on the
+    shared end screen (see |vf-end-screen|): the drill's last-session
+    frequency + per-motion breakdown plus a single-key menu to every
+    other view.
 
     `only=` filters the generator to only produce items where the
     canonical answer is one of the listed motions. Example:
@@ -136,9 +137,10 @@ COMMANDS                                                        *vf-commands*
     cursor moves. The table is filtered to the current path (see
     :VfSetPath); :VfTrain {id} and :VfLearn {id} still accept every
     drill regardless of path. Optional [id] lands the cursor on
-    that row — every training session also ends here, on the
-    just-trained drill. If a dashboard tab is already open it is
-    reused and rebuilt in place rather than duplicated. Keys on the
+    that row (the shared end screen's `d` key opens the dashboard
+    here, on the just-finished drill). If a dashboard tab is already
+    open it is reused and rebuilt in place rather than duplicated.
+    Keys on the
     table window:
         L T C A D     same as :VfList (Learn, Train, Chart, Aim,
                       Duration)
@@ -154,6 +156,22 @@ COMMANDS                                                        *vf-commands*
 :VfQuit                                                          *:VfQuit*
     End the active session, write its log entry, restore the window layout.
 
+THE END SCREEN                                              *vf-end-screen*
+    Both :VfTrain and :VfLearn finish on the same screen. It shows the
+    drill's most recent training session's frequency (corrects per
+    minute) and per-command breakdown — the same LAST SESSION panel the
+    dashboard draws. A drill you've only ever done a lesson on has no
+    rate yet, so the panel shows an empty-state nudge to run a training
+    and log your first data point. From the screen, single keys jump to
+    any other view (keys are uppercase, matching the dashboard /
+    :VfList convention):
+        T   train this drill        (:VfTrain {id})
+        L   learn this drill        (:VfLearn {id})
+        C   chart your progress     (:VfChart {id})
+        I   browse all drills       (:VfList)
+        V   open the dashboard      (:Vf {id})
+        Q   quit
+
 :VfHistory [id]                                                *:VfHistory*
     Show prior sessions from the JSONL log, grouped by drill and
     rendered with an ASCII rate bar (filled = fraction of aim, all '*'
@@ -166,7 +184,10 @@ COMMANDS                                                        *vf-commands*
     skill with :VfTrain. Press <Space> or <CR> to advance through 'show'
     frames; reach the green target to advance through 'try' frames; press
     'q' or :VfQuit to stop early. Drills without a lesson() function
-    will report "no lesson written for {id} yet".
+    will report "no lesson written for {id} yet". On completing the
+    lesson (the required first-try streak in the test phase) you land
+    on the shared end screen (see |vf-end-screen|) — the same screen
+    :VfTrain ends on.
 
 :VfChart {id}                                                    *:VfChart*
     Render a progress chart for drill {id} — a Standard Celeration

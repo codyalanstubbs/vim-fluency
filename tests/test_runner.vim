@@ -331,6 +331,48 @@ function! s:test_visual_motion_mode_gate() abort
   call s:cleanup()
 endfunction
 
+" --- 10) shared end screen + navigation ----------------------------
+" After a training stops, the runner lands on the shared end screen
+" (buffer vf-complete) — NOT the old dashboard-only landing — showing
+" the drill's last-session breakdown and a single-key nav menu.
+" vimfluency#end_nav then routes to the chosen view.
+function! s:test_end_screen() abort
+  call s:set_motion_fixture([
+    \ {'lines': ['abcdefghij'], 'start': [1,1], 'target': [1,3],
+    \  'expected_motion': 'l', 'optimal_motions': 2},
+    \ ])
+  call vimfluency#start('fixture_motion', s:dur)
+  call s:move_item(1, 2)
+  call s:move_item(1, 3)
+  call vimfluency#stop('test_end_screen')
+
+  call AssertEq(bufname('%'), 'vf-complete',
+    \ 'end screen: lands on vf-complete buffer')
+  let lines = getline(1, '$')
+  call Assert(match(lines, 'SESSION COMPLETE') >= 0,
+    \ 'end screen: shows SESSION COMPLETE heading')
+  call Assert(match(lines, ':VfTrain fixture_motion') >= 0,
+    \ 'end screen: nav menu names :VfTrain')
+  call Assert(match(lines, ':VfList') >= 0,
+    \ 'end screen: nav menu names :VfList')
+  call Assert(maparg('T', 'n') =~# 'end_nav',
+    \ 'end screen: T (Train) mapped to end_nav')
+  call Assert(maparg('L', 'n') =~# 'end_nav',
+    \ 'end screen: L (Learn) mapped to end_nav')
+  call Assert(maparg('I', 'n') =~# 'end_nav',
+    \ 'end screen: I (List) mapped to end_nav')
+  call Assert(maparg('V', 'n') =~# 'end_nav',
+    \ 'end screen: V (Dashboard) mapped to end_nav')
+  call AssertEq(&modifiable, 0, 'end screen: buffer is read-only')
+
+  " Navigate to the dashboard; the end-screen tab closes and we land
+  " on the dashboard table.
+  call vimfluency#end_nav('dashboard')
+  call AssertEq(bufname('%'), 'vf-dashboard-table',
+    \ 'end screen: end_nav(dashboard) opens the dashboard')
+  call s:cleanup()
+endfunction
+
 call s:test_no_motion_count_inflation()
 call s:test_wrong_motion_free_operant()
 call s:test_tab_skip()
@@ -340,3 +382,4 @@ call s:test_stop_persists_jsonl()
 call s:test_event_stream_motion()
 call s:test_event_stream_editing()
 call s:test_visual_motion_mode_gate()
+call s:test_end_screen()

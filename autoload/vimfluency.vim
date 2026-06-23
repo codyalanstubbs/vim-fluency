@@ -2967,13 +2967,13 @@ function! vimfluency#stop(reason) abort
     echohl None
   endtry
 
-  " Post-session return-to-dashboard flow. The standalone summary
-  " buffer is gone — every session ends by landing the cursor on the
-  " just-trained drill in :Vf, where the new LAST SESSION
-  " pane shows the fresh stats. If a dashboard tab is already open
-  " (e.g. the learner reached training via T from there),
-  " vimfluency#dashboard switches to it and rebuilds in place;
-  " otherwise it opens a new one.
+  " Post-session flow: land on the shared end screen (see
+  " s:show_end_screen), which shows this drill's last-session
+  " frequency + breakdown and offers single-key navigation to every
+  " other view. We reuse the training window in place rather than
+  " closing the tab — the training tab is a single-window scratch
+  " buffer, so s:show_end_screen repurposes it (mirrors the lesson
+  " path in s:learn_show_complete).
   let prev_laststatus = s:session.prev_laststatus
   let prev_ttimeoutlen = get(s:session, 'prev_ttimeoutlen', &ttimeoutlen)
   let prev_cpoptions = get(s:session, 'prev_cpoptions', &cpoptions)
@@ -2981,16 +2981,111 @@ function! vimfluency#stop(reason) abort
   let drill_id = record.drill_id
   let s:session = {}
 
-  " Resolve the tab by window id at close time — the tab NUMBER captured
-  " at setup goes stale if the user opens/closes tabs mid-session.
-  let tabnr = win_id2tabwin(you_win)[0]
-  if tabnr > 0
-    silent! execute 'tabclose ' . tabnr
-  endif
-  let &laststatus = prev_laststatus
   let &ttimeoutlen = prev_ttimeoutlen
   let &cpoptions = prev_cpoptions
-  call vimfluency#dashboard(drill_id)
+  " Restore the user's laststatus FIRST so the end screen captures it
+  " as the value to put back when the learner finally quits the screen.
+  let &laststatus = prev_laststatus
+  if you_win > 0 && win_id2tabwin(you_win)[0] > 0
+    call win_gotoid(you_win)
+  endif
+  call s:show_end_screen(drill_id, 'train')
+endfunction
+
+" Shared completion screen for both :VfTrain and :VfLearn. Renders the
+" drill's last-session frequency + per-motion breakdown (the same
+" LAST SESSION panel the dashboard draws) plus an empty-state nudge
+" when nothing's been trained yet — a brand-new learner reaching this
+" via :VfLearn always hits that case — and a single-key navigation
+" menu to every other view.
+"
+" The caller has already torn down its session and parked the cursor
+" in the just-finished session's window (a single-window nofile/
+" bufhidden=wipe scratch tab in both the train and lesson paths). We
+" repurpose that buffer in place: clear its buffer-local maps across
+" every mode (the lesson installs a cmdline <CR> defang we must drop
+" so ':' commands work here) and rewrite the lines. origin is 'train'
+" or 'learn' and only changes the heading.
+function! s:show_end_screen(id, origin) abort
+  let registry = vimfluency#discover_drills()
+  let sessions = s:load_sessions_grouped()
+  let meta = get(registry, a:id, {})
+  let name = get(meta, 'name', a:id)
+  let runs = get(sessions, a:id, [])
+  let has_data = !empty(filter(copy(runs),
+    \ 'get(v:val, "frequency_per_min", 0) > 0'))
+
+  silent! mapclear <buffer>
+  silent! imapclear <buffer>
+  silent! cmapclear <buffer>
+  silent! vmapclear <buffer>
+  setlocal modifiable nolist nocursorline
+  silent! execute 'keepalt file vf-complete'
+  silent! %delete _
+
+  " w/h=58/2: the panel renders its full body with zero padding when
+  " h is 2 (it only pads UP to h-1, never truncates) — exact fit.
+  let w = 58
+  let panel = s:dashboard_last_session_breakdown_panel(
+    \ a:id, registry, sessions, w, 2)
+  let head = a:origin ==# 'learn' ? 'LESSON COMPLETE' : 'SESSION COMPLETE'
+  let lines = [printf('  %s — %s', head, name), '']
+  call extend(lines, map(copy(panel.lines), '"  " . v:val'))
+  call add(lines, '')
+  if !has_data
+    call add(lines, '  No training sessions recorded for this drill yet —')
+    call add(lines, '  press  T  to train and log your first rate.')
+    call add(lines, '')
+  endif
+  " Navigation keys are uppercase everywhere (matching the dashboard /
+  " :VfList convention: L=Learn, T=Train, C=Chart).
+  call add(lines, '  Where to next?')
+  call add(lines, printf('    T   %-21s:VfTrain %s', 'train this drill', a:id))
+  call add(lines, printf('    L   %-21s:VfLearn %s', 'learn this drill', a:id))
+  call add(lines, printf('    C   %-21s:VfChart %s', 'chart your progress', a:id))
+  call add(lines, printf('    I   %-21s:VfList', 'browse all drills'))
+  call add(lines, printf('    V   %-21s:Vf', 'open the dashboard'))
+  call add(lines, '    Q   quit')
+  call setline(1, lines)
+  setlocal nomodifiable nomodified
+  call cursor(1, 1)
+
+  let b:vf_end_id = a:id
+  let b:vf_end_prev_laststatus = &laststatus
+  let &l:statusline = ' Vim Fluency   [T=Train  L=Learn  C=Chart  I=List  V=Dashboard  Q=Quit]'
+  set laststatus=2
+
+  nnoremap <buffer> <silent> T :call vimfluency#end_nav('train')<CR>
+  nnoremap <buffer> <silent> L :call vimfluency#end_nav('learn')<CR>
+  nnoremap <buffer> <silent> C :call vimfluency#end_nav('chart')<CR>
+  nnoremap <buffer> <silent> I :call vimfluency#end_nav('list')<CR>
+  nnoremap <buffer> <silent> V :call vimfluency#end_nav('dashboard')<CR>
+  nnoremap <buffer> <silent> Q :call vimfluency#end_nav('quit')<CR>
+endfunction
+
+" Navigation from the shared end screen. Closes the end-screen tab
+" (or blanks it when it's the only tab open) and dispatches to the
+" chosen view. Each destination command opens its own tab.
+function! vimfluency#end_nav(action) abort
+  let id = get(b:, 'vf_end_id', '')
+  let prev_ls = get(b:, 'vf_end_prev_laststatus', &laststatus)
+  if tabpagenr('$') > 1
+    silent! tabclose
+  else
+    silent! enew
+  endif
+  let &laststatus = prev_ls
+  if a:action ==# 'train'
+    call vimfluency#start(id)
+  elseif a:action ==# 'learn'
+    call vimfluency#learn(id)
+  elseif a:action ==# 'chart'
+    call vimfluency#chart(id)
+  elseif a:action ==# 'list'
+    call vimfluency#list()
+  elseif a:action ==# 'dashboard'
+    call vimfluency#dashboard(id)
+  endif
 endfunction
 
 " Close the list/chart/dashboard tab the cursor is in. b:vf_summary_tabnr
@@ -3233,7 +3328,7 @@ function! s:learn_header_line() abort
     if s:session.frame_complete
       if s:session.last_item_motions <= s:session.last_item_optimal
         if s:session.streak >= s:session.required_streak
-          let hint = printf('✓ %d/%d streak!  [Space=start training]',
+          let hint = printf('✓ %d/%d streak!  [Space=finish]',
             \ cur, req)
         else
           let hint = printf('✓ %d motion(s)  streak %d/%d  [Space=next]',
@@ -3937,59 +4032,43 @@ function! s:learn_next() abort
   call s:learn_test_next()
 endfunction
 
-" Final celebration screen after the learner hits 3-in-a-row in the
-" test phase. Stays in the lesson tab; explicit p/q decide what's next.
+" Reached when the learner hits the required streak in the test phase.
+" Tears the lesson session down and lands on the shared end screen
+" (s:show_end_screen) — the same screen :VfTrain ends on — reusing the
+" lesson window in place. The end screen shows this drill's last
+" training session's frequency + breakdown (an empty-state nudge to
+" train when there's none yet) and the navigation menu.
 function! s:learn_show_complete() abort
   let s:session.advancing = 1
+  let id = s:session.id
 
+  " Tear down lesson autocmds / timers and restore the options the
+  " lesson changed, but keep the window — s:show_end_screen repurposes
+  " the lesson buffer as the end screen.
+  silent! augroup VfLearn | autocmd! | augroup END
+  call s:stop_mode_polling()
+  call s:stop_learn_auto_advance()
+  let &ttimeoutlen = get(s:session, 'prev_ttimeoutlen', &ttimeoutlen)
+  let &cpoptions = get(s:session, 'prev_cpoptions', &cpoptions)
   if s:session.target_match_id != -1
     silent! call matchdelete(s:session.target_match_id)
-    let s:session.target_match_id = -1
   endif
   if s:session.deletion_match_id != -1
     silent! call matchdelete(s:session.deletion_match_id)
-    let s:session.deletion_match_id = -1
   endif
   call s:clear_waypoint_matches()
-  " Force back to Normal so q/t fire as Normal-mode mappings. The
-  " mode_switch lessons end with the learner in whatever mode satisfied
-  " the final test item (Insert/Visual/Replace/Cmd) — without this,
-  " pressing q or t just inserts text instead of firing the mapping.
-  " <C-\><C-n> is vim's universal "to Normal from anywhere" sequence.
-  silent! call feedkeys("\<C-\>\<C-n>", 'n')
-  " Recall lessons skipped the q/t overrides during input phases
-  " (those letters belong to answer strings); install them now so
-  " the completion screen's instructions work.
-  if has_key(s:session, "input_row") | unlet s:session.input_row | endif
-  nnoremap <buffer> <silent> q :call vimfluency#learn_stop()<CR>
-  nnoremap <buffer> <silent> t :call <SID>learn_start_train()<CR>
 
-  let streak = s:session.required_streak
-  let duration = s:effective_duration()
-  setlocal modifiable
-  silent! %delete _
-  call setline(1, [
-    \ printf('LESSON %s  COMPLETE  [t=start training]  [q=quit]', s:session.id),
-    \ '',
-    \ printf('  ✓ %d in a row on %s — nice work.', streak, s:session.name),
-    \ '',
-    \ printf('  The training presents the same kind of items on a %d-second', duration),
-    \ '  clock. The lesson just confirmed you know the rule; the training',
-    \ '  is where you build fluency — the speed and automaticity that',
-    \ '  make a motion useful during real editing. Knowing how a motion',
-    \ '  works and being fluent at it are different things, and only',
-    \ '  repetition under time pressure closes the gap.',
-    \ '',
-    \ '  Slow is smooth. Smooth is fast.',
-    \ '',
-    \ '  Each training writes a data point to the session log;',
-    \ printf('  :VfChart %s plots your rate over days.', s:session.id),
-    \ '',
-    \ printf('    t   start :VfTrain %s', s:session.id),
-    \ '    q   exit (run :VfTrain later when ready)',
-    \ ])
-  call cursor(1, 1)
-  let s:session.advancing = 0
+  let you_win = get(s:session, 'you_win', -1)
+  " The completion can fire from the mode_switch auto-advance timer
+  " while the learner is still in Insert/Visual/Replace/Cmd mode.
+  " <C-\><C-n> is vim's universal "to Normal from anywhere" — without
+  " it the end screen's nnoremaps would type into the buffer.
+  silent! call feedkeys("\<C-\>\<C-n>", 'n')
+  let s:session = {}
+  if you_win > 0 && win_id2tabwin(you_win)[0] > 0
+    call win_gotoid(you_win)
+  endif
+  call s:show_end_screen(id, 'learn')
 endfunction
 
 " Triggered by the t mapping on the completion screen. No-op anywhere
