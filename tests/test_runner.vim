@@ -373,6 +373,52 @@ function! s:test_end_screen() abort
   call s:cleanup()
 endfunction
 
+" --- 11) chart nav keys + dashboard<->list loop ---------------------
+" Every view links to every other so :Vf / :VfList is all you need to
+" type. Exercise the chart's nav keys (train/learn/zoom/list/dashboard)
+" and the dashboard<->list cross-links.
+function! s:test_nav_loop() abort
+  call s:set_motion_fixture([
+    \ {'lines': ['abcdefghij'], 'start': [1,1], 'target': [1,3],
+    \  'expected_motion': 'l', 'optimal_motions': 2},
+    \ ])
+  call vimfluency#start('fixture_motion', s:dur)
+  call s:move_item(1, 2)
+  call s:move_item(1, 3)
+  call vimfluency#stop('test_nav_loop')
+  call vimfluency#end_nav('quit')
+
+  " Chart carries nav keys + remembers its drill / variant.
+  call vimfluency#chart('fixture_motion')
+  call AssertEq(bufname('%'), 'vf-chart-fixture_motion',
+    \ 'nav: chart buffer open')
+  call AssertEq(get(b:, 'vf_chart_id', ''), 'fixture_motion',
+    \ 'nav: chart remembers its drill id')
+  for k in ['T', 'L', 'Z', 'I', 'V']
+    call Assert(maparg(k, 'n') =~# 'chart_nav',
+      \ 'nav: chart key ' . k . ' mapped to chart_nav')
+  endfor
+
+  " Z toggles to the zoom variant.
+  call vimfluency#chart_nav('zoom')
+  call AssertEq(bufname('%'), 'vf-chart-zoom-fixture_motion',
+    \ 'nav: chart Z opens the zoom variant')
+
+  " Chart -> dashboard.
+  call vimfluency#chart_nav('dashboard')
+  call AssertEq(bufname('%'), 'vf-dashboard-table',
+    \ 'nav: chart V opens the dashboard')
+
+  " Dashboard -> list -> dashboard round trip.
+  call vimfluency#list_action('list')
+  call AssertEq(bufname('%'), 'vf-list',
+    \ 'nav: dashboard I opens the list')
+  call vimfluency#list_action('dashboard')
+  call AssertEq(bufname('%'), 'vf-dashboard-table',
+    \ 'nav: list V returns to the dashboard')
+  call s:cleanup()
+endfunction
+
 call s:test_no_motion_count_inflation()
 call s:test_wrong_motion_free_operant()
 call s:test_tab_skip()
@@ -383,3 +429,4 @@ call s:test_event_stream_motion()
 call s:test_event_stream_editing()
 call s:test_visual_motion_mode_gate()
 call s:test_end_screen()
+call s:test_nav_loop()

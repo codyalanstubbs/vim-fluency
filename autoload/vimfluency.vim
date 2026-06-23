@@ -946,7 +946,7 @@ function! s:build_list_view(registry, sessions_by_id, expanded, ...) abort
   call add(lines, printf('vim-fluency: %d drill(s) built',
     \ len(a:registry)))
   call add(lines, '')
-  call add(lines, 'Move with j/k, then:  (L)earn  (T)rain  (C)hart  (B)reakdown  set (A)im  (D)uration   ·   Q closes')
+  call add(lines, 'Move with j/k, then:  (L)earn  (T)rain  (C)hart  (B)reakdown  set (A)im  (D)uration  to (V)f dashboard   ·   Q closes')
   call add(lines, 'Status:  ✓ at aim    ▶ climbing    ○ not started')
   call add(lines, 'Sort with s + column letter:  d c p a r s n f   (repeat letter to reverse; s<Space> resets)')
   call add(lines, '')
@@ -1179,7 +1179,7 @@ function! s:show_list_buffer(view) abort
   silent! execute 'keepalt file vf-list'
   call setline(1, split.data_lines)
   setlocal nomodifiable nomodified
-  let &l:statusline = ' drill list   [L=Learn  T=Train  C=Chart  B=Breakdown  A=Aim  D=Duration  s+col=Sort  Q=close]'
+  let &l:statusline = ' drill list   [L=Learn  T=Train  C=Chart  V=Dashboard  B=Breakdown  A=Aim  D=Duration  s+col=Sort  Q=close]'
   let b:vf_summary_tabnr = tabnr
   let b:vf_summary_prev_laststatus = &laststatus
   let b:vf_list_line_to_id    = split.mapping
@@ -1198,10 +1198,12 @@ function! s:show_list_buffer(view) abort
   " — because that's the last window in the tab — closes the tab too.
   autocmd BufWipeout <buffer> silent! call s:cleanup_list_header_window()
 
-  " Action keys: L=lesson, T=train, C=chart, B=toggle breakdown.
+  " Action keys: L=lesson, T=train, C=chart, B=toggle breakdown,
+  " V=jump to the dashboard (on the hovered drill).
   nnoremap <buffer> <silent> L :call vimfluency#list_action('learn')<CR>
   nnoremap <buffer> <silent> T :call vimfluency#list_action('train')<CR>
   nnoremap <buffer> <silent> C :call vimfluency#list_action('chart')<CR>
+  nnoremap <buffer> <silent> V :call vimfluency#list_action('dashboard')<CR>
   nnoremap <buffer> <silent> B :call vimfluency#list_toggle_breakdown()<CR>
   nnoremap <buffer> <silent> A :call vimfluency#list_set_aim()<CR>
   nnoremap <buffer> <silent> D :call vimfluency#list_set_duration()<CR>
@@ -1294,6 +1296,23 @@ endfunction
 function! vimfluency#list_action(action) abort
   if !exists('b:vf_list_line_to_id') | return | endif
   let id = get(b:vf_list_line_to_id, line('.'), '')
+
+  " View-to-view cross-links (the dashboard ⇆ list hop) don't need a
+  " drill row — they navigate to a whole view. The hovered id, when
+  " present, lets the dashboard land on the matching row. This is what
+  " closes the navigation loop: from either home view you can reach the
+  " other (and from there charts / trainings / lessons / the end
+  " screen, which all link back here).
+  if a:action ==# 'list' || a:action ==# 'dashboard'
+    call vimfluency#close_summary()
+    if a:action ==# 'list'
+      call vimfluency#list()
+    else
+      call vimfluency#dashboard(id)
+    endif
+    return
+  endif
+
   if empty(id)
     echo 'cursor must be on a drill row'
     return
@@ -4596,7 +4615,7 @@ function! s:render_chart(id, sessions, bounds) abort
   call add(out, printf(' first session: %s', a:sessions[0].timestamp))
   call add(out, printf(' last  session: %s', a:sessions[-1].timestamp))
   call add(out, '')
-  call add(out, ' Press Q or <Enter> to close.')
+  call add(out, ' T=Train  L=Learn  Z=Zoom  I=List  V=Dashboard   ·   Q or <Enter> closes.')
 
   return out
 endfunction
@@ -4611,16 +4630,61 @@ function! s:show_chart_buffer(id, lines, variant) abort
   silent! execute 'keepalt file vf-chart' . bufname_suffix . '-' . a:id
   call setline(1, a:lines)
   setlocal nomodifiable nomodified
-  let &l:statusline = ' progress chart — ' . a:id . title_suffix . '   [press Q or <Enter> to close]'
+  let &l:statusline = ' chart — ' . a:id . title_suffix
+    \ . '   [T=Train  L=Learn  Z=Zoom  I=List  V=Dashboard  Q=Close]'
   let b:vf_summary_tabnr = tabnr
   let b:vf_summary_prev_laststatus = &laststatus
+  " Remember which drill / variant this chart is for so the nav keys
+  " can route to the right train / learn / dashboard / zoom target.
+  let b:vf_chart_id = a:id
+  let b:vf_chart_variant = a:variant
   set laststatus=2
+  " Navigation keys — same loop as every other view (see
+  " s:show_end_screen): jump straight to this drill's training,
+  " lesson, the list, or the dashboard without closing by hand. Z
+  " toggles the zoom variant (chart-specific). Q / <Enter> close.
+  nnoremap <buffer> <silent> T :call vimfluency#chart_nav('train')<CR>
+  nnoremap <buffer> <silent> L :call vimfluency#chart_nav('learn')<CR>
+  nnoremap <buffer> <silent> Z :call vimfluency#chart_nav('zoom')<CR>
+  nnoremap <buffer> <silent> I :call vimfluency#chart_nav('list')<CR>
+  nnoremap <buffer> <silent> V :call vimfluency#chart_nav('dashboard')<CR>
   nnoremap <buffer> <silent> Q :call vimfluency#close_summary()<CR>
   " Lowercase q kept as a silent alias for muscle memory; Q is the
   " documented key (uppercase nav keys everywhere — see s:show_end_screen).
   nnoremap <buffer> <silent> q :call vimfluency#close_summary()<CR>
   nnoremap <buffer> <silent> <CR> :call vimfluency#close_summary()<CR>
   call cursor(1, 1)
+endfunction
+
+" Navigation from a progress chart. Mirrors vimfluency#end_nav: closes
+" the chart tab, then opens the chosen view for the chart's drill. Z
+" toggles between the full and zoomed variants. Learn is guarded (a
+" no-op with a hint when the drill has no lesson) so the chart doesn't
+" vanish behind a fleeting message — same discipline as
+" vimfluency#list_action.
+function! vimfluency#chart_nav(action) abort
+  let id = get(b:, 'vf_chart_id', '')
+  let variant = get(b:, 'vf_chart_variant', '')
+  if a:action ==# 'learn' && !s:drill_has_lesson(id)
+    echo 'no lesson written for ' . id . ' yet'
+    return
+  endif
+  call vimfluency#close_summary()
+  if a:action ==# 'train'
+    call vimfluency#start(id)
+  elseif a:action ==# 'learn'
+    call vimfluency#learn(id)
+  elseif a:action ==# 'list'
+    call vimfluency#list()
+  elseif a:action ==# 'dashboard'
+    call vimfluency#dashboard(id)
+  elseif a:action ==# 'zoom'
+    if empty(variant)
+      call vimfluency#chart_zoom(id)
+    else
+      call vimfluency#chart(id)
+    endif
+  endif
 endfunction
 
 " ─────────────────────────────────────────────────────────────────
@@ -4735,7 +4799,7 @@ function! s:show_dashboard(registry, sessions, ...) abort
   " mapping's vimfluency#close_summary() works here too.
   let b:vf_summary_tabnr = tabnr
   let b:vf_summary_prev_laststatus = &laststatus
-  let &l:statusline = ' Vim Fluency dashboard   [L=Learn  T=Train  C=Chart  A=Aim  D=Duration  P=Path  B=Breakdown  s=sort  Q=close]'
+  let &l:statusline = ' Vim Fluency dashboard   [L=Learn  T=Train  C=Chart  I=List  A=Aim  D=Duration  P=Path  B=Breakdown  s=sort  Q=close]'
   set laststatus=2
 
   " --- Window 2: banner at the very top (1 content row) ---
@@ -4826,6 +4890,7 @@ function! s:show_dashboard(registry, sessions, ...) abort
   nnoremap <buffer> <silent> L :call vimfluency#list_action('learn')<CR>
   nnoremap <buffer> <silent> T :call vimfluency#list_action('train')<CR>
   nnoremap <buffer> <silent> C :call vimfluency#list_action('chart')<CR>
+  nnoremap <buffer> <silent> I :call vimfluency#list_action('list')<CR>
   nnoremap <buffer> <silent> A :call vimfluency#dashboard_set_aim()<CR>
   nnoremap <buffer> <silent> D :call vimfluency#dashboard_set_duration()<CR>
   nnoremap <buffer> <silent> P :call vimfluency#dashboard_set_path()<CR>

@@ -15,6 +15,11 @@ Two entry points: :Vf opens the dashboard (the home view — browse
 drills, launch trainings and lessons from a row with T / L), and
 :VfTrain {id} starts a timed session on one drill directly.
 
+Every view links to every other with the same uppercase keys —
+T(rain), L(earn), C(hart), I(list), V(dashboard) — so once you've
+typed :Vf (or :VfList) you can loop through trainings, lessons, charts,
+and the end screen without retyping a command. Q closes / steps back.
+
 ==============================================================================
 COMMANDS                                                        *vf-commands*
 
@@ -96,6 +101,7 @@ COMMANDS                                                        *vf-commands*
         L     start a Learn session (:VfLearn) for this drill
         T     start a Train session (:VfTrain) for this drill
         C     open the progress Chart (:VfChart) for this drill
+        V     open the dashboard (:Vf) on this drill
         B     toggle the Breakdown beneath the drill — see below
         A     prompt to set the aim for THIS drill. Type a
               positive integer to store an override (same effect as
@@ -145,6 +151,7 @@ COMMANDS                                                        *vf-commands*
     table window:
         L T C A D     same as :VfList (Learn, Train, Chart, Aim,
                       Duration)
+        I             open the flat :VfList view
         P             prompt to switch the learning path (Tab
                       completes; 'general' or :VfResetPath reverts)
         B             jump into the LAST SESSION panel to scroll a
@@ -197,8 +204,14 @@ THE END SCREEN                                              *vf-end-screen*
     semi-log scale. Y-axis is rate per minute on a log scale (1 to 1000 across
     three decades). X-axis is session index (chronological). Plots both
     the corrects rate (●) and the errors rate (×) per session, with the
-    fluency aim drawn as a dashed line. Press 'Q' or <Enter> to close
-    (lowercase q also works).
+    fluency aim drawn as a dashed line. Navigation keys (you never have
+    to retype a command to move on):
+        T   train this drill        (:VfTrain {id})
+        L   learn this drill        (:VfLearn {id})
+        Z   toggle the zoom variant (:VfChart / :VfChartZoom)
+        I   browse all drills       (:VfList)
+        V   open the dashboard      (:Vf {id})
+        Q   close (or <Enter>; lowercase q also works)
 
 :VfChartZoom {id}                                            *:VfChartZoom*
     Same as :VfChart but with the Y-axis zoomed to a single decade (10
