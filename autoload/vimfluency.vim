@@ -1567,6 +1567,7 @@ function! vimfluency#list_set_duration() abort
 endfunction
 
 let s:pending_demo = {}
+let s:pending_learn_demo = {}
 
 function! vimfluency#start(...) abort
   if !empty(s:session)
@@ -1705,6 +1706,23 @@ function! vimfluency#demo(...) abort
   endif
 endfunction
 
+" :VfLearnDemo <id> — auto-play a whole lesson for preview GIFs. Sets a
+" pending flag that vimfluency#learn consumes to start the lesson demo
+" timer. Dev-only / undocumented, like :VfDemo. Lessons never write the
+" session log, so there's no data to guard here.
+function! vimfluency#learn_demo(...) abort
+  if !empty(s:session)
+    echo 'a session is already active; :VfQuit first'
+    return
+  endif
+  if a:0 < 1
+    echo 'usage: :VfLearnDemo <id>'
+    return
+  endif
+  let s:pending_learn_demo = {'on': 1}
+  call vimfluency#learn(a:1)
+endfunction
+
 " The demo solution for one item: a keystroke plan {seq, feed, ...} that
 " s:demo_tick plays back, paced one unit per tick so every motion is
 " VISIBLE in a preview GIF (not bursted between frames). Each kind credits
@@ -1840,6 +1858,14 @@ endfunction
 function! s:demo_tick(timer) abort
   if empty(s:session) | return | endif
   if get(s:session, 'advancing', 0) | return | endif
+  call s:demo_dispatch()
+endfunction
+
+" Play the current item one tick's worth, routed by the loaded feed
+" strategy. Shared by the training tick (s:demo_tick) and the lesson tick
+" (s:learn_demo_tick) — both call s:demo_load to install demo_atoms/feed
+" for the current item first, so this just performs it.
+function! s:demo_dispatch() abort
   " mode_switch is a mode state machine, not a keystroke sequence.
   if get(s:session, 'kind', 'motion') ==# 'mode_switch'
     call s:demo_tick_mode_switch()
@@ -1855,6 +1881,104 @@ function! s:demo_tick(timer) abort
   else
     call s:demo_play_motion()
   endif
+endfunction
+
+" Credit the just-performed motion/editing item through the right path —
+" the lesson runner and the training runner have separate credit
+" functions. (type/burst/mode_switch feeds credit through their own
+" installed autocmds, so they don't call this.)
+function! s:demo_credit() abort
+  if get(s:session, 'mode', 'train') ==# 'learn'
+    call s:learn_on_change()
+  else
+    call s:on_change()
+  endif
+endfunction
+
+" A monotonic "did the current item just get credited?" probe — training
+" bumps items_correct, the lesson sets frame_complete. The play functions
+" compare this before/after a credit attempt to decide whether to stall.
+function! s:demo_progress() abort
+  return get(s:session, 'mode', 'train') ==# 'learn'
+    \ ? get(s:session, 'frame_complete', 0)
+    \ : get(s:session, 'items_correct', 0)
+endfunction
+
+" Load the demo solution for one item into the session (demo_atoms /
+" demo_seq / demo_feed / demo_nav / demo_step_chunk, and reset the
+" per-item anchor + stall). Called by s:next_item (training) and the
+" lesson tick (per try-frame / test-item). mode_switch derives its
+" keystrokes live from mode() each tick, so it needs no queued sequence.
+function! s:demo_load(item) abort
+  let s:session.demo_anchored = 0
+  let s:session.demo_stall = 0
+  if s:session.kind ==# 'mode_switch'
+    let s:session.demo_atoms = []
+    let s:session.demo_feed = 'step'
+    return
+  endif
+  let sol = s:demo_solution(a:item)
+  let s:session.demo_feed = sol.feed
+  if sol.feed ==# 'step'
+    let s:session.demo_atoms = sol.atoms
+    let s:session.demo_step_chunk = max([1, len(sol.atoms) / 6])
+  else
+    let s:session.demo_seq = sol.seq
+    let s:session.demo_nav = get(sol, 'nav', '')
+  endif
+endfunction
+
+" -----------------------------------------------------------------
+" Lesson auto-play (:VfLearnDemo) — drives a whole :VfLearn lesson on a
+" timer for preview GIFs: reads each show frame, performs each try frame's
+" canonical motion, applies the rule through the test phase to graduation,
+" and lands on the end screen. Reuses the training demo's solution +
+" play machinery (s:demo_load / s:demo_dispatch, crediting via the
+" lesson path through s:demo_credit); this driver only adds the
+" frame/Space advancement and the setup→test→complete walk.
+" -----------------------------------------------------------------
+function! s:learn_demo_tick(timer) abort
+  if empty(s:session) || get(s:session, 'mode', '') !=# 'learn' | return | endif
+  if get(s:session, 'advancing', 0) | return | endif
+  let phase = get(s:session, 'phase', '')
+  if phase ==# 'complete'
+    " Lesson graduated — the end screen is up. Stop driving.
+    if has_key(s:session, 'learn_demo_timer')
+      call timer_stop(s:session.learn_demo_timer)
+      unlet s:session.learn_demo_timer
+    endif
+    return
+  endif
+  " A credited try frame / test item shows "✓ Press <Space>" — advance it
+  " (a learner would press Space; we call the advance handler directly).
+  if get(s:session, 'frame_complete', 0)
+    call s:learn_advance_show()
+    return
+  endif
+  " Pick the current item to perform.
+  let item = {}
+  if phase ==# 'setup'
+    if s:session.frame_idx >= len(s:session.frames) | return | endif
+    let frame = s:session.frames[s:session.frame_idx]
+    if get(frame, 'kind', '') ==# 'show'
+      call s:learn_advance_show()          " read it, move on
+      return
+    endif
+    let item = frame                        " a try frame
+  elseif phase ==# 'test'
+    let item = get(s:session, 'current_test_item', {})
+  endif
+  if empty(item) || !has_key(item, 'start') | return | endif
+  " (Re)load the solution when the item changes; current_item is what the
+  " play functions + s:demo_anchor read.
+  let key = phase . ':' . s:session.frame_idx . ':'
+    \ . get(s:session, 'test_items_seen', 0)
+  if get(s:session, 'learn_demo_key', '') !=# key
+    let s:session.learn_demo_key = key
+    let s:session.current_item = item
+    call s:demo_load(item)
+  endif
+  call s:demo_dispatch()
 endfunction
 
 " Anchor the cursor at item.start once per item. Between s:next_item and
@@ -1909,9 +2033,9 @@ function! s:demo_play_motion() abort
   " Path exhausted — the cursor landed on the target a tick ago (that frame
   " was rendered, so the jump/walk is visible). Credit now; if it didn't
   " land (a rare off-by-one), skip after a few grace ticks.
-  let before = s:session.items_correct
-  call s:on_change()
-  if s:session.items_correct == before
+  let before = s:demo_progress()
+  call s:demo_credit()
+  if s:demo_progress() == before
     call s:demo_stall_skip()
   endif
 endfunction
@@ -1926,7 +2050,7 @@ function! s:demo_play_editing() abort
   if !empty(nav)
     execute 'normal! ' . nav[0]
     let s:session.demo_nav = nav[1:]
-    call s:on_change()
+    call s:demo_credit()
     return
   endif
   let item = s:session.current_item
@@ -1941,13 +2065,13 @@ function! s:demo_play_editing() abort
   let row = (len(dr) == 1 && dr[0][0] != item.start[0])
     \ ? dr[0][0] : item.start[0]
   call cursor(s:session.header_offset + row, item.start[1])
-  let before = s:session.items_correct
+  let before = s:demo_progress()
   execute 'normal! ' . s:session.demo_seq
-  call s:on_change()
+  call s:demo_credit()
   " If applying the operator didn't credit, count it toward a stall so a
-  " never-matching item can't loop forever. A credit reset demo_stall via
-  " s:next_item, so only genuine no-progress ticks accumulate.
-  if s:session.items_correct == before
+  " never-matching item can't loop forever. A credit resets the per-item
+  " state, so only genuine no-progress ticks accumulate.
+  if s:demo_progress() == before
     call s:demo_stall_skip()
   endif
 endfunction
@@ -2091,34 +2215,8 @@ function! s:next_item() abort
   " Demo mode: queue the solution s:demo_tick performs for this item.
   " Set here, before the per-kind render branches that return early
   " (recall / command / mode / mode_switch), so every kind gets it.
-  " mode_switch derives its own keystrokes live from mode() each tick,
-  " so it needs no queued sequence.
   if get(s:session, 'demo', 0)
-    let s:session.demo_anchored = 0
-    let s:session.demo_stall = 0
-    if s:session.kind ==# 'mode_switch'
-      " mode_switch is driven by s:demo_tick_mode_switch (a state machine),
-      " dispatched before the feed is read — these are just safe defaults.
-      let s:session.demo_atoms = []
-      let s:session.demo_feed = 'step'
-    else
-      let sol = s:demo_solution(item)
-      let s:session.demo_feed = sol.feed
-      if sol.feed ==# 'step'
-        " motion: a list of keystroke atoms. Play 1 atom per tick for
-        " short motions (a visible walk), more for long ones so a far
-        " target (f/t across a line, big diagonals) completes in a handful
-        " of ticks rather than crawling. Caps any motion at ~6 ticks.
-        let s:session.demo_atoms = sol.atoms
-        let s:session.demo_step_chunk = max([1, len(sol.atoms) / 6])
-      else
-        " editing / type / burst all play from a keystroke string.
-        let s:session.demo_seq = sol.seq
-        " Editing navigation prefix (j/k to the operation row); '' for the
-        " drills that operate at the cursor's start.
-        let s:session.demo_nav = get(sol, 'nav', '')
-      endif
-    endif
+    call s:demo_load(item)
   endif
 
   " Recall and mode kinds have their own item-rendering paths; they share
@@ -3694,6 +3792,15 @@ function! vimfluency#learn(...) abort
   call s:learn_setup_window()
   call s:learn_show_frame()
   call s:learn_install_autocmds()
+
+  " :VfLearnDemo — drive the lesson on a paced timer for preview GIFs.
+  if !empty(s:pending_learn_demo)
+    let s:pending_learn_demo = {}
+    let s:session.demo = 1
+    let s:session.learn_demo_key = ''
+    let s:session.learn_demo_timer =
+      \ timer_start(350, function('s:learn_demo_tick'), {'repeat': -1})
+  endif
 endfunction
 
 function! s:learn_setup_window() abort
@@ -4466,6 +4573,9 @@ function! s:learn_show_complete() abort
   " lesson changed, but keep the window — s:show_end_screen repurposes
   " the lesson buffer as the end screen.
   silent! augroup VfLearn | autocmd! | augroup END
+  if has_key(s:session, 'learn_demo_timer')
+    call timer_stop(s:session.learn_demo_timer)
+  endif
   call s:stop_mode_polling()
   call s:stop_learn_auto_advance()
   let &ttimeoutlen = get(s:session, 'prev_ttimeoutlen', &ttimeoutlen)
@@ -4720,6 +4830,9 @@ endfunction
 function! vimfluency#learn_stop() abort
   if empty(s:session) | return | endif
   silent! augroup VfLearn | autocmd! | augroup END
+  if has_key(s:session, 'learn_demo_timer')
+    call timer_stop(s:session.learn_demo_timer)
+  endif
   call s:stop_mode_polling()
   call s:stop_learn_auto_advance()
   let id = s:session.id
