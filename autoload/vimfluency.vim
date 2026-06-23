@@ -946,7 +946,7 @@ function! s:build_list_view(registry, sessions_by_id, expanded, ...) abort
   call add(lines, printf('vim-fluency: %d drill(s) built',
     \ len(a:registry)))
   call add(lines, '')
-  call add(lines, 'Move with j/k, then:  (L)earn  (T)rain  (C)hart  (B)reakdown  set (A)im  (D)uration   ·   q closes')
+  call add(lines, 'Move with j/k, then:  (L)earn  (T)rain  (C)hart  (B)reakdown  set (A)im  (D)uration   ·   Q closes')
   call add(lines, 'Status:  ✓ at aim    ▶ climbing    ○ not started')
   call add(lines, 'Sort with s + column letter:  d c p a r s n f   (repeat letter to reverse; s<Space> resets)')
   call add(lines, '')
@@ -1179,7 +1179,7 @@ function! s:show_list_buffer(view) abort
   silent! execute 'keepalt file vf-list'
   call setline(1, split.data_lines)
   setlocal nomodifiable nomodified
-  let &l:statusline = ' drill list   [L=Learn  T=Train  C=Chart  B=Breakdown  A=Aim  D=Duration  s+col=Sort  q=close]'
+  let &l:statusline = ' drill list   [L=Learn  T=Train  C=Chart  B=Breakdown  A=Aim  D=Duration  s+col=Sort  Q=close]'
   let b:vf_summary_tabnr = tabnr
   let b:vf_summary_prev_laststatus = &laststatus
   let b:vf_list_line_to_id    = split.mapping
@@ -1205,6 +1205,9 @@ function! s:show_list_buffer(view) abort
   nnoremap <buffer> <silent> B :call vimfluency#list_toggle_breakdown()<CR>
   nnoremap <buffer> <silent> A :call vimfluency#list_set_aim()<CR>
   nnoremap <buffer> <silent> D :call vimfluency#list_set_duration()<CR>
+  nnoremap <buffer> <silent> Q :call vimfluency#close_summary()<CR>
+  " Lowercase q kept as a silent alias for muscle memory; Q is the
+  " documented key (uppercase nav keys everywhere — see s:show_end_screen).
   nnoremap <buffer> <silent> q :call vimfluency#close_summary()<CR>
 
   " Sort keys: s + column letter. Same letter twice flips direction;
@@ -3061,6 +3064,9 @@ function! s:show_end_screen(id, origin) abort
   nnoremap <buffer> <silent> I :call vimfluency#end_nav('list')<CR>
   nnoremap <buffer> <silent> V :call vimfluency#end_nav('dashboard')<CR>
   nnoremap <buffer> <silent> Q :call vimfluency#end_nav('quit')<CR>
+  " Lowercase q kept as a silent alias for muscle memory (also stops a
+  " bare q from starting macro recording on this read-only buffer).
+  nnoremap <buffer> <silent> q :call vimfluency#end_nav('quit')<CR>
 endfunction
 
 " Navigation from the shared end screen. Closes the end-screen tab
@@ -3353,7 +3359,7 @@ function! s:learn_header_line() abort
         let hint .= '  [u=undo if wrong]'
       endif
     endif
-    let quit_hint = kind ==# 'recall' ? '[Esc=quit]' : '[q=quit]'
+    let quit_hint = kind ==# 'recall' ? '[Esc=quit]' : '[Q=quit]'
     return printf('LESSON %s  TEST  %s  %s', s:session.id, hint, quit_hint)
   endif
 
@@ -3379,7 +3385,7 @@ function! s:learn_header_line() abort
       let hint .= '  [u=undo if wrong]'
     endif
   endif
-  let quit_hint = kind ==# 'recall' ? '[Esc=quit]' : '[q=quit]'
+  let quit_hint = kind ==# 'recall' ? '[Esc=quit]' : '[Q=quit]'
   return printf('LESSON %s  SETUP %d/%d  %s  %s',
     \ s:session.id, idx, total, hint, quit_hint)
 endfunction
@@ -3675,6 +3681,9 @@ function! s:learn_install_autocmds() abort
   nnoremap <buffer> <silent> <Space> :call <SID>learn_advance_show()<CR>
   nnoremap <buffer> <silent> <CR> :call <SID>learn_advance_show()<CR>
   if kind !=# 'recall'
+    " Q is the documented quit key (uppercase nav keys everywhere);
+    " lowercase q stays as a silent muscle-memory alias.
+    nnoremap <buffer> <silent> Q :call vimfluency#learn_stop()<CR>
     nnoremap <buffer> <silent> q :call vimfluency#learn_stop()<CR>
     nnoremap <buffer> <silent> p :call <SID>learn_start_train()<CR>
   endif
@@ -4587,7 +4596,7 @@ function! s:render_chart(id, sessions, bounds) abort
   call add(out, printf(' first session: %s', a:sessions[0].timestamp))
   call add(out, printf(' last  session: %s', a:sessions[-1].timestamp))
   call add(out, '')
-  call add(out, ' Press q or <Enter> to close.')
+  call add(out, ' Press Q or <Enter> to close.')
 
   return out
 endfunction
@@ -4602,10 +4611,13 @@ function! s:show_chart_buffer(id, lines, variant) abort
   silent! execute 'keepalt file vf-chart' . bufname_suffix . '-' . a:id
   call setline(1, a:lines)
   setlocal nomodifiable nomodified
-  let &l:statusline = ' progress chart — ' . a:id . title_suffix . '   [press q or <Enter> to close]'
+  let &l:statusline = ' progress chart — ' . a:id . title_suffix . '   [press Q or <Enter> to close]'
   let b:vf_summary_tabnr = tabnr
   let b:vf_summary_prev_laststatus = &laststatus
   set laststatus=2
+  nnoremap <buffer> <silent> Q :call vimfluency#close_summary()<CR>
+  " Lowercase q kept as a silent alias for muscle memory; Q is the
+  " documented key (uppercase nav keys everywhere — see s:show_end_screen).
   nnoremap <buffer> <silent> q :call vimfluency#close_summary()<CR>
   nnoremap <buffer> <silent> <CR> :call vimfluency#close_summary()<CR>
   call cursor(1, 1)
@@ -4723,7 +4735,7 @@ function! s:show_dashboard(registry, sessions, ...) abort
   " mapping's vimfluency#close_summary() works here too.
   let b:vf_summary_tabnr = tabnr
   let b:vf_summary_prev_laststatus = &laststatus
-  let &l:statusline = ' Vim Fluency dashboard   [L=Learn  T=Train  C=Chart  A=Aim  D=Duration  P=Path  B=Breakdown  s=sort  q=close]'
+  let &l:statusline = ' Vim Fluency dashboard   [L=Learn  T=Train  C=Chart  A=Aim  D=Duration  P=Path  B=Breakdown  s=sort  Q=close]'
   set laststatus=2
 
   " --- Window 2: banner at the very top (1 content row) ---
@@ -4764,12 +4776,13 @@ function! s:show_dashboard(registry, sessions, ...) abort
   setlocal winfixwidth nocursorline
   silent! execute 'keepalt file vf-dashboard-last-session'
   let last_session_bufnr = bufnr('%')
-  let &l:statusline = ' [j/k=scroll  J/<CR>=jump to prereq  q/Esc/B=back to table] '
+  let &l:statusline = ' [j/k=scroll  J/<CR>=jump to prereq  Q/Esc/B=back to table] '
 
   " Keybindings on the last-session window: q / <Esc> / B jump back
   " to the table. J / <CR> on a prereq line jumps the table cursor
   " to that prereq's row. Stored buffer-local so they don't leak
   " when the dashboard closes.
+  nnoremap <buffer> <silent> Q    :call vimfluency#dashboard_return_to_table()<CR>
   nnoremap <buffer> <silent> q    :call vimfluency#dashboard_return_to_table()<CR>
   nnoremap <buffer> <silent> <Esc> :call vimfluency#dashboard_return_to_table()<CR>
   nnoremap <buffer> <silent> B    :call vimfluency#dashboard_return_to_table()<CR>
@@ -4817,6 +4830,9 @@ function! s:show_dashboard(registry, sessions, ...) abort
   nnoremap <buffer> <silent> D :call vimfluency#dashboard_set_duration()<CR>
   nnoremap <buffer> <silent> P :call vimfluency#dashboard_set_path()<CR>
   nnoremap <buffer> <silent> B :call vimfluency#dashboard_inspect_last_session()<CR>
+  nnoremap <buffer> <silent> Q :call vimfluency#close_summary()<CR>
+  " Lowercase q kept as a silent alias for muscle memory; Q is the
+  " documented key (uppercase nav keys everywhere — see s:show_end_screen).
   nnoremap <buffer> <silent> q :call vimfluency#close_summary()<CR>
   nnoremap <buffer> <silent> j :call vimfluency#list_move('next')<CR>
   nnoremap <buffer> <silent> k :call vimfluency#list_move('prev')<CR>

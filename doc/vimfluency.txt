@@ -88,8 +88,9 @@ COMMANDS                                                        *vf-commands*
     in a small STICKY-HEADER window above the scrollable data window.
     The header stays visible while you scroll through the rows; sort
     markers update there when you change the sort. The cursor lives
-    in the data window. Either `q` or `:q` closes both windows and the
-    tab in one shot. The cursor row is highlighted; j/k snap between
+    in the data window. Either `Q` or `:q` closes both windows and the
+    tab in one shot (lowercase `q` still works as an alias). The
+    cursor row is highlighted; j/k snap between
     drill rows (breakdown rows are skipped). On a drill row
     press:
         L     start a Learn session (:VfLearn) for this drill
@@ -104,7 +105,7 @@ COMMANDS                                                        *vf-commands*
               seconds. Same semantics as A: positive int stores
               (:VfSetDuration), 0 clears (:VfResetDuration), Esc
               cancels.
-        q     close the list
+        Q     close the list (lowercase q also works)
     gg / G jump to the first / last drill. C requires logged
     sessions, L requires a lesson, B requires either a multi-command
     session or at least one prereq — each is a no-op with a hint
@@ -148,10 +149,10 @@ COMMANDS                                                        *vf-commands*
                       completes; 'general' or :VfResetPath reverts)
         B             jump into the LAST SESSION panel to scroll a
                       breakdown that overflows the window
-        q             close the dashboard
+        Q             close the dashboard (lowercase q also works)
     Inside the LAST SESSION panel: j/k scroll, J or <CR> on a prereq
-    line jumps the table cursor to that prereq's row, and q, <Esc>,
-    or B return to the table.
+    line jumps the table cursor to that prereq's row, and Q, <Esc>,
+    or B return to the table (lowercase q also works).
 
 :VfQuit                                                          *:VfQuit*
     End the active session, write its log entry, restore the window layout.
@@ -183,7 +184,8 @@ THE END SCREEN                                              *vf-end-screen*
     non-example sequencing followed by 'try it' frames) before timing the
     skill with :VfTrain. Press <Space> or <CR> to advance through 'show'
     frames; reach the green target to advance through 'try' frames; press
-    'q' or :VfQuit to stop early. Drills without a lesson() function
+    'Q' or :VfQuit to stop early (lowercase q also works). Drills
+    without a lesson() function
     will report "no lesson written for {id} yet". On completing the
     lesson (the required first-try streak in the test phase) you land
     on the shared end screen (see |vf-end-screen|) — the same screen
@@ -195,7 +197,8 @@ THE END SCREEN                                              *vf-end-screen*
     semi-log scale. Y-axis is rate per minute on a log scale (1 to 1000 across
     three decades). X-axis is session index (chronological). Plots both
     the corrects rate (●) and the errors rate (×) per session, with the
-    fluency aim drawn as a dashed line. Press 'q' or <Enter> to close.
+    fluency aim drawn as a dashed line. Press 'Q' or <Enter> to close
+    (lowercase q also works).
 
 :VfChartZoom {id}                                            *:VfChartZoom*
     Same as :VfChart but with the Y-axis zoomed to a single decade (10
