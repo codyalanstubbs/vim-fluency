@@ -19,7 +19,8 @@ endfunction
 " headless mode (where tabnew + getline misbehaves under -Es).
 function! vimfluency#_test_render_chart(id, sessions, ...) abort
   let bounds = a:0 ? a:1 : s:CHART_BOUNDS_FULL
-  return s:render_chart(a:id, a:sessions, bounds)
+  let variant = a:0 >= 2 ? a:2 : ''
+  return s:render_chart(a:id, a:sessions, bounds, variant)
 endfunction
 
 function! vimfluency#_test_chart_bounds_zoom() abort
@@ -4463,11 +4464,11 @@ function! s:chart_render(id, bounds, variant) abort
   call sort(sessions, {a, b -> a.timestamp ==# b.timestamp ? 0
     \ : (a.timestamp <# b.timestamp ? -1 : 1)})
 
-  let lines = s:render_chart(a:id, sessions, a:bounds)
+  let lines = s:render_chart(a:id, sessions, a:bounds, a:variant)
   call s:show_chart_buffer(a:id, lines, a:variant)
 endfunction
 
-function! s:render_chart(id, sessions, bounds) abort
+function! s:render_chart(id, sessions, bounds, variant) abort
   let n = len(a:sessions)
   let drill_name = s:rec_name(a:sessions[0])
   " Current effective aim (override-aware), not the aim recorded in
@@ -4615,7 +4616,11 @@ function! s:render_chart(id, sessions, bounds) abort
   call add(out, printf(' first session: %s', a:sessions[0].timestamp))
   call add(out, printf(' last  session: %s', a:sessions[-1].timestamp))
   call add(out, '')
-  call add(out, ' T=Train  L=Learn  Z=Zoom  I=List  V=Dashboard   ·   Q or <Enter> closes.')
+  " Z toggles the zoom variant: from the standard chart it zooms in;
+  " from the zoomed chart it returns to standard.
+  let zoom_label = empty(a:variant) ? 'Z=Zoom (in)' : 'Z=Zoom (standard)'
+  call add(out, printf(' T=Train  L=Learn  %s  I=List  V=Dashboard   ·   Q or <Enter> closes.',
+    \ zoom_label))
 
   return out
 endfunction
@@ -4630,8 +4635,9 @@ function! s:show_chart_buffer(id, lines, variant) abort
   silent! execute 'keepalt file vf-chart' . bufname_suffix . '-' . a:id
   call setline(1, a:lines)
   setlocal nomodifiable nomodified
+  let zoom_label = empty(a:variant) ? 'Z=Zoom (in)' : 'Z=Zoom (standard)'
   let &l:statusline = ' chart — ' . a:id . title_suffix
-    \ . '   [T=Train  L=Learn  Z=Zoom  I=List  V=Dashboard  Q=Close]'
+    \ . '   [T=Train  L=Learn  ' . zoom_label . '  I=List  V=Dashboard  Q=Close]'
   let b:vf_summary_tabnr = tabnr
   let b:vf_summary_prev_laststatus = &laststatus
   " Remember which drill / variant this chart is for so the nav keys

@@ -208,7 +208,8 @@ THE END SCREEN                                              *vf-end-screen*
     to retype a command to move on):
         T   train this drill        (:VfTrain {id})
         L   learn this drill        (:VfLearn {id})
-        Z   toggle the zoom variant (:VfChart / :VfChartZoom)
+        Z   toggle zoom — "Zoom (in)" on the standard chart, "Zoom
+            (standard)" on the zoomed chart (:VfChart / :VfChartZoom)
         I   browse all drills       (:VfList)
         V   open the dashboard      (:Vf {id})
         Q   close (or <Enter>; lowercase q also works)
