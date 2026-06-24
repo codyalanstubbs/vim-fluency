@@ -116,6 +116,9 @@ COMMANDS                                                        *vf-commands*
               seconds. Same semantics as A: positive int stores
               (:VfSetDuration), 0 clears (:VfResetDuration), Esc
               cancels.
+        P     prompt to switch the learning path (Tab completes;
+              'general' or :VfResetPath reverts). The table re-filters
+              to the new path, same as :Vf.
         Q     close the list (lowercase q also works)
     gg / G jump to the first / last drill. C requires logged
     sessions, L requires a lesson, B requires either a multi-command

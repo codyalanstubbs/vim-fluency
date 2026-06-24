@@ -959,7 +959,7 @@ function! s:build_list_view(registry, sessions_by_id, expanded, ...) abort
   " (it only reuses the column-header row), so this is :VfList-only.
   call add(lines, s:fluency_banner_line(a:registry, a:sessions_by_id, &columns))
   call add(lines, '')
-  call add(lines, 'Move with j/k, then:  (L)earn  (T)rain  (C)hart  (B)reakdown  set (A)im  (D)uration  to (V)f dashboard   ·   Q closes')
+  call add(lines, 'Move with j/k, then:  (L)earn  (T)rain  (C)hart  (B)reakdown  set (A)im  (D)uration  (P)ath  to (V)f dashboard   ·   Q closes')
   call add(lines, 'Status:  ✓ at aim    ▶ climbing    ○ not started')
   call add(lines, 'Sort with s + column letter:  d c p a r s n f   (repeat letter to reverse; s<Space> resets)')
   call add(lines, '')
@@ -1194,7 +1194,7 @@ function! s:show_list_buffer(view) abort
   silent! execute 'keepalt file vf-list'
   call setline(1, split.data_lines)
   setlocal nomodifiable nomodified
-  let &l:statusline = ' drill list   [L=Learn  T=Train  C=Chart  V=Dashboard  B=Breakdown  A=Aim  D=Duration  s+col=Sort  Q=close]'
+  let &l:statusline = ' drill list   [L=Learn  T=Train  C=Chart  V=Dashboard  B=Breakdown  A=Aim  D=Duration  P=Path  s+col=Sort  Q=close]'
   let b:vf_summary_tabnr = tabnr
   let b:vf_summary_prev_laststatus = &laststatus
   let b:vf_list_line_to_id    = split.mapping
@@ -1214,7 +1214,7 @@ function! s:show_list_buffer(view) abort
   autocmd BufWipeout <buffer> silent! call s:cleanup_list_header_window()
 
   " Action keys: L=lesson, T=train, C=chart, B=toggle breakdown,
-  " V=jump to the dashboard (on the hovered drill).
+  " V=jump to the dashboard (on the hovered drill), P=switch path.
   nnoremap <buffer> <silent> L :call vimfluency#list_action('learn')<CR>
   nnoremap <buffer> <silent> T :call vimfluency#list_action('train')<CR>
   nnoremap <buffer> <silent> C :call vimfluency#list_action('chart')<CR>
@@ -1222,6 +1222,7 @@ function! s:show_list_buffer(view) abort
   nnoremap <buffer> <silent> B :call vimfluency#list_toggle_breakdown()<CR>
   nnoremap <buffer> <silent> A :call vimfluency#list_set_aim()<CR>
   nnoremap <buffer> <silent> D :call vimfluency#list_set_duration()<CR>
+  nnoremap <buffer> <silent> P :call vimfluency#list_set_path()<CR>
   nnoremap <buffer> <silent> Q :call vimfluency#close_summary()<CR>
   " Lowercase q kept as a silent alias for muscle memory; Q is the
   " documented key (uppercase nav keys everywhere — see s:show_end_screen).
@@ -5089,7 +5090,10 @@ endfunction
 
 " P → prompt to set the current path. Tab-completes from the
 " discovered paths registry. Empty cancels; 'general' resets.
-function! vimfluency#dashboard_set_path() abort
+" Shared P-key path picker for both :Vf and :VfList: prompt (with Tab
+" completion), apply the selection, and return 1 if a path was chosen
+" (caller should rebuild its view), 0 on cancel.
+function! s:prompt_set_path() abort
   let cur = s:effective_path()
   let paths = vimfluency#discover_paths()
   let available = join(sort(keys(paths)), ', ')
@@ -5100,15 +5104,30 @@ function! vimfluency#dashboard_set_path() abort
   let trimmed = tolower(substitute(response, '^\s*\(.\{-}\)\s*$', '\1', ''))
   if empty(trimmed)
     echo 'cancelled'
-    return
+    return 0
   endif
   if trimmed ==# 'general'
     call vimfluency#reset_path()
   else
     call vimfluency#set_path(trimmed)
   endif
+  return 1
+endfunction
+
+function! vimfluency#dashboard_set_path() abort
+  if !s:prompt_set_path() | return | endif
   let id = get(b:vf_list_line_to_id, line('.'), '')
   call s:rebuild_dashboard_keeping_drill(id)
+endfunction
+
+" P on :VfList → same picker, then rebuild the list with the new path
+" filter (the hovered drill may drop out of scope; the rebuild lands
+" the cursor on the first row when its id is gone).
+function! vimfluency#list_set_path() abort
+  if !s:prompt_set_path() | return | endif
+  let id = exists('b:vf_list_line_to_id')
+    \ ? get(b:vf_list_line_to_id, line('.'), '') : ''
+  call s:rebuild_list_buffer_keeping_drill(id)
 endfunction
 
 " `B` action from the table: drop the cursor into the profile
