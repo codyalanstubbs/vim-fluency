@@ -75,8 +75,11 @@ filename minus `.vim` and what users type after `:VfTrain`.
   intuition.
 - Property tests in `tests/test_generators.vim` covering the
   `optimal_motions` formula and the `expected_motion` set.
-- `./tests/run.sh` passes. If you have Neovim, `./tests/smoke_nvim.sh`
-  too.
+- `make test` passes — it runs the full CI equivalent (vim suite +
+  CATALOG freshness + nvim suite + live-nvim smoke). `make help` lists
+  the narrower targets (`test-vim`, `test-nvim`, `smoke`, `catalog`).
+  The live `smoke_nvim.sh` auto-skips without Neovim, so run it (or
+  `make test`) where nvim is installed before pushing UI changes.
 
 ## Code constraints
 

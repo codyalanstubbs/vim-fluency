@@ -32,8 +32,8 @@ git clone https://github.com/codyalanstubbs/vim-fluency \
 
 ```
 :Vf                                     " home view: drill table, charts, last session
-:VfList                                 " flat table of installed drills
-:VfLearn move_to_char_forward_backward  " DI-style lesson, hands off to training
+:VfList                                 " flat table (path-filtered, like :Vf)
+:VfLearn move_to_char_forward_backward  " DI-style lesson, ends on the shared end screen
 :VfTrain move_single_char_up_down_left_right     " 60-second training
 :VfTrain move_single_char_up_down_left_right 30  " 30 seconds
 :VfTrain move_to_line_edges_all only=g_,^        " train only the listed motions
@@ -48,8 +48,13 @@ Settings commands: `:VfSetAim` / `:VfResetAim` (per-drill aim override),
 `:VfSetPath` / `:VfResetPath` / `:VfPaths` (curated learning paths).
 `:help vimfluency` documents all of them.
 
-Tab skips the current item. Sessions open their own tab page and end by
-landing on the just-trained drill in `:Vf` (the dashboard).
+Tab skips the current item. Both `:VfTrain` and `:VfLearn` open their own
+tab page and finish on the same end screen — the drill's last-session
+rate and per-command breakdown, plus a one-key menu to anywhere else
+(`T`rain, `L`earn, `C`hart, `I`=list, `V`=dashboard, `Q`=quit). Every
+read-only view links to every other with those same keys, so once you've
+typed `:Vf` or `:VfList` you can loop through trainings, lessons, and
+charts without retyping a command.
 
 ## How it works
 
@@ -68,9 +73,9 @@ matches the post-edit state), `mode` (round-trip through insert),
 
 Every item is labeled with its canonical motion and an optimal motion count.
 The runner tracks per-motion rates, total vs. optimal motions, and wasted
-motions (the progress chart's errors line). End-of-session stats land in
-the dashboard's LAST SESSION pane; `:VfChart` plots corrects and errors per
-session against the aim.
+motions (the progress chart's errors line). End-of-session stats show on
+the shared end screen and in the dashboard's LAST SESSION pane; `:VfChart`
+plots corrects and errors per session against the aim.
 
 ## Logs
 
