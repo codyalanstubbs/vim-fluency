@@ -49,12 +49,12 @@ function! vimfluency#drills#switch_mode_to_command_line#lesson() abort
     \  'prompt': [
     \    'Two keys, two modes:',
     \    '',
-    \    '    :          →  COMMAND  (from Normal)',
-    \    '    Ctrl+[     →  NORMAL   (from Command; Esc also works)',
+    \    '    :        →  COMMAND  (from NORMAL)',
+    \    '    <C-[>    →  NORMAL   (from COMMAND; <Esc> also works)',
     \    '',
     \    'The next four frames practice the round trip.',
     \    '',
-    \    'Press <Space> to begin.']},
+    \    'Press <Space> to continue.']},
     \ {'kind': 'try', 'lines': [],
     \  'target_mode_canon': 'c', 'expected_motion': ':', 'optimal_motions': 1,
     \  'prompt': 'Switch to COMMAND mode.'},
@@ -63,9 +63,9 @@ function! vimfluency#drills#switch_mode_to_command_line#lesson() abort
     \  'prompt': 'Back to NORMAL mode.'},
     \ {'kind': 'try', 'lines': [],
     \  'target_mode_canon': 'c', 'expected_motion': ':', 'optimal_motions': 1,
-    \  'prompt': 'Switch to COMMAND again.'},
+    \  'prompt': 'Switch to COMMAND mode again.'},
     \ {'kind': 'try', 'lines': [],
     \  'target_mode_canon': 'n', 'expected_motion': 'C-[', 'optimal_motions': 1,
-    \  'prompt': 'Back to NORMAL.'},
+    \  'prompt': 'Back to NORMAL mode.'},
     \ ]
 endfunction

@@ -62,12 +62,12 @@ function! vimfluency#drills#switch_mode_to_insert#lesson() abort
     \  'prompt': [
     \    'Two keys, two modes:',
     \    '',
-    \    '    i          →  INSERT  (from Normal)',
-    \    '    Ctrl+[     →  NORMAL  (from Insert; Esc also works)',
+    \    '    i        →  INSERT  (from NORMAL)',
+    \    '    <C-[>    →  NORMAL  (from INSERT; <Esc> also works)',
     \    '',
     \    'The next four frames practice the round trip.',
     \    '',
-    \    'Press <Space> to begin.']},
+    \    'Press <Space> to continue.']},
     \ {'kind': 'try', 'lines': [],
     \  'target_mode_canon': 'i', 'expected_motion': 'i', 'optimal_motions': 1,
     \  'prompt': 'Switch to INSERT mode.'},
@@ -76,9 +76,9 @@ function! vimfluency#drills#switch_mode_to_insert#lesson() abort
     \  'prompt': 'Back to NORMAL mode.'},
     \ {'kind': 'try', 'lines': [],
     \  'target_mode_canon': 'i', 'expected_motion': 'i', 'optimal_motions': 1,
-    \  'prompt': 'Switch to INSERT again.'},
+    \  'prompt': 'Switch to INSERT mode again.'},
     \ {'kind': 'try', 'lines': [],
     \  'target_mode_canon': 'n', 'expected_motion': 'C-[', 'optimal_motions': 1,
-    \  'prompt': 'Back to NORMAL.'},
+    \  'prompt': 'Back to NORMAL mode.'},
     \ ]
 endfunction
