@@ -39,8 +39,13 @@ COMMANDS                                                        *vf-commands*
     end-of-session summary breaks down the rate per motion.
 
 :VfList                                                          *:VfList*
-    Open an interactive flat table of installed drills. A column
-    header row names the columns; each row then lists, left to right:
+    Open an interactive flat table of installed drills. Like :Vf, the
+    table is filtered to the current path (see :VfSetPath) and the top
+    line is the same dynamic fluency banner the dashboard shows (path,
+    drills-fluent fraction, ✓/▶/○ counts, session totals). It stays a
+    lightweight flat table — no celeration charts or LAST SESSION side
+    panel; use :Vf for those. A column header row names the columns;
+    each row then lists, left to right:
         ▶/✓/○         status icon (legend in the banner above the
                       table: ✓ at aim, ▶ climbing, ○ not started).
                       The rule for ✓ is stricter than "the last
@@ -176,7 +181,7 @@ THE END SCREEN                                              *vf-end-screen*
         T   train this drill        (:VfTrain {id})
         L   learn this drill        (:VfLearn {id})
         C   chart your progress     (:VfChart {id})
-        I   browse all drills       (:VfList)
+        I   open the drill list      (:VfList)
         V   open the dashboard      (:Vf {id})
         Q   quit
 
@@ -210,7 +215,7 @@ THE END SCREEN                                              *vf-end-screen*
         L   learn this drill        (:VfLearn {id})
         Z   toggle zoom — "Zoom (in)" on the standard chart, "Zoom
             (standard)" on the zoomed chart (:VfChart / :VfChartZoom)
-        I   browse all drills       (:VfList)
+        I   open the drill list      (:VfList)
         V   open the dashboard      (:Vf {id})
         Q   close (or <Enter>; lowercase q also works)
 

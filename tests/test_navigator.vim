@@ -155,6 +155,11 @@ call Assert(s:rendered !~# '── Motions ──',
 call Assert(s:rendered =~# 'Status:.*✓ at aim.*▶ climbing.*○ not started',
   \ 'render_list: status legend present in banner')
 
+" Line 1 is the shared dynamic fluency banner (the same one :Vf shows),
+" so :VfList and the dashboard report identical path / status stats.
+call Assert(s:view.lines[0] =~# '^─ Vim Fluency ─.*Path:.*✓ \d',
+  \ 'render_list: line 1 is the dynamic fluency banner')
+
 " Header row lists every column in order. No 'status' word column —
 " the ▶/✓/○ bullet at the start of each row carries that meaning.
 " Family is the LAST column.

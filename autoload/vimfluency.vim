@@ -505,6 +505,15 @@ function! s:filter_registry_by_path(registry) abort
   return filtered
 endfunction
 
+" Drills the :VfList view shows — the full registry narrowed to the
+" current path, matching the dashboard. (The 'general' path includes
+" everything, so this is a no-op there.) Every :VfList build/rebuild
+" path routes through here so a sort / aim / breakdown rebuild can't
+" silently re-expand to the full registry.
+function! s:list_registry() abort
+  return s:filter_registry_by_path(vimfluency#discover_drills())
+endfunction
+
 " :VfPaths — list the built-in paths plus the current selection.
 function! vimfluency#list_paths() abort
   let paths = vimfluency#discover_paths()
@@ -944,8 +953,11 @@ function! s:build_list_view(registry, sessions_by_id, expanded, ...) abort
   let mapping = {}
   let drill_rows = []
 
-  call add(lines, printf('vim-fluency: %d drill(s) built',
-    \ len(a:registry)))
+  " Line 1 is the dynamic fluency banner — the same one the dashboard's
+  " top window shows — so :VfList and :Vf report identical path / status
+  " / session stats. The dashboard discards lines 1-6 of this output
+  " (it only reuses the column-header row), so this is :VfList-only.
+  call add(lines, s:fluency_banner_line(a:registry, a:sessions_by_id, &columns))
   call add(lines, '')
   call add(lines, 'Move with j/k, then:  (L)earn  (T)rain  (C)hart  (B)reakdown  set (A)im  (D)uration  to (V)f dashboard   ·   Q closes')
   call add(lines, 'Status:  ✓ at aim    ▶ climbing    ○ not started')
@@ -1075,6 +1087,8 @@ function! vimfluency#list() abort
     echo 'no drills built — see CATALOG.md'
     return
   endif
+  " Narrow to the current path, like the dashboard. (No-op on 'general'.)
+  let registry = s:filter_registry_by_path(registry)
   " Reuse an open list if there is one — a second vf-list tab would
   " cross-wire the shared machinery: the `keepalt file vf-list` rename
   " fails silently on the duplicate, and bufnr('vf-list-header') in
@@ -1389,7 +1403,7 @@ function! vimfluency#list_toggle_breakdown() abort
     let b:vf_list_expanded[id] = 1
   endif
 
-  let registry = vimfluency#discover_drills()
+  let registry = s:list_registry()
   let view = s:build_list_view(registry, s:load_sessions_grouped(),
     \ b:vf_list_expanded,
     \ get(b:, 'vf_list_sort_col', ''),
@@ -1444,7 +1458,7 @@ function! vimfluency#list_sort(col) abort
     let b:vf_list_sort_desc = 0
   endif
 
-  let registry = vimfluency#discover_drills()
+  let registry = s:list_registry()
   let view = s:build_list_view(registry, s:load_sessions_grouped(),
     \ b:vf_list_expanded, b:vf_list_sort_col, b:vf_list_sort_desc)
   call s:apply_view(view)
@@ -1460,7 +1474,7 @@ endfunction
 " the row they just modified, even if the row moves under the current
 " sort.
 function! s:rebuild_list_buffer_keeping_drill(id) abort
-  let registry = vimfluency#discover_drills()
+  let registry = s:list_registry()
   let view = s:build_list_view(registry, s:load_sessions_grouped(),
     \ b:vf_list_expanded,
     \ get(b:, 'vf_list_sort_col', ''),
@@ -3066,7 +3080,7 @@ function! s:show_end_screen(id, origin) abort
   call add(lines, printf('    T   %-21s:VfTrain %s', 'train this drill', a:id))
   call add(lines, printf('    L   %-21s:VfLearn %s', 'learn this drill', a:id))
   call add(lines, printf('    C   %-21s:VfChart %s', 'chart your progress', a:id))
-  call add(lines, printf('    I   %-21s:VfList', 'browse all drills'))
+  call add(lines, printf('    I   %-21s:VfList', 'open the drill list'))
   call add(lines, printf('    V   %-21s:Vf', 'open the dashboard'))
   call add(lines, '    Q   quit')
   call setline(1, lines)
@@ -5572,17 +5586,20 @@ function! s:dashboard_last_session_breakdown_panel(id, registry, sessions, w, h)
   return {'lines': lines, 'prereq_map': prereq_map}
 endfunction
 
-" Render the one-line banner: path name, drills-fluent fraction,
-" at-aim / climbing / not-started status counts, then the global
-" session totals.
+" Build the one-line fluency banner shared by the dashboard's top
+" window and the :VfList sticky header: path name, drills-fluent
+" fraction, at-aim / climbing / not-started status counts, then the
+" global session totals, padded to `cols`.
 "
-" Session totals (total_sessions, total_elapsed) iterate over every
-" entry in a:sessions, NOT just those that match a drill in the
-" current registry. The audit's renames left log entries under old
-" drill ids (e.g. 'insert_basic', 'discriminate_find_vs_till'),
-" and those still count as real training time the learner spent
-" even though the slug no longer maps to anything live.
-function! s:dashboard_render_banner(registry, sessions, cols) abort
+" at_aim / climbing / not_started count only drills in a:registry (so
+" they respect the current path filter), but the session totals
+" (session_count, total_elapsed) iterate over EVERY entry in
+" a:sessions, NOT just those that match a drill in the current
+" registry. The audit's renames left log entries under old drill ids
+" (e.g. 'insert_basic', 'discriminate_find_vs_till'), and those still
+" count as real training time the learner spent even though the slug
+" no longer maps to anything live.
+function! s:fluency_banner_line(registry, sessions, cols) abort
   let aim_overrides = get(s:load_settings(), 'aims', {})
   let at_aim = 0 | let climbing = 0 | let not_started = 0
   let total_drills = len(a:registry)
@@ -5614,13 +5631,16 @@ function! s:dashboard_render_banner(registry, sessions, cols) abort
     \ : ''
   let status_block = printf('✓ %d  ▶ %d  ○ %d',
     \ at_aim, climbing, not_started)
-  let banner = s:pad_right(printf(
+  return s:pad_right(printf(
     \ '─ Vim Fluency ─── Path: %s%s  │  %s  │  %d sessions | %s trained ',
     \ s:format_path(s:effective_path()), path_scope, status_block,
     \ session_count, s:format_duration(total_elapsed)), a:cols)
+endfunction
 
+function! s:dashboard_render_banner(registry, sessions, cols) abort
   call s:dashboard_write_buffer(
-    \ get(b:, 'vf_dashboard_banner_bufnr', -1), [banner])
+    \ get(b:, 'vf_dashboard_banner_bufnr', -1),
+    \ [s:fluency_banner_line(a:registry, a:sessions, a:cols)])
 endfunction
 
 " Render the LAST SESSION side panel (right of the table). Reuses
