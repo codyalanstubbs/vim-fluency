@@ -1,14 +1,13 @@
 # Shared VHS "look" + sandbox env — Source'd FIRST by every preview/scene
-# tape so they share one theme/font/dims and write to a throwaway data dir.
-# It only configures (Set/Env); it launches nothing, so a scene can seed
-# history before starting vim. Source "_launch.tape" next to start vim.
+# tape so they share one theme and write to a throwaway data dir. It only
+# configures (Set/Env); it launches nothing, so a scene can seed history
+# before starting vim. Source a dims fragment next (_dims-default.tape or
+# _dims-wide.tape — VHS keeps the FIRST Set per key, so dimensions can't
+# live here), then "_launch.tape".
 #
 # Do NOT render this file directly; it has no Output and no on-camera beats.
 
 Set Shell "bash"
-Set FontSize 20
-Set Width 1100
-Set Height 680
 Set Padding 20
 # cyberdream (scottmckendry/cyberdream.nvim, dark) as an inline palette —
 # VHS doesn't bundle it. Matches the editor: near-black bg, white fg, and

@@ -6,6 +6,7 @@
 Output renders/scene-dashboard.gif
 Output renders/scene-dashboard.mp4
 
+Source "_dims-wide.tape"
 Source "_setup.tape"
 Hide
 Type "bash seed-history.sh /tmp/vf-preview"

@@ -14,6 +14,7 @@
 Output "{{OUTPUT}}.gif"
 Output "{{OUTPUT}}.mp4"
 
+Source "_dims-default.tape"
 Source "_setup.tape"
 Source "_launch.tape"
 

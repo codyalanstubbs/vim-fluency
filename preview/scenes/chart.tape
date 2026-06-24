@@ -6,6 +6,7 @@
 Output renders/scene-chart.gif
 Output renders/scene-chart.mp4
 
+Source "_dims-wide.tape"
 Source "_setup.tape"
 Hide
 Type "bash seed-history.sh /tmp/vf-preview"

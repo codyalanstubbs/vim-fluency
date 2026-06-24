@@ -7,6 +7,7 @@
 Output renders/scene-end-screen.gif
 Output renders/scene-end-screen.mp4
 
+Source "_dims-default.tape"
 Source "_setup.tape"
 Hide
 Type "bash seed-history.sh /tmp/vf-preview"

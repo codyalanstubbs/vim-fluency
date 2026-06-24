@@ -8,6 +8,7 @@
 Output renders/scene-lesson.gif
 Output renders/scene-lesson.mp4
 
+Source "_dims-default.tape"
 Source "_setup.tape"
 Hide
 Type "bash seed-history.sh /tmp/vf-preview"
@@ -21,4 +22,4 @@ Enter
 
 # The auto-played lesson walks the rule + try frames and the test phase,
 # then lands on the end screen. Hold across the whole walkthrough.
-Sleep 30s
+Sleep 22s
