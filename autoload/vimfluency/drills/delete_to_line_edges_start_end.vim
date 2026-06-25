@@ -88,7 +88,15 @@ function! vimfluency#drills#delete_to_line_edges_start_end#lesson() abort
   let buf = ['if data: return value']
   return [
     \ {'kind': 'show', 'lines': buf, 'cursor': [1, 10],
-    \  'prompt': 'd takes a line-edge motion. d0 deletes back to column 1; d$ deletes forward to end of line.'},
+    \  'prompt': [
+    \    'Two line-edge deletes:',
+    \    '',
+    \    '    d0   →   deletes from the cursor back to column 1',
+    \    '    d$   →   deletes from the cursor to the end of the line',
+    \    '',
+    \    'd takes a line-edge motion and deletes the range it covers.',
+    \    '',
+    \    'Press <Space> to continue.']},
     \ {'kind': 'try', 'lines': buf, 'start': [1, 10], 'target': [1, 1],
     \  'target_lines': ['return value'],
     \  'deletion_range': [[1, 1, 9]],
@@ -97,7 +105,5 @@ function! vimfluency#drills#delete_to_line_edges_start_end#lesson() abort
     \  'target_lines': ['if data: '],
     \  'deletion_range': [[1, 10, 12]],
     \  'prompt': 'Press d$ — deletes "return value". Cursor lands at the new last column.'},
-    \ {'kind': 'show', 'lines': ['edit me; mistakes happen.'], 'cursor': [1, 1],
-    \  'prompt': 'Wrong motion? u undoes. The training is free-operant — keep editing until the buffer matches.'},
     \ ]
 endfunction

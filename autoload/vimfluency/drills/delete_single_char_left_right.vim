@@ -86,16 +86,24 @@ function! vimfluency#drills#delete_single_char_left_right#lesson() abort
   let buf = ['if data: return value']
   return [
     \ {'kind': 'show', 'lines': buf, 'cursor': [1, 10],
-    \  'prompt': 'd + a single-char motion deletes one character. dl deletes the char under cursor; dh deletes the char before.'},
+    \  'prompt': [
+    \    'Two single-char deletes:',
+    \    '',
+    \    '    dl   →   deletes the character under the cursor',
+    \    '    dh   →   deletes the character before the cursor',
+    \    '',
+    \    'd + a single-char motion deletes one character.',
+    \    '',
+    \    'Press <Space> to continue.']},
     \ {'kind': 'try', 'lines': buf, 'start': [1, 10], 'target': [1, 10],
     \  'target_lines': ['if data: eturn value'],
     \  'deletion_range': [[1, 10, 1]],
     \  'annotate_deletion': 1,
-    \  'prompt': 'The ▼ marks the char under your cursor — press dl to delete it. Cursor stays put; the next char slides under.'},
+    \  'prompt': 'Press dl — deletes the char under the cursor (marked ▼). Cursor stays put; the next char slides under.'},
     \ {'kind': 'try', 'lines': buf, 'start': [1, 10], 'target': [1, 9],
     \  'target_lines': ['if data:return value'],
     \  'deletion_range': [[1, 9, 1]],
     \  'annotate_deletion': 1,
-    \  'prompt': 'The ▼ marks the char before your cursor — press dh to delete it. Cursor moves left one column.'},
+    \  'prompt': 'Press dh — deletes the char before the cursor (marked ▼). Cursor moves left one column.'},
     \ ]
 endfunction

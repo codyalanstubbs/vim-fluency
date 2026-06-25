@@ -113,16 +113,22 @@ function! vimfluency#drills#delete_to_word_start_forward_backward#generate() abo
 endfunction
 
 function! vimfluency#drills#delete_to_word_start_forward_backward#lesson() abort
-  " Teaches the d-operator + word-motion composition rule, focusing on
-  " the dw/db discrimination. The opening show frame names the meta-rule
-  " (no specific motion to demo); the dw/db demos are try frames so the
-  " learner performs the deletion and watches the buffer change. The
-  " "u undoes" tip is a show frame because there's no motion involved
-  " in the rule itself.
+  " Rule-first intro, then the dw/db demos as try frames so the learner
+  " performs the deletion and watches the buffer change. Recovery from a
+  " wrong operator is the runner's [u=undo if wrong] header (editing
+  " kind), so no bespoke undo frame here.
   let buf = ['alpha beta gamma delta']
   return [
     \ {'kind': 'show', 'lines': buf, 'cursor': [1, 12],
-    \  'prompt': 'd takes a motion. The motion names a range from cursor; d deletes that range.'},
+    \  'prompt': [
+    \    'Two word deletes:',
+    \    '',
+    \    '    dw   →   deletes from the cursor to the start of the next word',
+    \    '    db   →   deletes from the cursor to the start of the previous word',
+    \    '',
+    \    'd takes a motion and deletes the range the motion covers.',
+    \    '',
+    \    'Press <Space> to continue.']},
     \ {'kind': 'try', 'lines': buf, 'start': [1, 12], 'target': [1, 12],
     \  'target_lines': ['alpha beta delta'],
     \  'deletion_range': [[1, 12, 6]],
@@ -131,15 +137,13 @@ function! vimfluency#drills#delete_to_word_start_forward_backward#lesson() abort
     \  'target_lines': ['alpha gamma delta'],
     \  'deletion_range': [[1, 7, 5]],
     \  'prompt': 'Press db — deletes beta + trailing space (previous word). Cursor jumps back.'},
-    \ {'kind': 'show', 'lines': ['edit me; mistakes happen.'], 'cursor': [1, 1],
-    \  'prompt': 'Pressed the wrong motion? u undoes. The training is free-operant — keep editing until the buffer matches.'},
     \ {'kind': 'try', 'lines': ['one two three four five'], 'start': [1, 9], 'target': [1, 9],
     \  'target_lines': ['one two four five'],
     \  'deletion_range': [[1, 9, 6]],
-    \  'prompt': 'Use dw to delete three.'},
+    \  'prompt': 'Press dw.'},
     \ {'kind': 'try', 'lines': ['one two three four five'], 'start': [1, 9], 'target': [1, 5],
     \  'target_lines': ['one three four five'],
     \  'deletion_range': [[1, 5, 4]],
-    \  'prompt': 'Use db to delete two.'},
+    \  'prompt': 'Press db.'},
     \ ]
 endfunction

@@ -97,9 +97,9 @@ function! vimfluency#drills#indent_vs_dedent#generate() abort
 endfunction
 
 function! vimfluency#drills#indent_vs_dedent#lesson() abort
-  " Try frames in both directions plus a 2-shiftwidth case so the
-  " learner sees a multi-press item before facing one cold in the
-  " test phase. Closes with a rule-statement show frame.
+  " Rule-first intro, then try frames in both directions plus a
+  " 2-shiftwidth case so the learner sees a multi-press item before
+  " facing one cold in the test phase.
   let buf_indent = ['    alpha beta', '        alpha beta']
   let buf_dedent = ['        alpha beta', '    alpha beta']
   let buf_indent_2x = ['alpha beta', '        alpha beta']
@@ -107,6 +107,16 @@ function! vimfluency#drills#indent_vs_dedent#lesson() abort
   let after_dedent = ['    alpha beta', '    alpha beta']
   let after_indent_2x = ['        alpha beta', '        alpha beta']
   return [
+    \ {'kind': 'show', 'lines': buf_indent, 'cursor': [1, 5],
+    \  'prompt': [
+    \    'Two indent operators:',
+    \    '',
+    \    '    >>   →   indents the cursor''s line by one shiftwidth',
+    \    '    <<   →   dedents the cursor''s line by one shiftwidth',
+    \    '',
+    \    'Read the gap to line 2 and press the operator that many times.',
+    \    '',
+    \    'Press <Space> to continue.']},
     \ {'kind': 'try', 'lines': buf_indent,
     \  'start': [1, 5], 'target': [1, 9],
     \  'target_lines': after_indent,
@@ -118,8 +128,6 @@ function! vimfluency#drills#indent_vs_dedent#lesson() abort
     \ {'kind': 'try', 'lines': buf_indent_2x,
     \  'start': [1, 1], 'target': [1, 9],
     \  'target_lines': after_indent_2x,
-    \  'prompt': 'When the gap is two shiftwidths, press >> twice. Watch line 1 jump each time.'},
-    \ {'kind': 'show', 'lines': buf_indent, 'cursor': [1, 5],
-    \  'prompt': '>> indents the cursor''s line; << dedents it. Read the gap to line 2 — it may be one or two shiftwidths — and press the operator that many times.'},
+    \  'prompt': 'Press >> twice — the gap to line 2 is two shiftwidths.'},
     \ ]
 endfunction

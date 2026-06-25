@@ -96,7 +96,15 @@ function! vimfluency#drills#delete_two_lines_down_up#lesson() abort
   let buf = ['alpha beta', 'gamma delta', 'epsilon zeta', 'eta theta', 'iota kappa']
   return [
     \ {'kind': 'show', 'lines': buf, 'cursor': [3, 1],
-    \  'prompt': 'd + a vertical motion is linewise — it deletes two whole rows. dj deletes the cursor row + the next; dk deletes the cursor row + the previous.'},
+    \  'prompt': [
+    \    'Two linewise deletes:',
+    \    '',
+    \    '    dj   →   deletes the cursor row and the next',
+    \    '    dk   →   deletes the cursor row and the previous',
+    \    '',
+    \    'd + a vertical motion is linewise — it removes whole rows.',
+    \    '',
+    \    'Press <Space> to continue.']},
     \ {'kind': 'try', 'lines': buf, 'start': [3, 1], 'target': [3, 1],
     \  'target_lines': ['alpha beta', 'gamma delta', 'iota kappa'],
     \  'deletion_range': [[3, 1, len(buf[2])], [4, 1, len(buf[3])]],

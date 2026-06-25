@@ -130,21 +130,29 @@ function! vimfluency#drills#delete_char_vs_line#generate() abort
 endfunction
 
 function! vimfluency#drills#delete_char_vs_line#lesson() abort
-  " Each operator gets its own try frame so the learner performs
-  " the navigation + deletion sequence and watches the buffer
-  " change. The closing show frame names the discrimination rule
-  " — both the navigation step (j/k) and the operator pick (x/dd).
+  " Rule-first intro, then each operator gets its own try frame so the
+  " learner performs the navigation + deletion sequence and watches the
+  " buffer change. Read the highlight — single char vs whole line — to
+  " pick the operator.
   let buf = ['alpha beta gamma', 'delta epsilon zeta']
   return [
+    \ {'kind': 'show', 'lines': buf, 'cursor': [1, 1],
+    \  'prompt': [
+    \    'Two deletes, by size:',
+    \    '',
+    \    '    x    →   deletes one character',
+    \    '    dd   →   deletes the whole line',
+    \    '',
+    \    'Read the highlight — single char vs whole line — to pick the operator.',
+    \    '',
+    \    'Press <Space> to continue.']},
     \ {'kind': 'try', 'lines': buf, 'start': [1, 1], 'target': [2, 1],
     \  'target_lines': ['alpha beta gamma', 'elta epsilon zeta'],
     \  'deletion_range': [[2, 1, 1]],
-    \  'prompt': 'Move down (j) to line 2, then press x to delete the highlighted character.'},
+    \  'prompt': 'Press x — deletes the highlighted character (reach line 2 with j first).'},
     \ {'kind': 'try', 'lines': buf, 'start': [1, 1], 'target': [1, 1],
     \  'target_lines': ['alpha beta gamma'],
     \  'deletion_range': [[2, 1, len(buf[1])]],
-    \  'prompt': 'Move down (j) to line 2, then press dd to delete the entire line.'},
-    \ {'kind': 'show', 'lines': buf, 'cursor': [1, 1],
-    \  'prompt': 'x removes one character; dd removes the whole line. Move to the highlighted line (j or k), then read the highlight — single char vs whole line — to pick the operator.'},
+    \  'prompt': 'Press dd — deletes the highlighted line (reach line 2 with j first).'},
     \ ]
 endfunction
