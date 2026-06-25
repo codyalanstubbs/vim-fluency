@@ -45,8 +45,8 @@ function! vimfluency#drills#move_repeat_last_find_vs_till_forward#lesson() abort
     \  'prompt': [
     \    'Both setups go forward now — the question is f vs t:',
     \    '',
-    \    '    target lands ON the char        → f (find)',
-    \    '    target lands ONE CELL BEFORE it  → t (till)',
+    \    '    f   →   target lands ON the char (find)',
+    \    '    t   →   target lands ONE CELL BEFORE the char (till)',
     \    '',
     \    'Then ; repeats it forward, , reverses. Read where the target',
     \    'sits relative to the char to pick f or t.',

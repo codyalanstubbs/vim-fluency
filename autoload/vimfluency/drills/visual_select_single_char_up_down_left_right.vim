@@ -46,13 +46,12 @@ function! vimfluency#drills#visual_select_single_char_up_down_left_right#lesson(
   return [
     \ {'kind': 'show', 'lines': buf, 'cursor': [3, 4],
     \  'prompt': [
-    \    'v starts charwise visual selection at the cursor.',
-    \    'After v, one of h / l / j / k extends the selection one cell:',
+    \    'Visual selection — v starts it, then h / l / j / k extend it:',
     \    '',
-    \    '  vh → one column left',
-    \    '  vl → one column right',
-    \    '  vj → one row down (same column)',
-    \    '  vk → one row up   (same column)',
+    \    '    vh   →   extends the selection one column left',
+    \    '    vl   →   extends the selection one column right',
+    \    '    vj   →   extends the selection one row down',
+    \    '    vk   →   extends the selection one row up',
     \    '',
     \    'Press <Space> to continue.']},
     \ {'kind': 'try', 'lines': buf, 'start': [3, 4], 'target': [3, 3],

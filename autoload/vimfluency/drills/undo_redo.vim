@@ -98,8 +98,9 @@ function! vimfluency#drills#undo_redo#lesson() abort
     \ {'kind': 'show', 'lines': [], 'cursor': [1, 1],
     \  'prompt': [
     \    'Undo and redo:',
-    \    '  u      reverses the last edit (the most recent change to the buffer).',
-    \    '  <C-r>  reverses the last undo (puts back what u just removed).',
+    \    '',
+    \    '    u     →   reverses the last edit (the most recent change)',
+    \    '    <C-r> →   reverses the last undo (puts back what u removed)',
     \    '',
     \    'In each try frame, the buffer is staged to LOOK like a recent edit',
     \    'just happened. Press the matching key.',

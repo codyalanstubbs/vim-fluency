@@ -39,12 +39,12 @@ function! vimfluency#drills#move_repeat_last_till_forward_backward#lesson() abor
   return [
     \ {'kind': 'show', 'lines': buf1, 'cursor': [1, 1],
     \  'prompt': [
-    \    'Now both till directions in one drill. First read the matches:',
+    \    'Both till directions in one drill:',
     \    '',
-    \    '    both AHEAD of you   → t (forward, lands one before)',
-    \    '    both BEHIND you     → T (backward, lands one after)',
-    \    '    sitting BETWEEN them → start with whichever side you face',
+    \    '    t   →   forward, lands one cell before — matches both AHEAD',
+    \    '    T   →   backward, lands one cell after — matches both BEHIND',
     \    '',
+    \    'Sitting between the matches, start with whichever side you face.',
     \    'Then ; repeats that till the same way, , reverses it.',
     \    '',
     \    'Press <Space> to continue.']},

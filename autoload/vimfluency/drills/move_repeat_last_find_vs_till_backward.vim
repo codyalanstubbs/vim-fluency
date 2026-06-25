@@ -43,8 +43,8 @@ function! vimfluency#drills#move_repeat_last_find_vs_till_backward#lesson() abor
     \  'prompt': [
     \    'Both setups go backward now — the question is F vs T:',
     \    '',
-    \    '    target lands ON the char       → F (find)',
-    \    '    target lands ONE CELL AFTER it  → T (till)',
+    \    '    F   →   target lands ON the char (find)',
+    \    '    T   →   target lands ONE CELL AFTER the char (till)',
     \    '',
     \    'Then ; repeats it backward, , reverses forward. Read where the',
     \    'target sits relative to the char to pick F or T.',

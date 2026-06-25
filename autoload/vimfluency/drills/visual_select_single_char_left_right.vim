@@ -41,12 +41,10 @@ function! vimfluency#drills#visual_select_single_char_left_right#lesson() abort
   return [
     \ {'kind': 'show', 'lines': buf, 'cursor': [3, 4],
     \  'prompt': [
-    \    'v starts charwise visual selection at the cursor.',
-    \    'h extends the selection one column left.',
-    \    'l extends the selection one column right.',
+    \    'Visual selection — v starts it, then h / l extend it:',
     \    '',
-    \    '  vh → selection covers the char left of the start',
-    \    '  vl → selection covers the char right of the start',
+    \    '    vh   →   extends the selection one column left',
+    \    '    vl   →   extends the selection one column right',
     \    '',
     \    'Press <Space> to continue.']},
     \ {'kind': 'try', 'lines': buf, 'start': [3, 4], 'target': [3, 5],

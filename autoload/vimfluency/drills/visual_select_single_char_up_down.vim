@@ -43,12 +43,10 @@ function! vimfluency#drills#visual_select_single_char_up_down#lesson() abort
   return [
     \ {'kind': 'show', 'lines': buf, 'cursor': [3, 4],
     \  'prompt': [
-    \    'v starts charwise visual selection at the cursor.',
-    \    'j extends the selection one row down.',
-    \    'k extends the selection one row up.',
+    \    'Visual selection — v starts it, then j / k extend it:',
     \    '',
-    \    '  vj → selection wraps to the same column on the next row',
-    \    '  vk → selection wraps to the same column on the prev row',
+    \    '    vj   →   extends the selection one row down',
+    \    '    vk   →   extends the selection one row up',
     \    '',
     \    'Press <Space> to continue.']},
     \ {'kind': 'try', 'lines': buf, 'start': [3, 4], 'target': [4, 4],

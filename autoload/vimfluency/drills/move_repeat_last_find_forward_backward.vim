@@ -77,8 +77,8 @@ function! vimfluency#drills#move_repeat_last_find_forward_backward#lesson() abor
     \  'prompt': [
     \    'Repeat the last f/F/t/T without retyping the character:',
     \    '',
-    \    '    ;  repeats it in the SAME direction',
-    \    '    ,  repeats it in the OPPOSITE direction',
+    \    '    ;   →   repeats it in the SAME direction',
+    \    '    ,   →   repeats it in the OPPOSITE direction',
     \    '',
     \    'Press <Space> to continue.']},
     \ {'kind': 'try', 'lines': buf1, 'start': [1, 5], 'target': [1, 16],

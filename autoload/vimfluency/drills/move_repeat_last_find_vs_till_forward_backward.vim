@@ -37,10 +37,12 @@ function! vimfluency#drills#move_repeat_last_find_vs_till_forward_backward#lesso
   return [
     \ {'kind': 'show', 'lines': buf1, 'cursor': [1, 1],
     \  'prompt': [
-    \    'Everything together now. Each item, read two things:',
+    \    'Everything together. Each key combines direction + find/till:',
     \    '',
-    \    '    matches AHEAD  → f / t (forward)   BEHIND → F / T (backward)',
-    \    '    target ON char → f / F (find)      BESIDE → t / T (till)',
+    \    '    f   →   match ahead, target ON the char',
+    \    '    t   →   match ahead, target one cell before it',
+    \    '    F   →   match behind, target ON the char',
+    \    '    T   →   match behind, target one cell after it',
     \    '',
     \    'Pick the setup, then ; repeats it the same way, , reverses.',
     \    '',

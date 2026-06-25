@@ -75,13 +75,13 @@ function! vimfluency#drills#move_repeat_last_find_forward#lesson() abort
   return [
     \ {'kind': 'show', 'lines': buf1, 'cursor': [1, 1],
     \  'prompt': [
-    \    'After an f{char} find, two keys repeat it — no retyping the char:',
+    \    'After an f{char} find, ; and , repeat it — no retyping the char:',
     \    '',
-    \    '    ;  repeats the find in the SAME direction (forward again)',
-    \    '    ,  repeats it in the OPPOSITE direction (back)',
+    \    '    ;   →   repeats the find in the SAME direction (forward again)',
+    \    '    ,   →   repeats it in the OPPOSITE direction (back)',
     \    '',
-    \    'Read where you sit relative to the two matches: both ahead',
-    \    'of you means ; ; sitting between them means ,.',
+    \    'With both matches ahead, ; walks through them; sitting between,',
+    \    ', reverses.',
     \    '',
     \    'Press <Space> to continue.']},
     \ {'kind': 'try', 'lines': buf1, 'start': [1, 2], 'target': [1, 10],
