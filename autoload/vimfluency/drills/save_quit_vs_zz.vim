@@ -6,7 +6,7 @@
 
 let s:GOALS = {
   \ ':wq': 'save and quit Ex mode',
-  \ 'ZZ':  'save and quit Normal mode',
+  \ 'ZZ':  'save and quit NORMAL mode',
   \ }
 
 let s:CMDS = [':wq', 'ZZ']
@@ -43,14 +43,14 @@ function! vimfluency#drills#save_quit_vs_zz#lesson() abort
     \  'prompt': [
     \    ':wq vs ZZ.',
     \    'Both keystrokes save the file and quit — same effect.',
-    \    ':wq is the Ex-command form. Ex commands run when you press <Enter>.',
-    \    'ZZ is the normal-mode shortcut. It runs as soon as the second Z lands.',
+    \    ':wq is the Ex-command form. Ex commands run when you press <CR>.',
+    \    'ZZ is the NORMAL-mode shortcut. It runs as soon as the second Z lands.',
     \    '',
     \    'Each item shows a snippet with the Goal as a code comment.',
-    \    '  Goal: save and quit Ex mode      →  :wq<Enter>',
-    \    '  Goal: save and quit Normal mode  →  ZZ',
+    \    '  Goal: save and quit Ex mode      →  :wq<CR>',
+    \    '  Goal: save and quit NORMAL mode  →  ZZ',
     \    '',
-    \    'Press <Space> to begin.']},
+    \    'Press <Space> to continue.']},
     \ {'kind': 'try', 'lines': [],
     \  'expected_answer': ':wq', 'expected_motion': ':wq', 'optimal_motions': 3,
     \  'snippet': snippet, 'goal': s:GOALS[':wq']},

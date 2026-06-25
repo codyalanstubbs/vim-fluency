@@ -6,7 +6,7 @@
 
 let s:GOALS = {
   \ ':q!': 'force quit Ex mode',
-  \ 'ZQ':  'force quit Normal mode',
+  \ 'ZQ':  'force quit NORMAL mode',
   \ }
 
 let s:CMDS = [':q!', 'ZQ']
@@ -42,17 +42,17 @@ function! vimfluency#drills#force_quit_vs_zq#lesson() abort
     \ {'kind': 'show', 'lines': [], 'cursor': [1, 1],
     \  'prompt': [
     \    ':q! vs ZQ.',
-    \    'Both discard pending changes and quit — same effect.',
+    \    'Both quit and discard unsaved changes — same effect.',
     \    ':q! is the Ex-command form (! is the force flag).',
-    \    'Ex commands run when you press <Enter>.',
-    \    'ZQ is the normal-mode shortcut (mirrors ZZ for save+quit).',
-    \    'It runs as soon as the Q lands — no <Enter> needed.',
+    \    'Ex commands run when you press <CR>.',
+    \    'ZQ is the NORMAL-mode shortcut (mirrors ZZ for save+quit).',
+    \    'It runs as soon as the Q lands — no <CR> needed.',
     \    '',
     \    'Each item shows a snippet with the Goal as a code comment.',
-    \    '  Goal: force quit Ex mode      →  :q!<Enter>',
-    \    '  Goal: force quit Normal mode  →  ZQ',
+    \    '  Goal: force quit Ex mode      →  :q!<CR>',
+    \    '  Goal: force quit NORMAL mode  →  ZQ',
     \    '',
-    \    'Press <Space> to begin.']},
+    \    'Press <Space> to continue.']},
     \ {'kind': 'try', 'lines': [],
     \  'expected_answer': ':q!', 'expected_motion': ':q!', 'optimal_motions': 3,
     \  'snippet': snippet, 'goal': s:GOALS[':q!']},

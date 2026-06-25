@@ -97,14 +97,14 @@ function! vimfluency#drills#undo_redo#lesson() abort
   return [
     \ {'kind': 'show', 'lines': [], 'cursor': [1, 1],
     \  'prompt': [
-    \    'undo and redo.',
+    \    'Undo and redo:',
     \    '  u      reverses the last edit (the most recent change to the buffer).',
-    \    '  Ctrl-r reverses the last undo (puts back what u just removed).',
+    \    '  <C-r>  reverses the last undo (puts back what u just removed).',
     \    '',
     \    'In each try frame, the buffer is staged to LOOK like a recent edit',
     \    'just happened. Press the matching key.',
     \    '',
-    \    'Press <Space> to begin.']},
+    \    'Press <Space> to continue.']},
     \ {'kind': 'try', 'lines': [pair_a[1]],
     \  'start': [1, 1], 'target': [1, 1],
     \  'target_lines': [pair_a[0]],
@@ -122,7 +122,7 @@ function! vimfluency#drills#undo_redo#lesson() abort
     \  'start_index': 0,
     \  'prompt': [
     \    'You just undid an edit. The change is gone from the buffer,',
-    \    'but vim still remembers it. Press Ctrl-r to bring it back.']},
+    \    'but vim still remembers it. Press <C-r> to bring it back.']},
     \ {'kind': 'try', 'lines': [pair_b[1]],
     \  'start': [1, 1], 'target': [1, 1],
     \  'target_lines': [pair_b[0]],
@@ -140,6 +140,6 @@ function! vimfluency#drills#undo_redo#lesson() abort
     \  'start_index': 0,
     \  'prompt': [
     \    'Another redo — same key.',
-    \    'Press Ctrl-r.']},
+    \    'Press <C-r>.']},
     \ ]
 endfunction
