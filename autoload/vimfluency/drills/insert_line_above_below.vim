@@ -139,11 +139,11 @@ function! vimfluency#drills#insert_line_above_below#lesson() abort
   return [
     \ {'kind': 'show', 'lines': [], 'cursor': [1, 1],
     \  'prompt': [
-    \    'open new lines.',
-    \    'o opens a NEW LINE below the cursor and enters insert mode.',
-    \    'O opens a NEW LINE above the cursor and enters insert mode.',
+    \    'Open new lines:',
+    \    'o opens a NEW LINE below the cursor and enters INSERT mode.',
+    \    'O opens a NEW LINE above the cursor and enters INSERT mode.',
     \    '',
-    \    printf('You''ll type %s on the new line to confirm; no Esc needed.', t),
+    \    printf('You''ll type %s on the new line to confirm; no <Esc> needed.', t),
     \    '',
     \    'Press <Space> to continue.']},
     \ {'kind': 'show', 'lines': demo, 'cursor': [2, 2],

@@ -140,14 +140,14 @@ function! vimfluency#drills#insert_before_after_char_start_end_line#lesson() abo
   return [
     \ {'kind': 'show', 'lines': [], 'cursor': [1, 1],
     \  'prompt': [
-    \    'Insert mode is where typing adds text.',
-    \    'Several keys enter insert mode; this lesson covers four:',
+    \    'INSERT mode is where typing adds text.',
+    \    'Several keys enter INSERT mode; this lesson covers four:',
     \    '    i, a, I, A.',
     \    'Each opens the cursor in a different spot.',
     \    '',
     \    printf('In every try frame you''ll type the same word: %s.', t),
     \    'As soon as it appears in the right spot, the lesson advances.',
-    \    'You won''t need to press Esc — that''s a separate lesson.',
+    \    'You won''t need to press <Esc> — that''s a separate lesson.',
     \    '',
     \    'Press <Space> to continue.']},
     \ {'kind': 'try', 'lines': [inline], 'start': [1, 5], 'target': [1, 4],
