@@ -49,26 +49,36 @@ function! vimfluency#drills#move_to_char_forward_backward#meta() abort
 endfunction
 
 function! vimfluency#drills#move_to_char_forward_backward#lesson() abort
-  " Every frame that involves a motion is a 'try' so the learner sees
-  " the cursor jump from their own keystroke — including the
+  " Rule-first intro, then each motion via a try frame so the learner
+  " sees the cursor jump from their own keystroke — including the
   " "multiple-matches" rule, where staring at a static buffer doesn't
   " communicate which match the cursor lands on.
   let buf1 = ['the cat ran past']
   let buf2 = ['split banana']
   let buf3 = ['crab swim soft']
   return [
+    \ {'kind': 'show', 'lines': buf1, 'cursor': [1, 1],
+    \  'prompt': [
+    \    'Two find moves:',
+    \    '',
+    \    '    f{c}   →   moves the cursor to the next {c}',
+    \    '    F{c}   →   moves the cursor to the previous {c}',
+    \    '',
+    \    'Each lands ON the first match in that direction.',
+    \    '',
+    \    'Press <Space> to continue.']},
     \ {'kind': 'try', 'lines': buf1, 'start': [1, 1], 'target': [1, 13],
-    \  'prompt': 'Press fp — sends cursor to the next p on this line. Watch the cursor jump.'},
+    \  'prompt': 'Press fp — moves the cursor to the next p.'},
     \ {'kind': 'try', 'lines': buf1, 'start': [1, 16], 'target': [1, 13],
-    \  'prompt': 'Press Fp — F is the backward version. Sends cursor to the previous p.'},
+    \  'prompt': 'Press Fp — moves the cursor to the previous p.'},
     \ {'kind': 'try', 'lines': buf2, 'start': [1, 1], 'target': [1, 8],
-    \  'prompt': 'banana has 3 a''s ahead. Press fa — it lands on the FIRST one forward, never a later match.'},
+    \  'prompt': 'Press fa — moves the cursor to the first a ahead, never a later match.'},
     \ {'kind': 'try', 'lines': buf1, 'start': [1, 16], 'target': [1, 9],
-    \  'prompt': 'Use Fr to reach the r in ran.'},
+    \  'prompt': 'Press Fr — moves the cursor to the r in ran.'},
     \ {'kind': 'try', 'lines': buf2, 'start': [1, 12], 'target': [1, 3],
-    \  'prompt': 'Use Fl to reach the l in split.'},
+    \  'prompt': 'Press Fl — moves the cursor to the l in split.'},
     \ {'kind': 'try', 'lines': buf3, 'start': [1, 1], 'target': [1, 9],
-    \  'prompt': 'Use fm to reach the m in swim.'},
+    \  'prompt': 'Press fm — moves the cursor to the m in swim.'},
     \ ]
 endfunction
 

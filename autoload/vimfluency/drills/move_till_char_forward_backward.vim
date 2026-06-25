@@ -52,26 +52,37 @@ function! vimfluency#drills#move_till_char_forward_backward#meta() abort
 endfunction
 
 function! vimfluency#drills#move_till_char_forward_backward#lesson() abort
-  " Each motion via try frame so the learner sees the off-by-one
-  " landing from their own keystroke. Frame 3 deliberately calls back
-  " to f (the move_to_char_forward_backward prereq) to make the discrimination concrete: same
-  " buffer, same cursor, same target char, but f lands ON and t lands
-  " BEFORE.
+  " Rule-first intro, then each motion via a try frame so the learner
+  " sees the off-by-one landing from their own keystroke. Frame 3 of
+  " the tries deliberately calls back to f (the
+  " move_to_char_forward_backward prereq) to make the discrimination
+  " concrete: same buffer, same cursor, same target char, but f lands
+  " ON and t lands BEFORE.
   let buf1 = ['the cat ran past us today']
   let buf2 = ['split banana']
   return [
+    \ {'kind': 'show', 'lines': buf1, 'cursor': [1, 1],
+    \  'prompt': [
+    \    'Two till moves:',
+    \    '',
+    \    '    t{c}   →   moves the cursor to the cell before the next {c}',
+    \    '    T{c}   →   moves the cursor to the cell after the previous {c}',
+    \    '',
+    \    'Like f/F, but they stop one cell short of the match.',
+    \    '',
+    \    'Press <Space> to continue.']},
     \ {'kind': 'try', 'lines': buf1, 'start': [1, 1], 'target': [1, 12],
-    \  'prompt': 'Press tp — t lands on the cell BEFORE the next p (col 12, the space).'},
+    \  'prompt': 'Press tp — moves the cursor to the cell before the next p (col 12, the space).'},
     \ {'kind': 'try', 'lines': buf1, 'start': [1, 25], 'target': [1, 14],
-    \  'prompt': 'Press Tp — T lands on the cell AFTER the previous p (col 14, the a).'},
+    \  'prompt': 'Press Tp — moves the cursor to the cell after the previous p (col 14, the a).'},
     \ {'kind': 'try', 'lines': buf1, 'start': [1, 1], 'target': [1, 13],
-    \  'prompt': 'Compare with f: press fp — f lands ON the p (col 13). t lands BEFORE.'},
+    \  'prompt': 'Press fp — f lands ON the p (col 13); t stops one cell before it.'},
     \ {'kind': 'try', 'lines': buf1, 'start': [1, 25], 'target': [1, 10],
-    \  'prompt': 'Use Tr to land just after the r in ran — col 10 (the a).'},
+    \  'prompt': 'Press Tr — moves the cursor to the cell after the r in ran (col 10, the a).'},
     \ {'kind': 'try', 'lines': buf2, 'start': [1, 1], 'target': [1, 7],
-    \  'prompt': 'Use ta — banana has 3 a''s; t lands before the FIRST one (col 7, the b).'},
+    \  'prompt': 'Press ta — moves the cursor to the cell before the first a (col 7, the b).'},
     \ {'kind': 'try', 'lines': buf1, 'start': [1, 1], 'target': [1, 17],
-    \  'prompt': 'Use tu to land before us — col 17 (the space).'},
+    \  'prompt': 'Press tu — moves the cursor to the cell before the u in us (col 17, the space).'},
     \ ]
 endfunction
 
