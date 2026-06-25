@@ -48,7 +48,7 @@ function! vimfluency#drills#visual_select_single_char_left_right#lesson() abort
     \    '  vh → selection covers the char left of the start',
     \    '  vl → selection covers the char right of the start',
     \    '',
-    \    'Press <Space> to begin.']},
+    \    'Press <Space> to continue.']},
     \ {'kind': 'try', 'lines': buf, 'start': [3, 4], 'target': [3, 5],
     \  'expected_selection_start': [3, 4], 'expected_selection_end': [3, 5],
     \  'expected_sub_mode': 'v',

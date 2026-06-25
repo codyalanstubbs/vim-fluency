@@ -50,7 +50,7 @@ function! vimfluency#drills#visual_select_single_char_up_down#lesson() abort
     \    '  vj → selection wraps to the same column on the next row',
     \    '  vk → selection wraps to the same column on the prev row',
     \    '',
-    \    'Press <Space> to begin.']},
+    \    'Press <Space> to continue.']},
     \ {'kind': 'try', 'lines': buf, 'start': [3, 4], 'target': [4, 4],
     \  'expected_selection_start': [3, 4], 'expected_selection_end': [4, 4],
     \  'expected_sub_mode': 'v',
