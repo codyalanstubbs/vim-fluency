@@ -48,12 +48,16 @@ function! vimfluency#drills#move_to_word_end_forward_backward#lesson() abort
     \    '',
     \    'Press <Space> to continue.']},
     \ {'kind': 'try', 'lines': buf, 'start': [1, 1], 'target': [1, 5],
+    \  'expected_motion': 'e', 'optimal_motions': 1,
     \  'prompt': 'Press e — moves the cursor to the end of the next word (or the current word if you''re inside it).'},
     \ {'kind': 'try', 'lines': buf, 'start': [1, 7], 'target': [1, 5],
+    \  'expected_motion': 'ge', 'optimal_motions': 1,
     \  'prompt': 'Press ge — moves the cursor to the end of the previous word.'},
     \ {'kind': 'try', 'lines': buf, 'start': [1, 1], 'target': [1, 10],
+    \  'expected_motion': 'e', 'optimal_motions': 2,
     \  'prompt': 'Press e twice.'},
     \ {'kind': 'try', 'lines': buf, 'start': [1, 16], 'target': [1, 10],
+    \  'expected_motion': 'ge', 'optimal_motions': 1,
     \  'prompt': 'Press ge.'},
     \ ]
 endfunction

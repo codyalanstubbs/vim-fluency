@@ -52,12 +52,16 @@ function! vimfluency#drills#move_to_vs_till_forward_backward#lesson() abort
     \    '',
     \    'Press <Space> to continue.']},
     \ {'kind': 'try', 'lines': buf_f, 'start': [1, 1], 'target': [1, 16],
+    \  'expected_motion': 'f', 'optimal_motions': 1,
     \  'prompt': 'Ahead, target ON the i in "point" — unique, so fi lands. (tn would stop at the n in "spend".)'},
     \ {'kind': 'try', 'lines': buf_t, 'start': [1, 1], 'target': [1, 17],
+    \  'expected_motion': 't', 'optimal_motions': 1,
     \  'prompt': 'Ahead, target the n in "spend" — an earlier n sits in "point", so fn stops there. Press td (the d to its right is unique ahead).'},
     \ {'kind': 'try', 'lines': buf_F, 'start': [1, 17], 'target': [1, 9],
+    \  'expected_motion': 'F', 'optimal_motions': 1,
     \  'prompt': 'Behind, target the v — unique, so Fv lands on it. (Ta would stop after the a in "margin".)'},
     \ {'kind': 'try', 'lines': buf_T, 'start': [1, 19], 'target': [1, 9],
+    \  'expected_motion': 'T', 'optimal_motions': 1,
     \  'prompt': 'Behind, target the r in "target" — r repeats in "results", so Fr stops there. Press Ta (the a to its left is nearest).'},
     \ ]
 endfunction

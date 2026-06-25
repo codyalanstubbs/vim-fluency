@@ -119,8 +119,10 @@ function! vimfluency#drills#move_to_vs_till_backward#lesson() abort
     \    '',
     \    'Press <Space> to continue.']},
     \ {'kind': 'try', 'lines': buf_T, 'start': [1, 15], 'target': [1, 6],
+    \  'expected_motion': 'T', 'optimal_motions': 1,
     \  'prompt': 'Target is the b. Another b sits between it and you — Fb stops there. The a to its left is nearest — press Ta.'},
     \ {'kind': 'try', 'lines': buf_F, 'start': [1, 15], 'target': [1, 6],
+    \  'expected_motion': 'F', 'optimal_motions': 1,
     \  'prompt': 'Same target cell — but now the a repeats (col 7), so Ta stops early. The b is unique — press Fb.'},
     \ ]
 endfunction

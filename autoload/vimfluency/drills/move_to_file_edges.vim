@@ -68,10 +68,13 @@ function! vimfluency#drills#move_to_file_edges#lesson() abort
     \    '',
     \    'Press <Space> to continue.']},
     \ {'kind': 'try', 'lines': buf, 'start': [7, 1], 'target': [1, 1],
+    \  'expected_motion': 'gg', 'optimal_motions': 1,
     \  'prompt': 'Press gg — moves the cursor to the first line.'},
     \ {'kind': 'try', 'lines': buf, 'start': [7, 1], 'target': [14, 1],
+    \  'expected_motion': 'G', 'optimal_motions': 1,
     \  'prompt': 'Press G — moves the cursor to the last line.'},
     \ {'kind': 'try', 'lines': buf, 'start': [12, 1], 'target': [1, 1],
+    \  'expected_motion': 'gg', 'optimal_motions': 1,
     \  'prompt': 'Press gg — moves the cursor to the first line, even from near the bottom.'},
     \ ]
 endfunction

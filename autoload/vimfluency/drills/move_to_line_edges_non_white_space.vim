@@ -52,12 +52,16 @@ function! vimfluency#drills#move_to_line_edges_non_white_space#lesson() abort
     \    '',
     \    'Press <Space> to continue.']},
     \ {'kind': 'try', 'lines': buf, 'start': [1, 10], 'target': [1, 5],
+    \  'expected_motion': '^', 'optimal_motions': 1,
     \  'prompt': 'Press ^ — moves the cursor to the first non-blank (the i of "if").'},
     \ {'kind': 'try', 'lines': buf, 'start': [1, 10], 'target': [1, 19],
+    \  'expected_motion': 'g_', 'optimal_motions': 1,
     \  'prompt': 'Press g_ — moves the cursor to the last non-blank (the n of "return").'},
     \ {'kind': 'try', 'lines': ['  class Foo:   '], 'start': [1, 6], 'target': [1, 3],
+    \  'expected_motion': '^', 'optimal_motions': 1,
     \  'prompt': 'Press ^.'},
     \ {'kind': 'try', 'lines': ['  class Foo:   '], 'start': [1, 6], 'target': [1, 12],
+    \  'expected_motion': 'g_', 'optimal_motions': 1,
     \  'prompt': 'Press g_.'},
     \ ]
 endfunction

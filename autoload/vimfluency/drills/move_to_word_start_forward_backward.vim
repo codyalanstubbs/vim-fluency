@@ -43,12 +43,16 @@ function! vimfluency#drills#move_to_word_start_forward_backward#lesson() abort
     \    '',
     \    'Press <Space> to continue.']},
     \ {'kind': 'try', 'lines': buf, 'start': [1, 1], 'target': [1, 7],
+    \  'expected_motion': 'w', 'optimal_motions': 1,
     \  'prompt': 'Press w — moves the cursor to the start of the next word.'},
     \ {'kind': 'try', 'lines': buf, 'start': [1, 7], 'target': [1, 1],
+    \  'expected_motion': 'b', 'optimal_motions': 1,
     \  'prompt': 'Press b — moves the cursor to the start of the previous word.'},
     \ {'kind': 'try', 'lines': buf, 'start': [1, 1], 'target': [1, 12],
+    \  'expected_motion': 'w', 'optimal_motions': 2,
     \  'prompt': 'Press w twice.'},
     \ {'kind': 'try', 'lines': buf, 'start': [1, 18], 'target': [1, 7],
+    \  'expected_motion': 'b', 'optimal_motions': 2,
     \  'prompt': 'Press b twice.'},
     \ ]
 endfunction

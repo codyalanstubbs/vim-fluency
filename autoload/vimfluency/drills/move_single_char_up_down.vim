@@ -35,12 +35,16 @@ function! vimfluency#drills#move_single_char_up_down#lesson() abort
     \    '',
     \    'Press <Space> to continue.']},
     \ {'kind': 'try', 'lines': buf, 'start': [3, 4], 'target': [4, 4],
+    \  'expected_motion': 'j', 'optimal_motions': 1,
     \  'prompt': 'Press j — moves the cursor one row down.'},
     \ {'kind': 'try', 'lines': buf, 'start': [3, 4], 'target': [2, 4],
+    \  'expected_motion': 'k', 'optimal_motions': 1,
     \  'prompt': 'Press k — moves the cursor one row up.'},
     \ {'kind': 'try', 'lines': buf, 'start': [2, 4], 'target': [4, 4],
+    \  'expected_motion': 'j', 'optimal_motions': 2,
     \  'prompt': 'Press j twice.'},
     \ {'kind': 'try', 'lines': buf, 'start': [4, 4], 'target': [2, 4],
+    \  'expected_motion': 'k', 'optimal_motions': 2,
     \  'prompt': 'Press k twice.'},
     \ ]
 endfunction

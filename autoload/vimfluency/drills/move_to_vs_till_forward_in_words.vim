@@ -129,8 +129,10 @@ function! vimfluency#drills#move_to_vs_till_forward_in_words#lesson() abort
     \    '',
     \    'Press <Space> to continue.']},
     \ {'kind': 'try', 'lines': buf_t, 'start': [1, 1], 'target': [1, 17],
+    \  'expected_motion': 't', 'optimal_motions': 1,
     \  'prompt': 'Target is the n in "spend". An earlier n sits in "point" — fn stops there. Press td (the d right of it is unique ahead).'},
     \ {'kind': 'try', 'lines': buf_f, 'start': [1, 1], 'target': [1, 16],
+    \  'expected_motion': 'f', 'optimal_motions': 1,
     \  'prompt': 'Target is the i in "point" — unique ahead, so fi lands on it. (tn would stop at the n in "spend".)'},
     \ ]
 endfunction

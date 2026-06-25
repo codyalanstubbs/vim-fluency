@@ -42,12 +42,16 @@ function! vimfluency#drills#move_single_char_left_right#lesson() abort
     \    '',
     \    'Press <Space> to continue.']},
     \ {'kind': 'try', 'lines': buf, 'start': [3, 4], 'target': [3, 3],
+    \  'expected_motion': 'h', 'optimal_motions': 1,
     \  'prompt': 'Press h — moves the cursor one column left.'},
     \ {'kind': 'try', 'lines': buf, 'start': [3, 4], 'target': [3, 5],
+    \  'expected_motion': 'l', 'optimal_motions': 1,
     \  'prompt': 'Press l — moves the cursor one column right.'},
     \ {'kind': 'try', 'lines': buf, 'start': [3, 2], 'target': [3, 4],
+    \  'expected_motion': 'l', 'optimal_motions': 2,
     \  'prompt': 'Press l twice.'},
     \ {'kind': 'try', 'lines': buf, 'start': [3, 5], 'target': [3, 3],
+    \  'expected_motion': 'h', 'optimal_motions': 2,
     \  'prompt': 'Press h twice.'},
     \ ]
 endfunction

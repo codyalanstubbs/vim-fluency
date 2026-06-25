@@ -39,12 +39,16 @@ function! vimfluency#drills#move_to_line_edges_start_end#lesson() abort
     \    '',
     \    'Press <Space> to continue.']},
     \ {'kind': 'try', 'lines': ['if data: return value'], 'start': [1, 10], 'target': [1, 1],
+    \  'expected_motion': '0', 'optimal_motions': 1,
     \  'prompt': 'Press 0 — moves the cursor to column 1.'},
     \ {'kind': 'try', 'lines': ['if data: return value'], 'start': [1, 10], 'target': [1, 21],
+    \  'expected_motion': '$', 'optimal_motions': 1,
     \  'prompt': 'Press $ — moves the cursor to the last column.'},
     \ {'kind': 'try', 'lines': ['class Foo: pass'], 'start': [1, 7], 'target': [1, 1],
+    \  'expected_motion': '0', 'optimal_motions': 1,
     \  'prompt': 'Press 0.'},
     \ {'kind': 'try', 'lines': ['class Foo: pass'], 'start': [1, 7], 'target': [1, 15],
+    \  'expected_motion': '$', 'optimal_motions': 1,
     \  'prompt': 'Press $.'},
     \ ]
 endfunction

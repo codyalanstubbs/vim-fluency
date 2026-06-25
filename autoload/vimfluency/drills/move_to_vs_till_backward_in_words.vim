@@ -136,8 +136,10 @@ function! vimfluency#drills#move_to_vs_till_backward_in_words#lesson() abort
     \    '',
     \    'Press <Space> to continue.']},
     \ {'kind': 'try', 'lines': buf_T, 'start': [1, 19], 'target': [1, 9],
+    \  'expected_motion': 'T', 'optimal_motions': 1,
     \  'prompt': 'Target is the r in "target". r repeats in "results" — Fr stops there. Press Ta (the a left of it is nearest).'},
     \ {'kind': 'try', 'lines': buf_F, 'start': [1, 17], 'target': [1, 9],
+    \  'expected_motion': 'F', 'optimal_motions': 1,
     \  'prompt': 'Target is the v — unique, so Fv lands on it. (Ta would stop after the a in "margin".)'},
     \ ]
 endfunction
