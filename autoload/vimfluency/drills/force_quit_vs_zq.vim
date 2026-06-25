@@ -41,12 +41,12 @@ function! vimfluency#drills#force_quit_vs_zq#lesson() abort
   return [
     \ {'kind': 'show', 'lines': [], 'cursor': [1, 1],
     \  'prompt': [
-    \    ':q! vs ZQ.',
-    \    'Both quit and discard unsaved changes — same effect.',
-    \    ':q! is the Ex-command form (! is the force flag).',
-    \    'Ex commands run when you press <CR>.',
-    \    'ZQ is the NORMAL-mode shortcut (mirrors ZZ for save+quit).',
-    \    'It runs as soon as the Q lands — no <CR> needed.',
+    \    ':q! vs ZQ:',
+    \    '',
+    \    '    :q!   →   force quit — Ex command (! = force flag), runs on <CR>',
+    \    '    ZQ    →   force quit — NORMAL-mode shortcut, runs at once',
+    \    '',
+    \    'Same effect, two forms; both discard unsaved changes.',
     \    '',
     \    'Each item shows a snippet with the Goal as a code comment.',
     \    '  Goal: force quit Ex mode      →  :q!<CR>',

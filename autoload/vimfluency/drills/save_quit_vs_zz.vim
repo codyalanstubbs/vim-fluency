@@ -41,10 +41,12 @@ function! vimfluency#drills#save_quit_vs_zz#lesson() abort
   return [
     \ {'kind': 'show', 'lines': [], 'cursor': [1, 1],
     \  'prompt': [
-    \    ':wq vs ZZ.',
-    \    'Both keystrokes save the file and quit — same effect.',
-    \    ':wq is the Ex-command form. Ex commands run when you press <CR>.',
-    \    'ZZ is the NORMAL-mode shortcut. It runs as soon as the second Z lands.',
+    \    ':wq vs ZZ:',
+    \    '',
+    \    '    :wq   →   save and quit — Ex command, runs when you press <CR>',
+    \    '    ZZ    →   save and quit — NORMAL-mode shortcut, runs at once',
+    \    '',
+    \    'Same effect, two forms.',
     \    '',
     \    'Each item shows a snippet with the Goal as a code comment.',
     \    '  Goal: save and quit Ex mode      →  :wq<CR>',

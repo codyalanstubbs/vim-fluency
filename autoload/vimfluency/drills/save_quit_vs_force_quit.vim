@@ -43,9 +43,10 @@ function! vimfluency#drills#save_quit_vs_force_quit#lesson() abort
   return [
     \ {'kind': 'show', 'lines': [], 'cursor': [1, 1],
     \  'prompt': [
-    \    ':wq vs :q!.',
-    \    ':wq writes then quits (the safe save-and-quit).',
-    \    ':q! quits and discards unsaved changes — the ! is the force flag.',
+    \    ':wq vs :q!:',
+    \    '',
+    \    '    :wq   →   writes the file, then quits (the safe save-and-quit)',
+    \    '    :q!   →   quits and discards unsaved changes (! = force flag)',
     \    '',
     \    'Both are Ex commands — type them, then press <CR> to run.',
     \    '',

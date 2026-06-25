@@ -259,13 +259,30 @@ every editing drill. Remove the two hand-written undo show frames
 (`delete_to_word_*`, `delete_to_line_edges_*`).
 
 ### command (save/quit, `kind: 'command'`)
-Intro: `X vs Y.` title, behavior lines, then the goal table
-`Goal: {word}  →  :{cmd}<CR>`. **[locked] Destructive actions use one
-templated phrase: "discards unsaved changes".**
-- `:q!  →  quits and discards unsaved changes`
-- `ZQ   →  quits and discards unsaved changes`
-Non-destructive pairs carry no safety language. Try frames stay
-prompt-less (`goal` + `snippet` drive them).
+Intro is a `{command} → {behavior}` rule table like every other intro
+(NOT prose "behavior lines"):
+```
+:wq vs :q!:
+
+    :wq   →   writes the file, then quits (the safe save-and-quit)
+    :q!   →   quits and discards unsaved changes (! = force flag)
+
+Both are Ex commands — type them, then press <CR> to run.
+
+Each item shows a snippet with the Goal as a code comment.
+  Goal: save and quit  →  :wq<CR>
+  Goal: force quit      →  :q!<CR>
+
+Press <Space> to continue.
+```
+For equal-effect pairs (`:wq`/`ZZ`, `:q!`/`ZQ`) the right column carries
+the form/timing distinction ("Ex command, runs on <CR>" vs
+"NORMAL-mode shortcut, runs at once"). The `Goal: {word} → :{cmd}<CR>`
+block stays — it's a *worked task example* (goal you're given → answer
+you type), not a rule, so goal-first is correct there. **[locked]
+Destructive actions use one templated phrase: "discards unsaved
+changes".** Non-destructive pairs carry no safety language. Try frames
+stay prompt-less (`goal` + `snippet` drive them).
 
 ---
 

@@ -48,9 +48,10 @@ function! vimfluency#drills#save_vs_quit#lesson() abort
   return [
     \ {'kind': 'show', 'lines': [], 'cursor': [1, 1],
     \  'prompt': [
-    \    ':w vs :q.',
-    \    ':w writes the file (saves it).',
-    \    ':q quits the file.',
+    \    ':w vs :q:',
+    \    '',
+    \    '    :w   →   writes the file (saves it)',
+    \    '    :q   →   quits the file',
     \    '',
     \    'Both are Ex commands — type them, then press <CR> to run.',
     \    '',
