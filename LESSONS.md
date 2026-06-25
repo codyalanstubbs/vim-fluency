@@ -31,6 +31,14 @@ intro show frame   →   try frames   →   (runner appends the test phase + end
   currently put the rule last (`delete_char_vs_line`, `indent_vs_dedent`)
   and the word drills that put it in frame 3 (`move_to_word_*`) get the
   rule moved to the front.
+  - **Exactly one** — not two. A second opening `show` frame is a
+    trap in a type-to-advance drill (`kind: 'mode'`): its try frames
+    auto-advance the instant the learner types `foo`, so a learner who
+    hits a `<Space>`-gated screen mid-flow types `foo` and gets stuck.
+    Fold any cue-reading explanation into the single intro (render it
+    on the cue-bearing buffer); the cue is read again in the tries.
+    Mid-lesson `show` frames are only for genuine *post-try* juxtaposition
+    observations (e.g. `move_to_line_edges_all`), never a second intro.
 - After the intro, **try frames** introduce each motion/operation once,
   then practice it.
 - **No closing / recap / "complete" frame.** The runner appends the
@@ -211,11 +219,31 @@ drop it on the 2nd "Back to NORMAL."). `switch_between_many_modes`
 reuses this exact phrasing.
 
 ### mode (insert entry, `kind: 'mode'`)
-Intro + the "type foo to confirm; no `<Esc>` needed" mechanic line
-(this is the one allowed mechanic note, since it's load-bearing).
-**[proposed] Reprise form is uniform:** first occurrence of a key is
-the full rule frame (`{key} opens insert {where} — {cue}. Press {key},
-then type foo.`); a reprise is `{key} again — {cue}. Type foo.` Applied
+Intro is a **`{key} → {behavior}` table** like every other intro — NOT
+a cue→key table (`cursor under ◀ → press i` is backwards). The verb is
+**"opens INSERT {where}"**:
+```
+    i   →   opens INSERT before the cursor
+    a   →   opens INSERT after the cursor
+    I   →   opens INSERT at the first non-blank (line start)
+    A   →   opens INSERT at the end of the line
+    o   →   opens INSERT on a new line below the cursor
+    O   →   opens INSERT on a new line above the cursor
+```
+The 4-key composite folds "open INSERT" into the title
+("Four keys that open INSERT, each at a different spot:") so the rows
+stay short. Keep the "type foo to confirm; no `<Esc>` needed" mechanic
+line (the one allowed mechanic note — it's load-bearing). The
+cursor-position cue (◀/▶ seam, ⏵ row) is explained in the **single
+intro frame** (on the cue-bearing buffer, so the learner sees the
+markers while reading) and read again in the try frames. Do **not**
+add a second opening show frame: these drills auto-advance on typed
+text, so a learner reaching a `<Space>`-gated screen will type `foo`
+and get stranded (see §1).
+
+**Reprise form is uniform:** first occurrence of a key is the full rule
+frame (`{key} opens INSERT {where} — {cue}. Press {key}, then type
+foo.`); a reprise is `{key} again — {cue}. Type foo.` Applied
 identically across all four insert drills.
 
 ### visual_motion (`kind: 'visual_motion'`)

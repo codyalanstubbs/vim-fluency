@@ -137,22 +137,18 @@ function! vimfluency#drills#insert_line_above_below#lesson() abort
   let target_typed = [' alpha', '⏵beta', s:INSERT_TEXT, '⏵gamma', ' delta']
   let t = s:INSERT_TEXT
   return [
-    \ {'kind': 'show', 'lines': [], 'cursor': [1, 1],
-    \  'prompt': [
-    \    'Open new lines:',
-    \    'o opens a NEW LINE below the cursor and enters INSERT mode.',
-    \    'O opens a NEW LINE above the cursor and enters INSERT mode.',
-    \    '',
-    \    printf('You''ll type %s on the new line to confirm; no <Esc> needed.', t),
-    \    '',
-    \    'Press <Space> to continue.']},
     \ {'kind': 'show', 'lines': demo, 'cursor': [2, 2],
     \  'prompt': [
-    \    'Two ⏵ markers on adjacent rows BRACKET the gap between them.',
-    \    'Your cursor will sit on ONE of those rows; the OTHER ⏵',
-    \    'tells you the direction:',
-    \    '  - other ⏵ is BELOW your cursor → press o (open below)',
-    \    '  - other ⏵ is ABOVE your cursor → press O (open above)',
+    \    'Two keys that open INSERT on a new line:',
+    \    '',
+    \    '    o   →   on a new line below the cursor',
+    \    '    O   →   on a new line above the cursor',
+    \    '',
+    \    'The two ⏵ markers bracket the gap. Your cursor sits on one;',
+    \    'the other ⏵ shows the direction — press o if it sits below',
+    \    'you, O if it sits above.',
+    \    '',
+    \    printf('Type %s on the new line to confirm; no <Esc> needed.', t),
     \    '',
     \    'Press <Space> to continue.']},
     \ {'kind': 'try', 'lines': demo, 'start': [2, 2],
