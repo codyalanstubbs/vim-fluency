@@ -25,15 +25,23 @@ function! vimfluency#drills#move_single_char_up_down#lesson() abort
   let buf = ['abcdef', 'ghijkl', 'mnopqr', 'stuvwx', 'yzabcd']
   return [
     \ {'kind': 'show', 'lines': buf, 'cursor': [3, 4],
-    \  'prompt': 'j moves the cursor one row down; k one row up. They differ only by direction.'},
+    \  'prompt': [
+    \    'Two single-char moves:',
+    \    '',
+    \    '    j   →   moves the cursor one row down',
+    \    '    k   →   moves the cursor one row up',
+    \    '',
+    \    'They differ only by direction.',
+    \    '',
+    \    'Press <Space> to continue.']},
     \ {'kind': 'try', 'lines': buf, 'start': [3, 4], 'target': [4, 4],
-    \  'prompt': 'Press j — moves cursor one row down.'},
+    \  'prompt': 'Press j — moves the cursor one row down.'},
     \ {'kind': 'try', 'lines': buf, 'start': [3, 4], 'target': [2, 4],
-    \  'prompt': 'Press k — moves cursor one row up.'},
+    \  'prompt': 'Press k — moves the cursor one row up.'},
     \ {'kind': 'try', 'lines': buf, 'start': [2, 4], 'target': [4, 4],
-    \  'prompt': 'Use j twice.'},
+    \  'prompt': 'Press j twice.'},
     \ {'kind': 'try', 'lines': buf, 'start': [4, 4], 'target': [2, 4],
-    \  'prompt': 'Use k twice.'},
+    \  'prompt': 'Press k twice.'},
     \ ]
 endfunction
 

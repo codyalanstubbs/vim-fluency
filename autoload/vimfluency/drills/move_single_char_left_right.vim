@@ -32,15 +32,23 @@ function! vimfluency#drills#move_single_char_left_right#lesson() abort
   let buf = ['abcdef', 'ghijkl', 'mnopqr', 'stuvwx', 'yzabcd']
   return [
     \ {'kind': 'show', 'lines': buf, 'cursor': [3, 4],
-    \  'prompt': 'h moves the cursor one column left; l one column right. They differ only by direction.'},
+    \  'prompt': [
+    \    'Two single-char moves:',
+    \    '',
+    \    '    h   →   moves the cursor one column left',
+    \    '    l   →   moves the cursor one column right',
+    \    '',
+    \    'They differ only by direction.',
+    \    '',
+    \    'Press <Space> to continue.']},
     \ {'kind': 'try', 'lines': buf, 'start': [3, 4], 'target': [3, 3],
-    \  'prompt': 'Press h — moves cursor one column left.'},
+    \  'prompt': 'Press h — moves the cursor one column left.'},
     \ {'kind': 'try', 'lines': buf, 'start': [3, 4], 'target': [3, 5],
-    \  'prompt': 'Press l — moves cursor one column right.'},
+    \  'prompt': 'Press l — moves the cursor one column right.'},
     \ {'kind': 'try', 'lines': buf, 'start': [3, 2], 'target': [3, 4],
-    \  'prompt': 'Use l twice — motions repeat.'},
+    \  'prompt': 'Press l twice.'},
     \ {'kind': 'try', 'lines': buf, 'start': [3, 5], 'target': [3, 3],
-    \  'prompt': 'Use h twice.'},
+    \  'prompt': 'Press h twice.'},
     \ ]
 endfunction
 

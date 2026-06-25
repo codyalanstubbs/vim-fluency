@@ -21,23 +21,32 @@ function! vimfluency#drills#move_single_char_up_down_left_right#meta() abort
 endfunction
 
 function! vimfluency#drills#move_single_char_up_down_left_right#lesson() abort
-  " Each motion gets its own try frame — the prompt names the rule, the
-  " learner performs it. Tail of the lesson chains motions and combines
-  " them diagonally.
+  " Rule-first intro, then each motion gets its own try frame so the
+  " learner performs it. The tail chains motions into a diagonal.
   let buf = ['abcdef', 'ghijkl', 'mnopqr', 'stuvwx', 'yzabcd']
   return [
+    \ {'kind': 'show', 'lines': buf, 'cursor': [3, 4],
+    \  'prompt': [
+    \    'Four single-char moves:',
+    \    '',
+    \    '    h   →   moves the cursor one column left',
+    \    '    l   →   moves the cursor one column right',
+    \    '    j   →   moves the cursor one row down',
+    \    '    k   →   moves the cursor one row up',
+    \    '',
+    \    'Press <Space> to continue.']},
     \ {'kind': 'try', 'lines': buf, 'start': [3, 4], 'target': [3, 3],
-    \  'prompt': 'Press h — moves cursor one column left.'},
+    \  'prompt': 'Press h — moves the cursor one column left.'},
     \ {'kind': 'try', 'lines': buf, 'start': [3, 4], 'target': [3, 5],
-    \  'prompt': 'Press l — moves cursor one column right.'},
+    \  'prompt': 'Press l — moves the cursor one column right.'},
     \ {'kind': 'try', 'lines': buf, 'start': [3, 4], 'target': [4, 4],
-    \  'prompt': 'Press j — moves cursor one row down.'},
+    \  'prompt': 'Press j — moves the cursor one row down.'},
     \ {'kind': 'try', 'lines': buf, 'start': [3, 4], 'target': [2, 4],
-    \  'prompt': 'Press k — moves cursor one row up.'},
+    \  'prompt': 'Press k — moves the cursor one row up.'},
     \ {'kind': 'try', 'lines': buf, 'start': [3, 1], 'target': [3, 3],
-    \  'prompt': 'Press l twice — motions repeat.'},
+    \  'prompt': 'Press l twice.'},
     \ {'kind': 'try', 'lines': buf, 'start': [2, 4], 'target': [3, 5],
-    \  'prompt': 'Combine motions: j then l moves diagonally.'},
+    \  'prompt': 'Press j then l — moves the cursor diagonally (down, then right).'},
     \ ]
 endfunction
 
