@@ -32,21 +32,29 @@ function! vimfluency#drills#move_to_word_end_forward_backward#meta() abort
 endfunction
 
 function! vimfluency#drills#move_to_word_end_forward_backward#lesson() abort
-  " Same parallel-rule shape as move_to_word_start_forward_backward: try frames for each motion,
-  " then a rule statement. Real words for readability; cheat-defense
-  " irrelevant during teaching.
+  " Same parallel-rule shape as move_to_word_start_forward_backward:
+  " rule-first intro, then a try frame per motion. Real words for
+  " readability; cheat-defense irrelevant during teaching.
   let buf = ['alpha beta gamma delta epsilon']
   return [
+    \ {'kind': 'show', 'lines': buf, 'cursor': [1, 1],
+    \  'prompt': [
+    \    'Two word-end moves:',
+    \    '',
+    \    '    e    →   moves the cursor to the end of the next word',
+    \    '    ge   →   moves the cursor to the end of the previous word',
+    \    '',
+    \    'ge is two keys: g then e.',
+    \    '',
+    \    'Press <Space> to continue.']},
     \ {'kind': 'try', 'lines': buf, 'start': [1, 1], 'target': [1, 5],
-    \  'prompt': 'Press e — sends cursor to the end of the next word (or end of current word if you''re inside it).'},
+    \  'prompt': 'Press e — moves the cursor to the end of the next word (or the current word if you''re inside it).'},
     \ {'kind': 'try', 'lines': buf, 'start': [1, 7], 'target': [1, 5],
-    \  'prompt': 'Press ge — two keys: g then e. Sends cursor backward to the end of the previous word.'},
-    \ {'kind': 'show', 'lines': buf, 'cursor': [1, 5],
-    \  'prompt': 'e and ge both land at word endings; e is forward (one key), ge is backward (two keys).'},
+    \  'prompt': 'Press ge — moves the cursor to the end of the previous word.'},
     \ {'kind': 'try', 'lines': buf, 'start': [1, 1], 'target': [1, 10],
-    \  'prompt': 'Use e twice to land at the end of beta.'},
+    \  'prompt': 'Press e twice.'},
     \ {'kind': 'try', 'lines': buf, 'start': [1, 16], 'target': [1, 10],
-    \  'prompt': 'Use ge to step back to the end of beta.'},
+    \  'prompt': 'Press ge.'},
     \ ]
 endfunction
 

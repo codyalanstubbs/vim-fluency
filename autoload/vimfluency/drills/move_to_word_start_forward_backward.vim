@@ -27,22 +27,29 @@ function! vimfluency#drills#move_to_word_start_forward_backward#meta() abort
 endfunction
 
 function! vimfluency#drills#move_to_word_start_forward_backward#lesson() abort
-  " Each motion gets a try frame so the learner sees the cursor jump
-  " from their own keystroke. Rule statement at the end names the
-  " parallel structure. Real words used so frames stay readable;
-  " cheat-defense is irrelevant during teaching.
+  " Rule-first intro, then a try frame per motion so the learner sees
+  " the cursor jump from their own keystroke. Real words used so frames
+  " stay readable; cheat-defense is irrelevant during teaching.
   let buf = ['alpha beta gamma delta epsilon']
   return [
+    \ {'kind': 'show', 'lines': buf, 'cursor': [1, 1],
+    \  'prompt': [
+    \    'Two word moves:',
+    \    '',
+    \    '    w   →   moves the cursor to the start of the next word',
+    \    '    b   →   moves the cursor to the start of the previous word',
+    \    '',
+    \    'They differ only by direction.',
+    \    '',
+    \    'Press <Space> to continue.']},
     \ {'kind': 'try', 'lines': buf, 'start': [1, 1], 'target': [1, 7],
-    \  'prompt': 'Press w — sends cursor to the start of the next word.'},
+    \  'prompt': 'Press w — moves the cursor to the start of the next word.'},
     \ {'kind': 'try', 'lines': buf, 'start': [1, 7], 'target': [1, 1],
-    \  'prompt': 'Press b — sends cursor to the start of the previous word.'},
-    \ {'kind': 'show', 'lines': buf, 'cursor': [1, 7],
-    \  'prompt': 'w and b move between word starts; w is forward, b is backward.'},
+    \  'prompt': 'Press b — moves the cursor to the start of the previous word.'},
     \ {'kind': 'try', 'lines': buf, 'start': [1, 1], 'target': [1, 12],
-    \  'prompt': 'Use w twice to skip a word.'},
+    \  'prompt': 'Press w twice.'},
     \ {'kind': 'try', 'lines': buf, 'start': [1, 18], 'target': [1, 7],
-    \  'prompt': 'Use b twice.'},
+    \  'prompt': 'Press b twice.'},
     \ ]
 endfunction
 

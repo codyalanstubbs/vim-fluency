@@ -61,19 +61,18 @@ function! vimfluency#drills#move_to_file_edges#lesson() abort
     \  'prompt': [
     \    'Two whole-file jumps:',
     \    '',
-    \    '    gg  →  first line of the file',
-    \    '    G   →  last line of the file',
+    \    '    gg  →  moves the cursor to the first line of the file',
+    \    '    G   →  moves the cursor to the last line of the file',
     \    '',
-    \    'Read whether the target is at the top or the bottom, then',
-    \    'jump there in one motion instead of holding j / k.',
+    \    'Jump straight there instead of holding j / k.',
     \    '',
     \    'Press <Space> to continue.']},
     \ {'kind': 'try', 'lines': buf, 'start': [7, 1], 'target': [1, 1],
-    \  'prompt': 'Target is the first line — press gg.'},
+    \  'prompt': 'Press gg — moves the cursor to the first line.'},
     \ {'kind': 'try', 'lines': buf, 'start': [7, 1], 'target': [14, 1],
-    \  'prompt': 'Target is the last line — press G.'},
+    \  'prompt': 'Press G — moves the cursor to the last line.'},
     \ {'kind': 'try', 'lines': buf, 'start': [12, 1], 'target': [1, 1],
-    \  'prompt': 'Near the bottom now — gg still jumps straight to the first line.'},
+    \  'prompt': 'Press gg — moves the cursor to the first line, even from near the bottom.'},
     \ ]
 endfunction
 

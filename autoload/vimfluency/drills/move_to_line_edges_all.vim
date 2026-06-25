@@ -35,20 +35,30 @@ function! vimfluency#drills#move_to_line_edges_all#lesson() abort
   " observing that equivalence is the point, not a motion. Trailing
   " whitespace is rendered with `·` so $ vs g_ is observable.
   return [
+    \ {'kind': 'show', 'lines': ['    if x:    '], 'cursor': [1, 5],
+    \  'prompt': [
+    \    'Four line-edge moves:',
+    \    '',
+    \    '    0    →  moves the cursor to column 1',
+    \    '    ^    →  moves the cursor to the first non-blank character',
+    \    '    $    →  moves the cursor to the last column (whitespace counts)',
+    \    '    g_   →  moves the cursor to the last non-blank character',
+    \    '',
+    \    'Press <Space> to continue.']},
     \ {'kind': 'try',  'lines': ['    if x:'], 'start': [1, 5], 'target': [1, 1],
-    \  'prompt': 'Press 0 — sends cursor to column 1.'},
+    \  'prompt': 'Press 0 — moves the cursor to column 1.'},
     \ {'kind': 'try',  'lines': ['        return value'], 'start': [1, 1], 'target': [1, 9],
-    \  'prompt': 'Press ^ — sends cursor to the first non-blank character.'},
+    \  'prompt': 'Press ^ — moves the cursor to the first non-blank character.'},
     \ {'kind': 'try',  'lines': ['    if x:    '], 'start': [1, 5], 'target': [1, 13],
-    \  'prompt': 'Press $ — sends cursor to the last character (whitespace counts).'},
+    \  'prompt': 'Press $ — moves the cursor to the last column (whitespace counts).'},
     \ {'kind': 'try',  'lines': ['    if x:    '], 'start': [1, 5], 'target': [1, 9],
-    \  'prompt': 'Press g_ — sends cursor to the last non-blank character.'},
+    \  'prompt': 'Press g_ — moves the cursor to the last non-blank character.'},
     \ {'kind': 'show', 'lines': ['if x:'], 'cursor': [1, 1],
     \  'prompt': 'No leading whitespace → 0 and ^ would land on the same column.'},
     \ {'kind': 'show', 'lines': ['if x:'], 'cursor': [1, 5],
     \  'prompt': 'No trailing whitespace → $ and g_ would land on the same column.'},
     \ {'kind': 'try',  'lines': ['        if data:'], 'start': [1, 14], 'target': [1, 9],
-    \  'prompt': 'Use ^ — works even when you start past the first non-blank.'},
+    \  'prompt': 'Press ^ — moves the cursor to the first non-blank, even starting past it.'},
     \ ]
 endfunction
 

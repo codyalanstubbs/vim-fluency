@@ -29,11 +29,19 @@ endfunction
 function! vimfluency#drills#move_to_line_edges_start_end#lesson() abort
   return [
     \ {'kind': 'show', 'lines': ['if data: return value'], 'cursor': [1, 10],
-    \  'prompt': '0 sends cursor to column 1; $ sends cursor to the last column. They differ only by direction.'},
+    \  'prompt': [
+    \    'Two line-edge moves:',
+    \    '',
+    \    '    0   →   moves the cursor to column 1',
+    \    '    $   →   moves the cursor to the last column',
+    \    '',
+    \    'They differ only by direction.',
+    \    '',
+    \    'Press <Space> to continue.']},
     \ {'kind': 'try', 'lines': ['if data: return value'], 'start': [1, 10], 'target': [1, 1],
-    \  'prompt': 'Press 0 — sends cursor to column 1.'},
+    \  'prompt': 'Press 0 — moves the cursor to column 1.'},
     \ {'kind': 'try', 'lines': ['if data: return value'], 'start': [1, 10], 'target': [1, 21],
-    \  'prompt': 'Press $ — sends cursor to the last column.'},
+    \  'prompt': 'Press $ — moves the cursor to the last column.'},
     \ {'kind': 'try', 'lines': ['class Foo: pass'], 'start': [1, 7], 'target': [1, 1],
     \  'prompt': 'Press 0.'},
     \ {'kind': 'try', 'lines': ['class Foo: pass'], 'start': [1, 7], 'target': [1, 15],
