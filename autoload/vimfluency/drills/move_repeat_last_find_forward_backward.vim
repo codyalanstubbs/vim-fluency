@@ -74,7 +74,13 @@ function! vimfluency#drills#move_repeat_last_find_forward_backward#lesson() abor
   let buf2 = ['banana split soda']
   return [
     \ {'kind': 'show', 'lines': buf1, 'cursor': [1, 1],
-    \  'prompt': '; repeats your last f/F/t/T in the same direction. , repeats it in the opposite direction. No need to retype the character.'},
+    \  'prompt': [
+    \    'Repeat the last f/F/t/T without retyping the character:',
+    \    '',
+    \    '    ;  repeats it in the SAME direction',
+    \    '    ,  repeats it in the OPPOSITE direction',
+    \    '',
+    \    'Press <Space> to continue.']},
     \ {'kind': 'try', 'lines': buf1, 'start': [1, 5], 'target': [1, 16],
     \  'waypoints': [[1, 7]],
     \  'prompt': 'Press ft then ; — ft lands on the t in cat (1), ; jumps forward to the t in past (2).'},

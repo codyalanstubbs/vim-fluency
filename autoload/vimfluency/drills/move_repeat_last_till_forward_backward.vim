@@ -50,16 +50,16 @@ function! vimfluency#drills#move_repeat_last_till_forward_backward#lesson() abor
     \    'Press <Space> to continue.']},
     \ {'kind': 'try', 'lines': buf1, 'start': [1, 2], 'target': [1, 9],
     \  'waypoints': [[1, 3]],
-    \  'prompt': 'Both s''s ahead → ts (lands one before the first, col 3 = 1), then ; (forward to one before the second, col 9 = 2).'},
+    \  'prompt': 'Both s''s ahead → ts (lands one before the first, 1), then ; (forward to one before the second, 2).'},
     \ {'kind': 'try', 'lines': buf1, 'start': [1, 12], 'target': [1, 5],
     \  'waypoints': [[1, 11]],
-    \  'prompt': 'Both s''s behind → Ts (lands one after the nearer, col 11 = 1), then ; (backward to one after the first, col 5 = 2).'},
+    \  'prompt': 'Both s''s behind → Ts (lands one after the nearer, 1), then ; (backward to one after the first, 2).'},
     \ {'kind': 'try', 'lines': buf1, 'start': [1, 8], 'target': [1, 5],
     \  'waypoints': [[1, 9]],
-    \  'prompt': 'Between, facing forward → ts (one before the second, col 9 = 1), then , (reverse back to one after the first, col 5 = 2).'},
+    \  'prompt': 'Between, facing forward → ts (one before the second, 1), then , (reverse back to one after the first, 2).'},
     \ {'kind': 'try', 'lines': buf1, 'start': [1, 6], 'target': [1, 9],
     \  'waypoints': [[1, 5]],
-    \  'prompt': 'Between, facing back → Ts (one after the first, col 5 = 1), then , (reverse forward to one before the second, col 9 = 2).'},
+    \  'prompt': 'Between, facing back → Ts (one after the first, 1), then , (reverse forward to one before the second, 2).'},
     \ ]
 endfunction
 
