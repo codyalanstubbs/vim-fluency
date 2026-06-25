@@ -176,12 +176,21 @@ to/till — keep it verbatim):
 (Exception to §3's verb: this contrast block is a fixed idiom; "lands
 ON / ONE CELL BEFORE" is the discriminator and stays.)
 
-**[proposed] One try-frame opener for discriminations:**
-```
-{Direction, if the drill has one: "Ahead," / "Behind,"} target {ON|one BEFORE|one AFTER} the {char} — press {key} ({why it, not the alternative}).
-```
-Replaces the current three openers ("Target is the b." / "Ahead," /
-"Target is the X in \"word\"").
+**Try-frame structure (not a rigid opener).** Every discrimination try
+follows the same shape: *name the target → say which candidate char
+repeats (so that motion stops early) → press the unique one*. The
+lead-in may vary with the drill's geometry, and that variation is
+fine — it tracks a real difference, not drift:
+- constant-geometry single-direction drills name the target char
+  ("Target is the b. …");
+- directional composites lead with the direction ("Ahead, …" /
+  "Behind, …");
+- in-words drills name the word ("Target is the n in \"spend\". …").
+
+What must stay uniform: the repeat/unique reasoning, em-dash before the
+`press {key}` clause, and the parenthetical naming the rejected
+alternative. Never leak a drill slug into a prompt — say "as before",
+not the snake_case id.
 
 ### mode_switch (`kind: 'mode_switch'`)
 Intro template (already shared by the 4 atomics — keep, with notation +

@@ -118,7 +118,7 @@ function! vimfluency#drills#move_to_vs_till_forward_in_words#lesson() abort
   return [
     \ {'kind': 'show', 'lines': [], 'cursor': [1, 1],
     \  'prompt': [
-    \    'Same f/t rule as move_to_vs_till_forward, now inside real words:',
+    \    'Same f/t rule as before, now inside real words:',
     \    '',
     \    '    f{c}  →  lands ON the next c',
     \    '    t{c}  →  lands ONE CELL BEFORE the next c',
