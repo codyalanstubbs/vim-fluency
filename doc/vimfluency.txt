@@ -20,6 +20,10 @@ T(rain), L(earn), C(hart), I(list), V(dashboard) — so once you've
 typed :Vf (or :VfList) you can loop through trainings, lessons, charts,
 and the end screen without retyping a command. Q closes / steps back.
 
+For animated demos of each view — the dashboard, :VfList, lessons vs.
+trainings, paths, the celeration chart, and the end-of-session
+breakdown — see https://vimfluency.com
+
 ==============================================================================
 COMMANDS                                                        *vf-commands*
 

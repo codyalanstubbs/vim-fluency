@@ -2,6 +2,8 @@
 
 A vim plugin for behavioral-fluency training sessions on vim drills. Runs inside vim itself — no simulator divergence, you're using real vim. Project home: vimfluency.com.
 
+![The Vim Fluency dashboard — the drill table, the hovered drill's celeration chart, and its last-session per-command breakdown](https://vimfluency.com/assets/hero.png)
+
 ## What is behavioral fluency?
 
 Fluency is accuracy *plus* speed: a behavior you perform correctly, quickly, and without deliberation — available while your attention is on the code, not on the keystroke. It's a different axis from knowing. You can know exactly what `dw` does and still reach for it slowly; the motion isn't fluent until it's automatic under time pressure.
@@ -54,6 +56,76 @@ rate and per-command breakdown, plus a one-key menu to anywhere else
 read-only view links to every other with those same keys, so once you've
 typed `:Vf` or `:VfList` you can loop through trainings, lessons, and
 charts without retyping a command.
+
+## A guided tour
+
+### The dashboard (`:Vf`) — your home base
+
+The dashboard is the main entry point. From one screen you **discover
+drills** (the full catalog, grouped by family), monitor **consistent
+overall effort** (a drills-per-day chart — fluency is built by showing up,
+not by cramming), watch a **specific drill's fluency progress** (the
+hovered drill's celeration chart), and read a **summary of its last
+session** (the per-command breakdown). Move between rows and the chart and
+breakdown panels track your cursor.
+
+![The dashboard, panels tracking the selected drill](https://vimfluency.com/assets/dashboard.gif)
+
+### `:VfList` — the quieter catalog
+
+`:VfList` is the same discovery surface with less on screen: a flat table of
+every drill with its commands, prerequisites, and current rate against aim.
+Press `B` on a drill to expand its breakdown — its prereqs and per-command
+rates — while the header tracks your progress along the active path. Reach
+for it when the dashboard's charts are more than you need.
+
+![:VfList with a drill's breakdown expanded](https://vimfluency.com/assets/list.gif)
+
+### `:VfLearn` and `:VfTrain` — learn it, then make it fluent
+
+Two different jobs. **`:VfLearn`** *introduces* a drill: a Direct-Instruction
+lesson that names each motion, has you perform it, then tests you on fresh
+items until you can apply the rule unprompted. Use it to meet a new drill —
+or as a warm-up before a training session.
+
+![A :VfLearn lesson](https://vimfluency.com/assets/learn.gif)
+
+**`:VfTrain`** is where fluency is *built and measured*: a timed session
+against the clock, scored as a rate and logged so you can watch that rate
+climb over time. Learn introduces the motion; train makes it automatic.
+
+![A :VfTrain session](https://vimfluency.com/assets/train.gif)
+
+### Paths — focus your effort
+
+A path scopes the catalog to what matters now. **Foundational** is the
+survive-and-edit basics every learner starts with; **General** is
+everything. `:VfSetPath` switches the active path and every view re-filters
+to it, with the header tracking per-path fluency progress. (Specialized
+workflow paths — tuned to particular editing styles — are coming soon.)
+
+![Switching from the General path to Foundational](https://vimfluency.com/assets/paths.gif)
+
+### `:VfChart` — the full picture, and a diagnosis
+
+The dashboard's inline chart is squeezed by column spacing; `:VfChart` opens
+the same Standard Celeration Chart full-screen, with room to read every
+session. It's also a diagnostic. When the `×` error line sits **above** the
+`●` correct line — as it does for the stuck drill below — the chart is
+telling you you're going too fast: slow down until corrects climb back over
+errors. Accuracy first, then speed.
+
+![A :VfChart showing errors above corrects](https://vimfluency.com/assets/chart.gif)
+
+### The end-of-session breakdown
+
+Every training and lesson finishes on the same screen: the session's rate
+against aim, its efficiency (the optimal keystroke count versus what you
+actually spent), and a per-command table so you can see *which* motion is
+holding you back — the slow one is marked. A one-key menu
+(`T`/`L`/`C`/`I`/`V`/`Q`) jumps you straight to whatever's next.
+
+![The shared end-of-session breakdown](https://vimfluency.com/assets/end.gif)
 
 ## How it works
 
