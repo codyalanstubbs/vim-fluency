@@ -15,13 +15,19 @@
 #
 #     make clean               # remove generated tapes and renders
 #
+#   Documentation assets (the curated set for the README + website):
+#     make publish             # render the curated scenes + push assets to
+#                              # the website repo (vimfluency.com/assets/)
+#     make publish SITE=<dir>  # ...to a different website-repo path
+#
 # Outputs (build/ tapes, renders/ GIFs+MP4s) are gitignored — regenerate
 # them; commit only curated hero assets.
 
 DRILL ?=
 NAME ?=
+SITE ?=
 
-.PHONY: verify preview previews tapes scene scenes scene-list clean
+.PHONY: verify preview previews tapes scene scenes scene-list publish clean
 
 verify:
 	./verify-demo.sh $(DRILL)
@@ -46,6 +52,9 @@ scenes:
 scene-list:
 	@ls scenes/*.tape 2>/dev/null | sed 's|scenes/||; s|\.tape$$||; s|^|  |' \
 	  || echo "  (no scenes)"
+
+publish:
+	./publish.sh $(SITE)
 
 clean:
 	rm -rf build renders

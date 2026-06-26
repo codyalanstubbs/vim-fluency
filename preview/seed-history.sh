@@ -54,6 +54,15 @@ PLAN = [
     ("visual_select_single_char_left_right",        5, 0.85),
 ]
 
+# A drill the learner is STUCK on: corrects stay low and flat while errors
+# stay high — on the SCC the × error line rides ABOVE the ● correct line,
+# the textbook "going too fast, slow down" signature. Powers the :VfChart
+# diagnostic preview. Discrimination drills (f vs t vs F vs T) are the
+# believable place for this — easy to fire the wrong key under speed.
+STRUGGLE = [
+    ("move_to_vs_till_forward_backward", 7),
+]
+
 now = datetime.now().replace(microsecond=0)
 out = []
 
@@ -107,6 +116,48 @@ for di, (drill_id, n, end_frac) in enumerate(PLAN):
             "aim": aim, "duration_seconds": 60, "elapsed_seconds": 60.0,
             "items_correct": correct, "items_skipped": 0, "items_hit": correct,
             "frequency_per_min": float(rate), "hits_per_min": float(rate),
+            "miss_per_min": float(err), "errors_per_min": float(err),
+            "total_motions": total_m, "total_optimal_motions": opt_m,
+            "efficiency_pct": eff, "end_reason": "time", "only_filter": [],
+            "per_motion": pm, "items": [],
+        })
+
+for si, (drill_id, n) in enumerate(STRUGGLE):
+    d = reg.get(drill_id)
+    if not d:
+        continue
+    aim = d["aim"]
+    motions = [m for m in d["keys"].split("/") if m] or ["?"]
+    span_days = 4 + n * 2
+    base_offset = 3
+    for i in range(n):
+        frac = i / (n - 1) if n > 1 else 1.0
+        # corrects crawl up only slightly; errors stay high and ALWAYS sit
+        # above the correct rate, so the diagnostic reads at a glance.
+        correct = max(1, round(aim * (0.18 + 0.06 * frac)))
+        err = max(correct + 5, round(aim * (0.32 + 0.04 * (1 - frac))))
+        day = base_offset + round((1 - frac) * span_days)
+        ts = (now - timedelta(days=day, minutes=180 + si * 7)).strftime("%Y-%m-%dT%H:%M:%S")
+
+        total_m = correct + err
+        opt_m = correct
+        eff = round(opt_m * 100.0 / total_m, 1) if total_m else 100.0
+
+        pm = {}
+        k = len(motions)
+        for mi, mk in enumerate(motions):
+            mc = correct // k + (1 if mi < correct % k else 0)
+            mrate = max(1, correct + (1 if mi == 0 else -2))
+            mtime = round(mc * 60.0 / mrate, 1) if mrate else 0.0
+            pm[mk] = {"correct": mc, "time_seconds": mtime,
+                      "rate_per_min": float(mrate), "avg_motions": 1.9,
+                      "avg_optimal": 1.0}
+
+        out.append({
+            "timestamp": ts, "drill_id": drill_id, "drill_name": d["name"],
+            "aim": aim, "duration_seconds": 60, "elapsed_seconds": 60.0,
+            "items_correct": correct, "items_skipped": 0, "items_hit": correct,
+            "frequency_per_min": float(correct), "hits_per_min": float(correct),
             "miss_per_min": float(err), "errors_per_min": float(err),
             "total_motions": total_m, "total_optimal_motions": opt_m,
             "efficiency_pct": eff, "end_reason": "time", "only_filter": [],
