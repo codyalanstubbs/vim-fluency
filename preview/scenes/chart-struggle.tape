@@ -10,7 +10,9 @@ Output renders/scene-chart-struggle.mp4
 
 Source "_dims-wide.tape"
 Source "_setup.tape"
+
 Hide
+
 Type "bash seed-history.sh /tmp/vf-preview"
 Enter
 Sleep 2500ms

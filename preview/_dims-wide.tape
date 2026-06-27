@@ -5,5 +5,5 @@
 # the views size their charts/tables to the terminal, so a bigger terminal
 # shows them in full. FontSize stays readable.
 Set FontSize 16
-Set Width 1600
+Set Width 1200
 Set Height 1040

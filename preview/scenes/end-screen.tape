@@ -9,7 +9,9 @@ Output renders/scene-end-screen.mp4
 
 Source "_dims-default.tape"
 Source "_setup.tape"
+
 Hide
+
 Type "bash seed-history.sh /tmp/vf-preview"
 Enter
 Sleep 2500ms
