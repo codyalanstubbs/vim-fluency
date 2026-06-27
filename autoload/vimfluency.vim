@@ -19,16 +19,10 @@ endfunction
 " but addressable from headless mode (where tabnew + getline misbehaves
 " under -Es). Builds a one-drill registry stub so the aim line draws from
 " the session's recorded aim. Fixed 80x28 panel for deterministic output.
-function! vimfluency#_test_render_chart(id, sessions, ...) abort
-  let bounds = a:0 ? a:1 : s:CHART_BOUNDS_FULL
+function! vimfluency#_test_render_chart(id, sessions) abort
   let aim = empty(a:sessions) ? 0 : get(a:sessions[0], 'aim', 0)
   let registry = {a:id: {'aim': aim}}
-  return s:dashboard_chart_panel(
-    \ a:id, registry, {a:id: a:sessions}, 80, 28, bounds)
-endfunction
-
-function! vimfluency#_test_chart_bounds_zoom() abort
-  return s:CHART_BOUNDS_ZOOM
+  return s:dashboard_chart_panel(a:id, registry, {a:id: a:sessions}, 80, 28)
 endfunction
 
 function! vimfluency#_test_build_list_view(registry, sessions_by_id, ...) abort
@@ -4369,19 +4363,12 @@ endfunction
 " Standard Celeration Chart (text-only)
 " -----------------------------------------------------------------
 
-" Y-axis layout: log10 scale, 24 rows total. Default bounds span 3
-" decades (1 → 1000); the zoom variant collapses to one decade (10 →
-" 100) so sessions clustered in the middle of the full chart actually
-" have room to separate visually.
 " :VfChart reuses the dashboard's celeration-chart renderer
-" (s:dashboard_chart_panel) so the standalone chart and the dashboard's
-" hovered chart are visually identical — same box, ●/○ aim split, dotted
-" aim line, today-anchored x-axis, and fixed log Y. The only knob is the
-" Y bounds: FULL matches the dashboard's fixed 1..~316 range (kept fixed
-" for cross-chart comparability per Precision Teaching); ZOOM expands a
-" single decade (10..100) for :VfChartZoom.
-let s:CHART_BOUNDS_FULL = {'log_bot': 0.0, 'log_top': 2.5}
-let s:CHART_BOUNDS_ZOOM = {'log_bot': 1.0, 'log_top': 2.0}
+" (s:dashboard_chart_panel), sized to the full buffer, so the standalone
+" chart and the dashboard's hovered chart are visually identical — same
+" box, ●/○ aim split, dotted aim line, today-anchored x-axis, and a
+" fixed log-Y range (1..~316, kept fixed for cross-chart comparability
+" per Precision Teaching).
 
 " Julian day number for a YYYY-MM-DD prefix. Used as an integer day index
 " so we can compute "days since first session" without depending on
@@ -4418,18 +4405,10 @@ function! vimfluency#chart(...) abort
     echo 'usage: :VfChart <drill_id>'
     return
   endif
-  call s:chart_render(vimfluency#canonical_id(a:1), s:CHART_BOUNDS_FULL, '')
+  call s:chart_render(vimfluency#canonical_id(a:1))
 endfunction
 
-function! vimfluency#chart_zoom(...) abort
-  if a:0 < 1
-    echo 'usage: :VfChartZoom <drill_id>'
-    return
-  endif
-  call s:chart_render(vimfluency#canonical_id(a:1), s:CHART_BOUNDS_ZOOM, 'zoom')
-endfunction
-
-function! s:chart_render(id, bounds, variant) abort
+function! s:chart_render(id) abort
   let registry = vimfluency#discover_drills()
   let grouped = s:load_sessions_grouped()
   if !has_key(registry, a:id) && !has_key(grouped, a:id)
@@ -4440,37 +4419,32 @@ function! s:chart_render(id, bounds, variant) abort
   " standalone chart IS the dashboard chart, just larger. The new tab's
   " window is &lines minus the statusline + command line.
   let lines = s:dashboard_chart_panel(
-    \ a:id, registry, grouped, &columns, &lines - 2, a:bounds)
-  call s:show_chart_buffer(a:id, lines, a:variant)
+    \ a:id, registry, grouped, &columns, &lines - 2)
+  call s:show_chart_buffer(a:id, lines)
 endfunction
 
-function! s:show_chart_buffer(id, lines, variant) abort
+function! s:show_chart_buffer(id, lines) abort
   tabnew
   let tabnr = tabpagenr()
   setlocal buftype=nofile bufhidden=wipe noswapfile nobuflisted
   setlocal nonumber norelativenumber nowrap signcolumn=no
-  let bufname_suffix = empty(a:variant) ? '' : '-' . a:variant
-  let title_suffix = empty(a:variant) ? '' : ' (' . a:variant . ')'
-  silent! execute 'keepalt file vf-chart' . bufname_suffix . '-' . a:id
+  silent! execute 'keepalt file vf-chart-' . a:id
   call setline(1, a:lines)
   setlocal nomodifiable nomodified
-  let zoom_label = empty(a:variant) ? 'Z=Zoom (in)' : 'Z=Zoom (standard)'
-  let &l:statusline = ' chart — ' . a:id . title_suffix
-    \ . '   [T=Train  L=Learn  ' . zoom_label . '  I=List  V=Dashboard  Q=Close]'
+  let &l:statusline = ' chart — ' . a:id
+    \ . '   [T=Train  L=Learn  I=List  V=Dashboard  Q=Close]'
   let b:vf_summary_tabnr = tabnr
   let b:vf_summary_prev_laststatus = &laststatus
-  " Remember which drill / variant this chart is for so the nav keys
-  " can route to the right train / learn / dashboard / zoom target.
+  " Remember which drill this chart is for so the nav keys can route to
+  " the right train / learn / dashboard target.
   let b:vf_chart_id = a:id
-  let b:vf_chart_variant = a:variant
   set laststatus=2
   " Navigation keys — same loop as every other view (see
   " s:show_end_screen): jump straight to this drill's training,
-  " lesson, the list, or the dashboard without closing by hand. Z
-  " toggles the zoom variant (chart-specific). Q / <Enter> close.
+  " lesson, the list, or the dashboard without closing by hand.
+  " Q / <Enter> close.
   nnoremap <buffer> <silent> T :call vimfluency#chart_nav('train')<CR>
   nnoremap <buffer> <silent> L :call vimfluency#chart_nav('learn')<CR>
-  nnoremap <buffer> <silent> Z :call vimfluency#chart_nav('zoom')<CR>
   nnoremap <buffer> <silent> I :call vimfluency#chart_nav('list')<CR>
   nnoremap <buffer> <silent> V :call vimfluency#chart_nav('dashboard')<CR>
   nnoremap <buffer> <silent> Q :call vimfluency#close_summary()<CR>
@@ -4482,14 +4456,12 @@ function! s:show_chart_buffer(id, lines, variant) abort
 endfunction
 
 " Navigation from a progress chart. Mirrors vimfluency#end_nav: closes
-" the chart tab, then opens the chosen view for the chart's drill. Z
-" toggles between the full and zoomed variants. Learn is guarded (a
-" no-op with a hint when the drill has no lesson) so the chart doesn't
-" vanish behind a fleeting message — same discipline as
+" the chart tab, then opens the chosen view for the chart's drill. Learn
+" is guarded (a no-op with a hint when the drill has no lesson) so the
+" chart doesn't vanish behind a fleeting message — same discipline as
 " vimfluency#list_action.
 function! vimfluency#chart_nav(action) abort
   let id = get(b:, 'vf_chart_id', '')
-  let variant = get(b:, 'vf_chart_variant', '')
   if a:action ==# 'learn' && !s:drill_has_lesson(id)
     echo 'no lesson written for ' . id . ' yet'
     return
@@ -4503,12 +4475,6 @@ function! vimfluency#chart_nav(action) abort
     call vimfluency#list()
   elseif a:action ==# 'dashboard'
     call vimfluency#dashboard(id)
-  elseif a:action ==# 'zoom'
-    if empty(variant)
-      call vimfluency#chart_zoom(id)
-    else
-      call vimfluency#chart(id)
-    endif
   endif
 endfunction
 
@@ -5054,10 +5020,7 @@ endfunction
 " Render the Standard Celeration Chart for one drill as a boxed panel of
 " width a:w and height a:h. Used by the dashboard's hover window AND by
 " :VfChart (sized to the full buffer) so the two charts are identical.
-" Optional a:1 = bounds dict {log_bot, log_top}; defaults to the fixed
-" dashboard range (1..~316). :VfChartZoom passes the zoomed decade.
-function! s:dashboard_chart_panel(id, registry, sessions, w, h, ...) abort
-  let bounds = a:0 >= 1 ? a:1 : {'log_bot': 0.0, 'log_top': 2.5}
+function! s:dashboard_chart_panel(id, registry, sessions, w, h) abort
   let runs = empty(a:id) ? [] : get(a:sessions, a:id, [])
   let usable = filter(copy(runs), 'get(v:val, "frequency_per_min", 0) > 0')
   call sort(usable, {a, b -> a.timestamp ==# b.timestamp ? 0
@@ -5114,8 +5077,8 @@ function! s:dashboard_chart_panel(id, registry, sessions, w, h, ...) abort
   " Non-plot rows: top border + key row + x-axis line + MM-DD label
   " row + bottom border = 5.
   let plot_h = max([a:h - 5, 3])
-  let log_bot = bounds.log_bot
-  let log_top = bounds.log_top
+  let log_bot = 0.0
+  let log_top = 2.5
   let cols_per_day = 1
 
   " Bucket sessions by julian day. The x-axis is anchored to TODAY:

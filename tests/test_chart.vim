@@ -59,17 +59,6 @@ let s:zero_text = join(vimfluency#_test_render_chart('TEST', s:with_zero), "\n")
 call Assert(s:zero_text !~# 'celeration:',
   \ 'chart: no analytics footer (saved for web app)')
 
-" Zoom variant: single decade 10-100. Decade labels 100 and 10 appear;
-" the 1 label (out of the zoomed range) does not.
-let s:zoom = vimfluency#_test_chart_bounds_zoom()
-let s:zoom_text = join(vimfluency#_test_render_chart('TEST', s:sessions, s:zoom), "\n")
-call Assert(s:zoom_text =~# ' 100',
-  \ 'chart zoom: shows 100 label')
-call Assert(s:zoom_text =~# '  10├',
-  \ 'chart zoom: shows 10 label at the floor')
-call Assert(s:zoom_text !~# '   1├',
-  \ 'chart zoom: hides the 1 label (out of zoomed range)')
-
 " Longer span: multiple MM-DD labels render without colliding.
 let s:long = []
 for s:k in [12, 10, 7, 5, 2, 0]

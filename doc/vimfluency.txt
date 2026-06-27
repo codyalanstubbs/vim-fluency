@@ -220,18 +220,9 @@ THE END SCREEN                                              *vf-end-screen*
     a command to move on):
         T   train this drill        (:VfTrain {id})
         L   learn this drill        (:VfLearn {id})
-        Z   toggle zoom — "Zoom (in)" on the standard chart, "Zoom
-            (standard)" on the zoomed chart (:VfChart / :VfChartZoom)
         I   open the drill list      (:VfList)
         V   open the dashboard      (:Vf {id})
         Q   close (or <Enter>; lowercase q also works)
-
-:VfChartZoom {id}                                            *:VfChartZoom*
-    Same as :VfChart but with the Y-axis zoomed to a single decade (10
-    to 100). Useful when all sessions sit in the middle of the full
-    1-316 range and the full chart wastes most of its vertical space.
-    Sessions or aim lines outside 10-100 are clipped. (The chart's Z
-    key toggles between this and the standard view.)
 
 :VfSetAim {id} {rate}                                          *:VfSetAim*
     Store a personal aim override for drill {id} (rate per minute).

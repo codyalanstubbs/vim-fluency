@@ -10,7 +10,7 @@
 # training (CursorMoved credit + timer-expiry stop + JSONL write +
 # shared end-screen handoff), visual_motion training, lesson
 # open/teardown, :VfList and :VfChart open/close, the chart nav keys
-# (Z zoom toggle + V to the dashboard), and an E-number scan of
+# (V to the dashboard), and an E-number scan of
 # :messages.
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -102,7 +102,7 @@ echo "== load =="
 chk "plugin loaded" 1 "$(NV 'exists("g:loaded_vimfluency")')"
 drill_count=$(ls "$ROOT"/autoload/vimfluency/drills/*.vim | wc -l | tr -d ' ')
 chk "registry has $drill_count drills (one per file)" "$drill_count" "$(NV 'len(vimfluency#discover_drills())')"
-chk "15 Vf* commands" 15 "$(NV 'len(getcompletion("Vf", "command"))')"
+chk "14 Vf* commands" 14 "$(NV 'len(getcompletion("Vf", "command"))')"
 
 echo "== arg validation =="
 NS ':VfTrain save_vs_quit abc<CR>'; settle
@@ -171,9 +171,6 @@ NS 'q'; settle
 chk "list q closes it" 0 "$(NV 'bufexists("vf-list")')"
 NS ':VfChart move_to_line_edges_start_end<CR>'; settle
 chk "chart opens" 1 "$(NV 'bufexists("vf-chart-move_to_line_edges_start_end")')"
-# Z toggles to the zoom variant in place.
-NS 'Z'; settle
-chk "chart Z opens zoom variant" 1 "$(NV 'bufexists("vf-chart-zoom-move_to_line_edges_start_end")')"
 # V navigates from the chart straight to the dashboard (loop).
 NS 'V'; settle
 chk "chart V opens dashboard" 1 "$(NV 'bufexists("vf-dashboard-table")')"

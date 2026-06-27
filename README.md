@@ -40,7 +40,6 @@ git clone https://github.com/codyalanstubbs/vim-fluency \
 :VfQuit                                 " end early; session logged
 :VfHistory                              " prior sessions with rate bars
 :VfChart {id}                           " progress chart (a Standard Celeration Chart)
-:VfChartZoom {id}                       " same, zoomed to one decade
 ```
 
 Settings commands: `:VfSetAim` / `:VfResetAim` (per-drill aim override),

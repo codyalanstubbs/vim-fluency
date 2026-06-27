@@ -388,21 +388,16 @@ function! s:test_nav_loop() abort
   call vimfluency#stop('test_nav_loop')
   call vimfluency#end_nav('quit')
 
-  " Chart carries nav keys + remembers its drill / variant.
+  " Chart carries nav keys + remembers its drill.
   call vimfluency#chart('fixture_motion')
   call AssertEq(bufname('%'), 'vf-chart-fixture_motion',
     \ 'nav: chart buffer open')
   call AssertEq(get(b:, 'vf_chart_id', ''), 'fixture_motion',
     \ 'nav: chart remembers its drill id')
-  for k in ['T', 'L', 'Z', 'I', 'V']
+  for k in ['T', 'L', 'I', 'V']
     call Assert(maparg(k, 'n') =~# 'chart_nav',
       \ 'nav: chart key ' . k . ' mapped to chart_nav')
   endfor
-
-  " Z toggles to the zoom variant.
-  call vimfluency#chart_nav('zoom')
-  call AssertEq(bufname('%'), 'vf-chart-zoom-fixture_motion',
-    \ 'nav: chart Z opens the zoom variant')
 
   " Chart -> dashboard.
   call vimfluency#chart_nav('dashboard')
