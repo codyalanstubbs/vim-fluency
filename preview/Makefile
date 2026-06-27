@@ -16,8 +16,9 @@
 #     make clean               # remove generated tapes and renders
 #
 #   Documentation assets (the curated set for the README + website):
-#     make publish             # render the curated scenes + push assets to
+#     make publish             # render every curated scene + push assets to
 #                              # the website repo (vimfluency.com/assets/)
+#     make publish NAME=<name> # ...just one scene (e.g. NAME=chart-struggle)
 #     make publish SITE=<dir>  # ...to a different website-repo path
 #
 # Outputs (build/ tapes, renders/ GIFs+MP4s) are gitignored — regenerate
@@ -54,7 +55,7 @@ scene-list:
 	  || echo "  (no scenes)"
 
 publish:
-	./publish.sh $(SITE)
+	./publish.sh $(if $(NAME),--scene $(NAME)) $(if $(SITE),--site $(SITE))
 
 clean:
 	rm -rf build renders
