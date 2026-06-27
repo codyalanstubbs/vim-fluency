@@ -209,11 +209,15 @@ THE END SCREEN                                              *vf-end-screen*
 :VfChart {id}                                                    *:VfChart*
     Render a progress chart for drill {id} — a Standard Celeration
     Chart, the Precision Teaching convention for plotting rates on a
-    semi-log scale. Y-axis is rate per minute on a log scale (1 to 1000 across
-    three decades). X-axis is session index (chronological). Plots both
-    the corrects rate (●) and the errors rate (×) per session, with the
-    fluency aim drawn as a dashed line. Navigation keys (you never have
-    to retype a command to move on):
+    semi-log scale. This is the same boxed chart the dashboard (:Vf)
+    shows for the hovered drill, just sized to the full window. Y-axis
+    is rate per minute on a fixed log scale (1 to ~316), kept fixed so
+    charts are comparable across drills. X-axis is calendar date,
+    anchored to today on the right (a `today →` marker); days with no
+    training show as gaps and older sessions scroll off the left.
+    Corrects plot as ● when at/above aim, ○ when below; errors as ×;
+    the aim is a dotted line. Navigation keys (you never have to retype
+    a command to move on):
         T   train this drill        (:VfTrain {id})
         L   learn this drill        (:VfLearn {id})
         Z   toggle zoom — "Zoom (in)" on the standard chart, "Zoom
@@ -225,8 +229,9 @@ THE END SCREEN                                              *vf-end-screen*
 :VfChartZoom {id}                                            *:VfChartZoom*
     Same as :VfChart but with the Y-axis zoomed to a single decade (10
     to 100). Useful when all sessions sit in the middle of the full
-    1-1000 range and the full chart wastes most of its vertical space.
-    Sessions or aim lines outside 10-100 are clipped.
+    1-316 range and the full chart wastes most of its vertical space.
+    Sessions or aim lines outside 10-100 are clipped. (The chart's Z
+    key toggles between this and the standard view.)
 
 :VfSetAim {id} {rate}                                          *:VfSetAim*
     Store a personal aim override for drill {id} (rate per minute).

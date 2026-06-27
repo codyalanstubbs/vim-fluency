@@ -1,82 +1,81 @@
-" Tests for the celeration chart rendering. The chart only shows
-" corrects (●), errors (×), and the aim line (-) — analytics like
-" celeration trend lines and rate fits live in the JSONL log for
-" downstream tools, not in this terminal view.
+" Tests for the celeration chart. :VfChart now reuses the dashboard's
+" SCC renderer (s:dashboard_chart_panel), so the chart is a boxed panel:
+" ● corrects at/above aim, ○ corrects below aim, × errors, · aim line,
+" fixed log-Y, today-anchored x-axis. The renderer anchors the x-axis to
+" the real "today", so test sessions are dated relative to today (via
+" localtime offsets) to stay inside the visible window.
 
-function! s:session(date, rate, ...) abort
+function! s:session(days_ago, rate, ...) abort
   let erate = a:0 ? a:1 : 0
-  return {'timestamp': a:date . 'T12:00:00',
+  let date = strftime('%Y-%m-%d', localtime() - a:days_ago * 86400)
+  return {'timestamp': date . 'T12:00:00',
     \ 'drill_id': 'TEST', 'drill_name': 'test',
     \ 'aim': 50, 'frequency_per_min': a:rate, 'errors_per_min': erate}
 endfunction
 
-" Rates kept below aim so the aim line isn't fragmented by data points
-" landing in the same row as the dashes.
+" Rates straddle the aim (50): 70 is at/above (●), 30 and 45 below (○).
 let s:sessions = [
-  \ s:session('2026-01-01', 20.0, 5.0),
-  \ s:session('2026-01-02', 30.0, 3.0),
-  \ s:session('2026-01-03', 40.0, 2.0),
+  \ s:session(4, 30.0, 5.0),
+  \ s:session(2, 70.0, 8.0),
+  \ s:session(0, 45.0, 3.0),
   \ ]
 let s:rendered = vimfluency#_test_render_chart('TEST', s:sessions)
 let s:rendered_text = join(s:rendered, "\n")
 
-call Assert(s:rendered_text =~# 'progress chart — TEST',
-  \ 'render_chart: header includes drill id')
-call Assert(s:rendered_text =~# 'aim 50/min',
-  \ 'render_chart: legend shows aim')
+call Assert(s:rendered_text =~# 'STANDARD CELERATION CHART: TEST',
+  \ 'chart: boxed title names the drill')
 call Assert(s:rendered_text =~# '●',
-  \ 'render_chart: plots corrects (●)')
+  \ 'chart: plots at-aim corrects (●)')
+call Assert(s:rendered_text =~# '○',
+  \ 'chart: plots below-aim corrects (○)')
 call Assert(s:rendered_text =~# '×',
-  \ 'render_chart: plots errors (×)')
-call Assert(s:rendered_text =~# '-----',
-  \ 'render_chart: draws aim line')
+  \ 'chart: plots errors (×)')
+call Assert(s:rendered_text =~# '·',
+  \ 'chart: draws dotted aim line (·)')
+call Assert(s:rendered_text =~# 'today →',
+  \ 'chart: x-axis carries the today marker')
+call Assert(s:rendered_text =~# '┴',
+  \ 'chart: bottom axis has tick marks')
+call Assert(s:rendered_text =~# '[0-9][0-9]-[0-9][0-9]',
+  \ 'chart: shows an MM-DD x-axis date label')
 
-" Zero-rate sessions are quietly filtered (raw record stays in the log).
+" Fixed range tops at ~316 (log_top 2.5): decade labels 100, 10, 1; no
+" 1000 (the old full-range top is gone — matches the dashboard).
+call Assert(s:rendered_text =~# ' 100',
+  \ 'chart: shows the 100 decade label')
+call Assert(s:rendered_text =~# '   1├',
+  \ 'chart: shows the 1 decade label at the floor')
+call Assert(s:rendered_text !~# '1000',
+  \ 'chart: no 1000 label (range tops at ~316)')
+
+" Zero-rate sessions are filtered (raw record stays in the log); the
+" terminal view carries no analytics footer.
 let s:with_zero = [
-  \ s:session('2026-01-01', 30.0),
-  \ s:session('2026-01-02', 0.0),
-  \ s:session('2026-01-03', 60.0),
+  \ s:session(4, 30.0),
+  \ s:session(2, 0.0),
+  \ s:session(0, 60.0),
   \ ]
 let s:zero_text = join(vimfluency#_test_render_chart('TEST', s:with_zero), "\n")
 call Assert(s:zero_text !~# 'celeration:',
-  \ 'render_chart: no analytics footer (saved for web app)')
-call Assert(s:zero_text !~# 'excluded:',
-  \ 'render_chart: no quit-session diagnostics in terminal view')
+  \ 'chart: no analytics footer (saved for web app)')
 
-" Zoom variant: 10-100 single decade. Only the bounding labels should
-" appear on the y-axis; 1000 and 1 belong to the full-range chart.
+" Zoom variant: single decade 10-100. Decade labels 100 and 10 appear;
+" the 1 label (out of the zoomed range) does not.
 let s:zoom = vimfluency#_test_chart_bounds_zoom()
 let s:zoom_text = join(vimfluency#_test_render_chart('TEST', s:sessions, s:zoom), "\n")
 call Assert(s:zoom_text =~# ' 100',
-  \ 'render_chart zoom: shows 100 label')
-call Assert(s:zoom_text =~# '  10',
-  \ 'render_chart zoom: shows 10 label')
-call Assert(s:zoom_text !~# '1000',
-  \ 'render_chart zoom: hides 1000 label (out of zoomed range)')
+  \ 'chart zoom: shows 100 label')
+call Assert(s:zoom_text =~# '  10├',
+  \ 'chart zoom: shows 10 label at the floor')
+call Assert(s:zoom_text !~# '   1├',
+  \ 'chart zoom: hides the 1 label (out of zoomed range)')
 
-" Denser y-axis labels: full mode now shows semi-log gridlines, not
-" just decade boundaries.
-call Assert(s:rendered_text =~# '   50',
-  \ 'render_chart: shows intra-decade y label (50)')
-call Assert(s:rendered_text =~# '    5',
-  \ 'render_chart: shows intra-decade y label (5)')
-
-" X-axis labels: the first session date appears in MM-DD form, and
-" there is a tick mark on the bottom axis.
-call Assert(s:rendered_text =~# '01-01',
-  \ 'render_chart: shows x-axis date label for first day')
-call Assert(s:rendered_text =~# '┴',
-  \ 'render_chart: bottom axis has tick marks')
-
-" Longer date span: x-axis stride spaces out labels so multiple dates
-" appear without colliding.
+" Longer span: multiple MM-DD labels render without colliding.
 let s:long = []
-let s:days = [1, 4, 7, 10, 13, 16, 19]
-for s:d in s:days
-  call add(s:long, s:session(printf('2026-01-%02d', s:d), 30.0, 1.0))
+for s:k in [12, 10, 7, 5, 2, 0]
+  call add(s:long, s:session(s:k, 30.0, 1.0))
 endfor
 let s:long_text = join(vimfluency#_test_render_chart('TEST', s:long), "\n")
-call Assert(s:long_text =~# '01-01',
-  \ 'render_chart: long span labels first date')
-call Assert(s:long_text =~# '01-19',
-  \ 'render_chart: long span anchors last date')
+let s:date_labels = len(split(s:long_text, '[0-9][0-9]-[0-9][0-9]', 1)) - 1
+call Assert(s:date_labels >= 2,
+  \ 'chart: long span renders multiple date labels')

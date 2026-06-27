@@ -15,12 +15,16 @@ function! vimfluency#_test_skip() abort
 endfunction
 
 " Test-only render accessor. Returns the chart lines as a list — same
-" content :VfChart shows in its tab buffer, but addressable from
-" headless mode (where tabnew + getline misbehaves under -Es).
+" boxed SCC :VfChart shows in its tab buffer (via s:dashboard_chart_panel),
+" but addressable from headless mode (where tabnew + getline misbehaves
+" under -Es). Builds a one-drill registry stub so the aim line draws from
+" the session's recorded aim. Fixed 80x28 panel for deterministic output.
 function! vimfluency#_test_render_chart(id, sessions, ...) abort
   let bounds = a:0 ? a:1 : s:CHART_BOUNDS_FULL
-  let variant = a:0 >= 2 ? a:2 : ''
-  return s:render_chart(a:id, a:sessions, bounds, variant)
+  let aim = empty(a:sessions) ? 0 : get(a:sessions[0], 'aim', 0)
+  let registry = {a:id: {'aim': aim}}
+  return s:dashboard_chart_panel(
+    \ a:id, registry, {a:id: a:sessions}, 80, 28, bounds)
 endfunction
 
 function! vimfluency#_test_chart_bounds_zoom() abort
@@ -4369,42 +4373,15 @@ endfunction
 " decades (1 → 1000); the zoom variant collapses to one decade (10 →
 " 100) so sessions clustered in the middle of the full chart actually
 " have room to separate visually.
-let s:CHART_HEIGHT = 24
-let s:CHART_LABEL_W = 6
-" One column per calendar day (PT convention). Days with no training show
-" as a gap, multi-training days stack at the same column.
-let s:CHART_COLS_PER_DAY = 2
-
-" Y-axis labels are picked to land on distinct rows under both round() and
-" the height/decade ratio we use — denser than just decade boundaries so
-" you can read the rate without counting rows. The picks here are
-" semi-log "natural" gridlines (1, 2, 3, 5, 7 within each decade for
-" full mode; finer for the single-decade zoom).
-let s:CHART_BOUNDS_FULL = {
-  \ 'log_top': 3.0,
-  \ 'log_bot': 0.0,
-  \ 'labels':  [1000, 500, 200, 100, 50, 20, 10, 5, 2, 1],
-  \ }
-let s:CHART_BOUNDS_ZOOM = {
-  \ 'log_top': 2.0,
-  \ 'log_bot': 1.0,
-  \ 'labels':  [100, 70, 50, 40, 30, 20, 15, 10],
-  \ }
-
-function! s:chart_y(rate, bounds) abort
-  if a:rate <= 0
-    return s:CHART_HEIGHT
-  endif
-  let lr = log10(a:rate * 1.0)
-  if lr < a:bounds.log_bot
-    return s:CHART_HEIGHT
-  endif
-  if lr > a:bounds.log_top
-    return 0
-  endif
-  let span = a:bounds.log_top - a:bounds.log_bot
-  return float2nr(round((a:bounds.log_top - lr) / span * s:CHART_HEIGHT))
-endfunction
+" :VfChart reuses the dashboard's celeration-chart renderer
+" (s:dashboard_chart_panel) so the standalone chart and the dashboard's
+" hovered chart are visually identical — same box, ●/○ aim split, dotted
+" aim line, today-anchored x-axis, and fixed log Y. The only knob is the
+" Y bounds: FULL matches the dashboard's fixed 1..~316 range (kept fixed
+" for cross-chart comparability per Precision Teaching); ZOOM expands a
+" single decade (10..100) for :VfChartZoom.
+let s:CHART_BOUNDS_FULL = {'log_bot': 0.0, 'log_top': 2.5}
+let s:CHART_BOUNDS_ZOOM = {'log_bot': 1.0, 'log_top': 2.0}
 
 " Julian day number for a YYYY-MM-DD prefix. Used as an integer day index
 " so we can compute "days since first session" without depending on
@@ -4453,191 +4430,18 @@ function! vimfluency#chart_zoom(...) abort
 endfunction
 
 function! s:chart_render(id, bounds, variant) abort
-  let log_path = vimfluency#log_dir() . '/sessions.jsonl'
-  if !filereadable(log_path)
-    echo 'no sessions logged yet (' . log_path . ')'
-    return
-  endif
-
-  let sessions = []
-  for line in readfile(log_path)
-    if empty(line) | continue | endif
-    try
-      let r = json_decode(line)
-      if s:rec_id(r) ==# a:id
-        call add(sessions, r)
-      endif
-    catch
-    endtry
-  endfor
-
-  if empty(sessions)
-    echo 'no sessions for drill ' . a:id
-    return
-  endif
-
-  call sort(sessions, {a, b -> a.timestamp ==# b.timestamp ? 0
-    \ : (a.timestamp <# b.timestamp ? -1 : 1)})
-
-  let lines = s:render_chart(a:id, sessions, a:bounds, a:variant)
-  call s:show_chart_buffer(a:id, lines, a:variant)
-endfunction
-
-function! s:render_chart(id, sessions, bounds, variant) abort
-  let n = len(a:sessions)
-  let drill_name = s:rec_name(a:sessions[0])
-  " Current effective aim (override-aware), not the aim recorded in
-  " the OLDEST session — after :VfSetAim the chart's aim line and
-  " caption would otherwise disagree with the dashboard. Ids without
-  " a registry entry (test fixtures) fall back to the recorded aim.
   let registry = vimfluency#discover_drills()
-  let aim = has_key(registry, a:id)
-    \ ? s:effective_aim(a:id, registry[a:id])
-    \ : a:sessions[0].aim
-  let base_jul = s:julian_from_iso(a:sessions[0].timestamp)
-  let last_jul = s:julian_from_iso(a:sessions[-1].timestamp)
-  let n_days = last_jul - base_jul + 1
-  let chart_w = n_days * s:CHART_COLS_PER_DAY
-  let total_w = s:CHART_LABEL_W + 1 + chart_w + 1
-
-  " Initialize grid: each row is a list of single-char strings
-  let grid = []
-  for r in range(s:CHART_HEIGHT + 1)
-    call add(grid, repeat([' '], total_w))
-  endfor
-
-  " Y-axis labels: semi-log gridlines (not just decade boundaries) so
-  " the rate at any row can be read without counting tick spacing.
-  " The bounds.labels list is picked to avoid same-row collisions
-  " under our round-to-row mapping.
-  for rate in a:bounds.labels
-    let row = s:chart_y(rate, a:bounds)
-    if row >= 0 && row <= s:CHART_HEIGHT
-      let label = printf('%5d', rate)
-      for i in range(len(label))
-        let grid[row][i] = label[i]
-      endfor
-    endif
-  endfor
-
-  " Vertical axis line
-  for r in range(s:CHART_HEIGHT + 1)
-    let grid[r][s:CHART_LABEL_W] = '│'
-  endfor
-
-  " Horizontal axis line at the bottom
-  for c in range(s:CHART_LABEL_W, total_w - 1)
-    let grid[s:CHART_HEIGHT][c] = '─'
-  endfor
-  let grid[s:CHART_HEIGHT][s:CHART_LABEL_W] = '└'
-
-  " Aim line (dashed)
-  let aim_row = s:chart_y(aim, a:bounds)
-  if aim_row > 0 && aim_row < s:CHART_HEIGHT
-    for c in range(s:CHART_LABEL_W + 1, total_w - 1)
-      let grid[aim_row][c] = '-'
-    endfor
+  let grouped = s:load_sessions_grouped()
+  if !has_key(registry, a:id) && !has_key(grouped, a:id)
+    echo 'unknown drill: ' . a:id
+    return
   endif
-
-  " Plot each session at its calendar-day column. Multi-session days
-  " overlap at the same column (showing the spread when rates differ).
-  " Sessions with frequency_per_min == 0 (user quit before any item, or
-  " timed out at zero) are skipped — they pile on the axis floor and
-  " distort the visual read. The raw record is still in sessions.jsonl
-  " for any downstream analysis.
-  for i in range(n)
-    let session = a:sessions[i]
-    let crate = get(session, 'frequency_per_min', 0)
-    if crate <= 0 | continue | endif
-    let day_idx = s:julian_from_iso(session.timestamp) - base_jul
-    let col = s:CHART_LABEL_W + 1 + day_idx * s:CHART_COLS_PER_DAY
-    if col >= total_w | break | endif
-
-    " Plot errors first, then corrects, so the corrects dot wins on
-    " collision (when rate and errors_per_min round to the same row
-    " — common when wasted motions track close to credited items).
-    " The rate is the headline metric; if one symbol has to obscure
-    " the other, the dot should be the survivor. The exact errors
-    " value is still available via :VfHistory.
-    let erate = get(session, 'errors_per_min', 0)
-    if erate > 0
-      let erow = s:chart_y(erate, a:bounds)
-      if erow >= 0 && erow <= s:CHART_HEIGHT
-        let grid[erow][col] = '×'
-      endif
-    endif
-
-    let crow = s:chart_y(crate, a:bounds)
-    if crow >= 0 && crow <= s:CHART_HEIGHT
-      let grid[crow][col] = '●'
-    endif
-  endfor
-
-  " X-axis labels. Pick a calendar-day stride that fits ~10 labels max
-  " with at least one blank col between 5-char 'MM-DD' labels (min
-  " spacing in days = ceil(6 / cols_per_day)). The first day is always
-  " labeled; the last day is added if it has room to the right of the
-  " previous label.
-  let max_labels = 10
-  let min_spacing_days = (6 + s:CHART_COLS_PER_DAY - 1) / s:CHART_COLS_PER_DAY
-  let raw_stride = (n_days + max_labels - 1) / max_labels
-  let stride = max([min_spacing_days, raw_stride])
-
-  let label_days = []
-  let dd = 0
-  while dd < n_days
-    call add(label_days, dd)
-    let dd += stride
-  endwhile
-  if !empty(label_days) && label_days[-1] != n_days - 1
-    \ && (n_days - 1) - label_days[-1] >= min_spacing_days
-    call add(label_days, n_days - 1)
-  endif
-
-  " Tick marks on the bottom axis at labeled day cols.
-  for dd in label_days
-    let col = s:CHART_LABEL_W + 1 + dd * s:CHART_COLS_PER_DAY
-    if col < total_w
-      let grid[s:CHART_HEIGHT][col] = '┴'
-    endif
-  endfor
-
-  " X-axis date row: 'MM-DD' left-aligned at each tick. Left-align
-  " (rather than centering on the tick) keeps the first label clear of
-  " the y-axis label column.
-  let xlabel = repeat([' '], total_w)
-  for dd in label_days
-    let col = s:CHART_LABEL_W + 1 + dd * s:CHART_COLS_PER_DAY
-    let date_str = s:iso_from_julian(base_jul + dd)[5:9]
-    if col + 4 < total_w
-      for i in range(5)
-        let xlabel[col + i] = date_str[i]
-      endfor
-    endif
-  endfor
-
-  " Compose output lines
-  let out = []
-  call add(out, printf('vimfluency progress chart — %s (%s)', a:id, drill_name))
-  call add(out, 'rate per minute (log Y) over calendar date · one column per day')
-  call add(out, printf('aim %d/min   ·   %d session(s)   ·   ● corrects   × errors   - aim',
-    \ aim, n))
-  call add(out, '')
-  for row_chars in grid
-    call add(out, join(row_chars, ''))
-  endfor
-  call add(out, join(xlabel, ''))
-
-  call add(out, printf(' first session: %s', a:sessions[0].timestamp))
-  call add(out, printf(' last  session: %s', a:sessions[-1].timestamp))
-  call add(out, '')
-  " Z toggles the zoom variant: from the standard chart it zooms in;
-  " from the zoomed chart it returns to standard.
-  let zoom_label = empty(a:variant) ? 'Z=Zoom (in)' : 'Z=Zoom (standard)'
-  call add(out, printf(' T=Train  L=Learn  %s  I=List  V=Dashboard   ·   Q or <Enter> closes.',
-    \ zoom_label))
-
-  return out
+  " Reuse the dashboard's SCC renderer, sized to the full buffer — the
+  " standalone chart IS the dashboard chart, just larger. The new tab's
+  " window is &lines minus the statusline + command line.
+  let lines = s:dashboard_chart_panel(
+    \ a:id, registry, grouped, &columns, &lines - 2, a:bounds)
+  call s:show_chart_buffer(a:id, lines, a:variant)
 endfunction
 
 function! s:show_chart_buffer(id, lines, variant) abort
@@ -5247,7 +5051,13 @@ function! s:dashboard_render_hover(mapping, row, registry, sessions, cols) abort
   call s:dashboard_write_buffer(get(b:, 'vf_dashboard_hover_bufnr', -1), lines)
 endfunction
 
-function! s:dashboard_chart_panel(id, registry, sessions, w, h) abort
+" Render the Standard Celeration Chart for one drill as a boxed panel of
+" width a:w and height a:h. Used by the dashboard's hover window AND by
+" :VfChart (sized to the full buffer) so the two charts are identical.
+" Optional a:1 = bounds dict {log_bot, log_top}; defaults to the fixed
+" dashboard range (1..~316). :VfChartZoom passes the zoomed decade.
+function! s:dashboard_chart_panel(id, registry, sessions, w, h, ...) abort
+  let bounds = a:0 >= 1 ? a:1 : {'log_bot': 0.0, 'log_top': 2.5}
   let runs = empty(a:id) ? [] : get(a:sessions, a:id, [])
   let usable = filter(copy(runs), 'get(v:val, "frequency_per_min", 0) > 0')
   call sort(usable, {a, b -> a.timestamp ==# b.timestamp ? 0
@@ -5304,8 +5114,8 @@ function! s:dashboard_chart_panel(id, registry, sessions, w, h) abort
   " Non-plot rows: top border + key row + x-axis line + MM-DD label
   " row + bottom border = 5.
   let plot_h = max([a:h - 5, 3])
-  let log_bot = 0.0
-  let log_top = 2.5
+  let log_bot = bounds.log_bot
+  let log_top = bounds.log_top
   let cols_per_day = 1
 
   " Bucket sessions by julian day. The x-axis is anchored to TODAY:
