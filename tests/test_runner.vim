@@ -342,12 +342,19 @@ function! s:test_end_screen() abort
     \  'expected_motion': 'l', 'optimal_motions': 2},
     \ ])
   call vimfluency#start('fixture_motion', s:dur)
+  " The motion item paints a VfTarget highlight (window-local matchadd).
+  call Assert(len(getmatches()) > 0,
+    \ 'training: a target highlight is present mid-session')
   call s:move_item(1, 2)
   call s:move_item(1, 3)
   call vimfluency#stop('test_end_screen')
 
   call AssertEq(bufname('%'), 'vf-complete',
     \ 'end screen: lands on vf-complete buffer')
+  " Regression: the training's red/green target highlights must not
+  " bleed through the reused window onto the end screen.
+  call AssertEq(len(getmatches()), 0,
+    \ 'end screen: training target highlights cleared (no bleed)')
   let lines = getline(1, '$')
   call Assert(match(lines, 'SESSION COMPLETE') >= 0,
     \ 'end screen: shows SESSION COMPLETE heading')

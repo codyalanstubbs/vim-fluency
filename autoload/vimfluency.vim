@@ -3527,6 +3527,20 @@ function! s:show_end_screen(id, origin) abort
   let has_data = !empty(filter(copy(runs),
     \ 'get(v:val, "frequency_per_min", 0) > 0'))
 
+  " The caller reused the just-finished session's window. Two pieces of
+  " that session's state would otherwise bleed into the end screen:
+  "  - clearmatches(): the training's VfTarget (green) / VfDeletion
+  "    (red) cursor-target highlights are window-local matchadd()s, so
+  "    without clearing them they keep painting over the end screen.
+  "  - <C-\><C-n>: a session can end (timer expiry, :VfQuit) while the
+  "    learner is mid-Insert/Visual on a mode / insert drill. Forcing
+  "    Normal first means their next keystrokes fire the nav maps
+  "    instead of typing into the top line of the end-screen buffer.
+  "    (feedkeys queues it; it runs after this function returns, before
+  "    the user can type.)
+  silent! call clearmatches()
+  silent! call feedkeys("\<C-\>\<C-n>", 'n')
+
   silent! mapclear <buffer>
   silent! imapclear <buffer>
   silent! cmapclear <buffer>
