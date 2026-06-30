@@ -12,8 +12,9 @@
 " shortcut by cursor inspection — only the extent of the red highlight
 " distinguishes dit from dat.
 "
-" Buffer shape: a single line  PREFIX <tag>content</tag> SUFFIX  with
-" plain-word prefix/suffix on either side of one tag. No second tag, no
+" Buffer shape: a single line  PREFIX <tag>word1 word2</tag> SUFFIX  with
+" plain-word prefix/suffix on either side of one tag. The content is
+" always TWO words (the iw/aw defense — see below). No second tag, no
 " stray angle brackets — one unambiguous <…>…</…> structure per item.
 "
 " Cheat analysis (the merge gate — dit/dat must be strictly shortest):
@@ -21,13 +22,19 @@
 "   event (optimal_motions = 1, like dw). To stay strictly shortest,
 "   every cheaper or equal alternative must yield a DIFFERENT buffer:
 "
-"   - Count / charwise delete (Nx, dl, …): the cursor is the strict
-"     INTERIOR of the content (never the first or last char), so no
-"     one-directional count-delete spans the whole content. Reaching
-"     either end first costs ≥1 motion, so the cheapest charwise route
-"     is ≥4 keystrokes. Requires content length ≥ 4 (≥2 interior cells).
-"   - dt< / df> from mid-content delete only the suffix of the content
-"     (verified) → wrong buffer, not a tie.
+"   - diw / daw (3 keystrokes, the dangerous tie): if the content were a
+"     SINGLE word, diw would delete exactly that word — identical buffer
+"     AND cursor to dit, same keystroke count → a tie that breaks the
+"     gate. The content is therefore always TWO words: diw grabs only
+"     one of them (leaves " word2"), daw grabs one word + a space → both
+"     yield a different buffer. This is the whole reason for two-word
+"     content.
+"   - dt< from the first content char WOULD span the whole content (tie),
+"     so the cursor is placed in the strict INTERIOR (never first/last
+"     char): dt< / df> then delete only the suffix → wrong buffer.
+"   - Count / charwise delete (Nx, dl, d2w, …): from the interior no
+"     one-directional ≤3-keystroke delete spans the whole content
+"     without overshooting into the tags (battery-verified).
 "   - dT< / dT> delete backward into the OPEN tag → wrong buffer.
 "   - dd (2 keystrokes) deletes the whole line — but PREFIX and SUFFIX
 "     are always present, so dd removes them too → wrong buffer. This is
@@ -36,9 +43,10 @@
 "     tag from this cursor (verified: di< → "<>", da< → drops "</em>")
 "     → wrong buffer, never our target.
 "   - vit d / vat d are 4 keystrokes → longer.
-"   Conclusion: with content length ≥ 4, interior cursor, and a present
+"   Conclusion: with two-word content, an interior cursor, and a present
 "   prefix+suffix, dit and dat are each the strictly shortest path to
-"   their own target_lines.
+"   their own target_lines (no ≤3-keystroke alternative reproduces both
+"   the buffer and the cursor — see tests/test_generators.vim).
 "
 " Per-motion accounting: dit/dat each fire a single deduped
 " TextChanged event, so a clean run scores actual=1 against
@@ -48,9 +56,10 @@
 
 let s:tags = ['em', 'b', 'i', 'a', 'code', 'span', 'strong',
   \ 'li', 'td', 'h1', 'h2', 'p', 'div', 'label']
-" content words: all length ≥ 5 so the interior-cursor window is ≥ 3 cells.
+" content words: the tag wraps TWO of these (the iw/aw cheat defense).
 let s:contents = ['title', 'price', 'header', 'submit', 'active',
-  \ 'status', 'login', 'search', 'footer', 'button', 'toggle', 'hidden']
+  \ 'status', 'login', 'search', 'footer', 'button', 'toggle', 'hidden',
+  \ 'open', 'menu', 'save', 'edit', 'list', 'item', 'dark', 'blue']
 " plain-word prefix/suffix: non-empty, no angle brackets, no spaces.
 let s:words = ['the', 'set', 'add', 'new', 'show', 'wrap',
   \ 'sort', 'find', 'open', 'load', 'edit', 'keep']
@@ -77,7 +86,13 @@ function! vimfluency#drills#delete_inside_around_tag#generate() abort
   let prefix = s:pick(s:words)
   let suffix = s:pick(s:words)
   let tag = s:pick(s:tags)
-  let content = s:pick(s:contents)
+  " Two distinct content words — the iw/aw cheat defense.
+  let w1 = s:pick(s:contents)
+  let w2 = s:pick(s:contents)
+  while w2 ==# w1
+    let w2 = s:pick(s:contents)
+  endwhile
+  let content = w1 . ' ' . w2
 
   let open = '<' . tag . '>'
   let close = '</' . tag . '>'
@@ -125,7 +140,7 @@ function! vimfluency#drills#delete_inside_around_tag#lesson() abort
   " change. Both demos start from the SAME interior cursor on the SAME
   " buffer, juxtaposing the two text objects directly. Wrong-operator
   " recovery is the runner's [u=undo if wrong] header (editing kind).
-  let buf = ['the <em>quick</em> fox']
+  let buf = ['the <em>save menu</em> fox']
   return [
     \ {'kind': 'show', 'lines': buf, 'cursor': [1, 11],
     \  'prompt': [
@@ -140,22 +155,22 @@ function! vimfluency#drills#delete_inside_around_tag#lesson() abort
     \ {'kind': 'try', 'lines': buf, 'start': [1, 11], 'target': [1, 9],
     \  'expected_motion': 'dit', 'optimal_motions': 1,
     \  'target_lines': ['the <em></em> fox'],
-    \  'deletion_range': [[1, 9, 5]],
+    \  'deletion_range': [[1, 9, 9]],
     \  'prompt': 'Press dit — empties the tag, leaving <em></em>. The tags stay.'},
     \ {'kind': 'try', 'lines': buf, 'start': [1, 11], 'target': [1, 5],
     \  'expected_motion': 'dat', 'optimal_motions': 1,
     \  'target_lines': ['the  fox'],
-    \  'deletion_range': [[1, 5, 14]],
+    \  'deletion_range': [[1, 5, 18]],
     \  'prompt': 'Press dat — removes the whole tag, leaving "the  fox".'},
-    \ {'kind': 'try', 'lines': ['add <li>status</li> now'], 'start': [1, 11], 'target': [1, 9],
+    \ {'kind': 'try', 'lines': ['add <li>dark blue</li> now'], 'start': [1, 11], 'target': [1, 9],
     \  'expected_motion': 'dit', 'optimal_motions': 1,
     \  'target_lines': ['add <li></li> now'],
-    \  'deletion_range': [[1, 9, 6]],
+    \  'deletion_range': [[1, 9, 9]],
     \  'prompt': 'Press dit.'},
-    \ {'kind': 'try', 'lines': ['add <li>status</li> now'], 'start': [1, 11], 'target': [1, 5],
+    \ {'kind': 'try', 'lines': ['add <li>dark blue</li> now'], 'start': [1, 11], 'target': [1, 5],
     \  'expected_motion': 'dat', 'optimal_motions': 1,
     \  'target_lines': ['add  now'],
-    \  'deletion_range': [[1, 5, 15]],
+    \  'deletion_range': [[1, 5, 18]],
     \  'prompt': 'Press dat.'},
     \ ]
 endfunction

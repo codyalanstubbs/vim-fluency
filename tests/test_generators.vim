@@ -2011,7 +2011,7 @@ function! s:test_delete_inside_around_tag() abort
       \ 'delete_inside_around_tag: cursor lands at the deletion start col')
 
     " Execute the real motion and confirm it reproduces the declared
-    " target — this is the cheat-gate + column-math guarantee in one.
+    " target — this is the column-math guarantee.
     enew!
     call setline(1, item.lines)
     call cursor(item.start[0], item.start[1])
@@ -2021,6 +2021,21 @@ function! s:test_delete_inside_around_tag() abort
     call AssertEq([line('.'), col('.')], item.target,
       \ 'delete_inside_around_tag/' . item.expected_motion . ': cursor matches target')
     bwipeout!
+
+    " Cheat gate: no <=3-keystroke alternative may reproduce BOTH the
+    " target buffer and the target cursor. diw/daw are the dangerous
+    " ties (defeated by two-word content); dt</dd round out the set.
+    let want = [item.target_lines, item.target]
+    for alt in ['diw', 'daw', 'dt<', 'dd']
+      enew!
+      call setline(1, item.lines)
+      call cursor(item.start[0], item.start[1])
+      silent! execute 'normal! ' . alt
+      call Assert([getline(1, '$'), [line('.'), col('.')]] !=# want,
+        \ 'delete_inside_around_tag/' . item.expected_motion
+        \ . ': ' . alt . ' must NOT reproduce the target (cheat gate)')
+      bwipeout!
+    endfor
 
     let seen[item.expected_motion] = 1
   endfor
