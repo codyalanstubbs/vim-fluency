@@ -1,0 +1,55 @@
+name: Bug report
+description: Something in :VfTrain / :VfLearn / the dashboard behaves wrong. Right now this is the contribution that helps most.
+title: "bug: <short summary>"
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. The most valuable bugs are *measurement* bugs —
+        a drill crediting a motion it shouldn't, or refusing one it should —
+        because that corrupts the data the whole tool is built on. Wrong cursor
+        position, a stuck frame, or a crash all count too.
+  - type: dropdown
+    id: editor
+    attributes:
+      label: Editor
+      options:
+        - Vim
+        - Neovim
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `:version` (Vim) or `nvim --version` — first line is enough.
+      placeholder: "VIM 9.1, or NVIM v0.10.2"
+    validations:
+      required: true
+  - type: input
+    id: command
+    attributes:
+      label: What you ran
+      description: The exact command, including any `only=…` arguments.
+      placeholder: ":VfTrain move_to_word_start_forward_backward only=w,b"
+    validations:
+      required: true
+  - type: textarea
+    id: expected-actual
+    attributes:
+      label: What happened vs. what you expected
+      description: Include the on-screen text or a screenshot. For a stuck lesson or training, name the frame it stuck on.
+    validations:
+      required: true
+  - type: dropdown
+    id: clean-repro
+    attributes:
+      label: Reproduces from a clean state?
+      description: Ideally tested with `vim -u NONE` (or `nvim --clean`) loading only this plugin, to rule out a config conflict.
+      options:
+        - "Yes — reproduces with only this plugin loaded"
+        - "No — only happens with my full config"
+        - "Haven't checked"
+    validations:
+      required: true

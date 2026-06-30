@@ -1,20 +1,20 @@
-<!-- For drill PRs, fill the checklist. For bug fixes / docs, delete it and describe the change. -->
-
 ## What
 
-<!-- One paragraph: what this adds or fixes. Link the proposal issue for drills. -->
+<!-- One paragraph: what this fixes or changes. Link the bug issue if there is one. -->
 
-Proposal issue: #
+Fixes #
 
-## Drill checklist
+## Checklist
 
-- [ ] Proposal issue exists and the cheat analysis was settled there
-- [ ] Cheat analysis documented as a comment block at the top of the drill file
-- [ ] `meta()` has `id` (= filename slug), `name`, `aim`, `family`, `keys`, `prereqs`, `allowed_keys`, `test_sequence`, and `kind` (for non-motion drills)
-- [ ] `generate()` items carry `expected_motion` and `optimal_motions`
-- [ ] `lesson()` included (or a reason it isn't) — every motion introduction is a `try` frame
-- [ ] Property tests in `tests/test_generators.vim` cover the `optimal_motions` formula and the `expected_motion` set
-- [ ] `./tests/run.sh` passes
-- [ ] `./tests/smoke_nvim.sh` passes (if you have Neovim installed)
-- [ ] Vim 8.1 baseline respected — no Neovim-only features, no Lua, nothing newer than 8.1 (`:help vf-reqs`)
-- [ ] Aim is a starting guess, not a calibration claim
+- [ ] `make test` passes (or `./tests/run.sh` if you don't have Neovim — the
+      live nvim smoke auto-skips without it)
+- [ ] For runner changes: new behavior is covered in `tests/test_runner.vim`
+      or `tests/smoke_nvim.sh`
+- [ ] Vim 8.1 baseline respected — no Neovim-only features, no Lua, nothing
+      newer than 8.1 (`:help vf-reqs`)
+
+<!--
+New drills aren't open for outside contribution right now — see CONTRIBUTING.md.
+If that's changed by the time you read this, the drill authoring spec and its
+checklist are in DRILL.md.
+-->
