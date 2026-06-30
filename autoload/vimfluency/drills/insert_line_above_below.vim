@@ -57,7 +57,7 @@ function! vimfluency#drills#insert_line_above_below#meta() abort
   " cue rather than a single column.
   return {'id': 'insert_line_above_below',
     \ 'name': 'insert new line above / below (o / O)',
-    \ 'aim': 40, 'allowed_keys': 'oOfo', 'kind': 'mode',
+    \ 'aim': 30, 'allowed_keys': 'oOfo', 'kind': 'mode',
     \ 'prereqs': [], 'keys': 'o/O', 'family': 'survival',
     \ 'credit_on_text_typed': 1,
     \ 'test_sequence': ['o', 'O']}

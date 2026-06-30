@@ -93,7 +93,7 @@ function! vimfluency#drills#insert_before_after_char_start_end_line#meta() abort
   " is measured separately in switch_mode_to_insert.
   return {'id': 'insert_before_after_char_start_end_line',
     \ 'name': 'enter insert mode (i / a / I / A)',
-    \ 'aim': 50, 'allowed_keys': 'iaIAfo', 'kind': 'mode',
+    \ 'aim': 25, 'allowed_keys': 'iaIAfo', 'kind': 'mode',
     \ 'prereqs': ['insert_before_after_char', 'insert_start_end_line'],
     \ 'keys': 'i/a/I/A',
     \ 'family': 'survival', 'credit_on_text_typed': 1,

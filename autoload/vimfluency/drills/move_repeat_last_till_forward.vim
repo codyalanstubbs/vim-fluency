@@ -54,7 +54,7 @@ let s:NOISE = ['a','b','c','e','g','h','i','j','k','m','n','o',
 function! vimfluency#drills#move_repeat_last_till_forward#meta() abort
   return {'id': 'move_repeat_last_till_forward',
     \ 'name': 'repeat last till, forward (; ,)',
-    \ 'aim': 38, 'allowed_keys': ';,t',
+    \ 'aim': 25, 'allowed_keys': ';,t',
     \ 'prereqs': ['move_repeat_last_find_forward', 'move_till_char_forward_backward'],
     \ 'parallel_to': ['move_repeat_last_find_forward'], 'keys': ';/,', 'family': 'motion',
     \ 'test_sequence': [';', ',']}

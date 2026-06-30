@@ -27,7 +27,7 @@ function! vimfluency#drills#move_to_vs_till_forward_in_words#meta() abort
   " Aim matches the backward in-words sibling. Starting guess.
   return {'id': 'move_to_vs_till_forward_in_words',
     \ 'name': 'find vs till in words, forward (f / t)',
-    \ 'aim': 40, 'allowed_keys': 'ft',
+    \ 'aim': 20, 'allowed_keys': 'ft',
     \ 'prereqs': ['move_to_vs_till_forward'],
     \ 'keys': 'f/t', 'family': 'motion',
     \ 'parallel_to': ['move_to_vs_till_backward_in_words'],

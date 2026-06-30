@@ -33,7 +33,7 @@ function! vimfluency#drills#indent_vs_dedent#meta() abort
   " Disc-band aim, matching move_to_vs_till_forward_backward and delete_char_vs_line. Read-and-pick costs more
   " than pure motor; revise on data.
   return {'id': 'indent_vs_dedent', 'name': 'indent vs dedent (>> / <<)',
-    \ 'aim': 35, 'allowed_keys': '><', 'kind': 'editing',
+    \ 'aim': 50, 'allowed_keys': '><', 'kind': 'editing',
     \ 'prereqs': [], 'keys': '>>/<<', 'family': 'indent',
     \ 'test_sequence': ['>>', '<<']}
 endfunction

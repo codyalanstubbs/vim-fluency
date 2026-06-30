@@ -16,7 +16,7 @@
 function! vimfluency#drills#move_to_vs_till_forward_backward#meta() abort
   return {'id': 'move_to_vs_till_forward_backward',
     \ 'name': 'find vs till, 4-way (f / F / t / T)',
-    \ 'aim': 35, 'allowed_keys': 'fFtT',
+    \ 'aim': 20, 'allowed_keys': 'fFtT',
     \ 'prereqs': ['move_to_char_forward_backward',
     \             'move_till_char_forward_backward',
     \             'move_to_vs_till_forward',

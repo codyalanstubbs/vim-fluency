@@ -20,7 +20,7 @@ let s:words = ['alpha', 'beta', 'gamma', 'delta', 'epsilon',
   \ 'zeta', 'eta', 'theta', 'iota', 'kappa']
 
 function! vimfluency#drills#delete_two_lines_down_up#meta() abort
-  return {'id': 'delete_two_lines_down_up', 'name': 'delete two lines (dj / dk)', 'aim': 30,
+  return {'id': 'delete_two_lines_down_up', 'name': 'delete two lines (dj / dk)', 'aim': 70,
     \ 'allowed_keys': 'djk', 'kind': 'editing',
     \ 'prereqs': ['move_single_char_up_down'], 'keys': 'dj/dk', 'family': 'delete',
     \ 'test_sequence': ['dj', 'dk']}

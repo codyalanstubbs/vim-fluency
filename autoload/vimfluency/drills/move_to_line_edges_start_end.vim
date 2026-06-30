@@ -18,7 +18,7 @@ let s:words = ['def', 'class', 'return', 'import', 'from', 'while',
 function! vimfluency#drills#move_to_line_edges_start_end#meta() abort
   " Aim slightly above move_to_line_edges_all's 50/min — narrower discrimination,
   " no whitespace axis to read. Starting guess.
-  return {'id': 'move_to_line_edges_start_end', 'name': 'line edges (0 / $)', 'aim': 55,
+  return {'id': 'move_to_line_edges_start_end', 'name': 'line edges (0 / $)', 'aim': 90,
     \ 'allowed_keys': '0$', 'prereqs': [],
     \ 'narrower_of': 'move_to_line_edges_all',
     \ 'parallel_to': ['move_to_line_edges_non_white_space'],

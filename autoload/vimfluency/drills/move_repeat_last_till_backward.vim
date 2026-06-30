@@ -51,7 +51,7 @@ let s:NOISE = ['a','b','c','e','g','h','i','j','k','m','n','o',
 function! vimfluency#drills#move_repeat_last_till_backward#meta() abort
   return {'id': 'move_repeat_last_till_backward',
     \ 'name': 'repeat last till, backward (; ,)',
-    \ 'aim': 35, 'allowed_keys': ';,T',
+    \ 'aim': 25, 'allowed_keys': ';,T',
     \ 'prereqs': ['move_repeat_last_till_forward', 'move_till_char_forward_backward'],
     \ 'parallel_to': ['move_repeat_last_till_forward'], 'keys': ';/,', 'family': 'motion',
     \ 'test_sequence': [';', ',']}

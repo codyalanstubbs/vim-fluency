@@ -31,7 +31,7 @@ function! vimfluency#drills#move_to_line_edges_non_white_space#meta() abort
   " move_to_line_edges_all).
   return {'id': 'move_to_line_edges_non_white_space',
     \ 'name': 'non-blank line edges (^ / g_)',
-    \ 'aim': 55, 'allowed_keys': '^g_', 'prereqs': [],
+    \ 'aim': 50, 'allowed_keys': '^g_', 'prereqs': [],
     \ 'narrower_of': 'move_to_line_edges_all',
     \ 'parallel_to': ['move_to_line_edges_start_end'],
     \ 'keys': '^/g_', 'family': 'motion',

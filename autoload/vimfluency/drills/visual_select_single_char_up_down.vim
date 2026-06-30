@@ -29,7 +29,7 @@ function! vimfluency#drills#visual_select_single_char_up_down#meta() abort
   " structurally the same effort — enter visual, press one direction
   " key. Starting guess; revise on data.
   return {'id': 'visual_select_single_char_up_down',
-    \ 'name': 'extend selection down / up (vj / vk)', 'aim': 50,
+    \ 'name': 'extend selection down / up (vj / vk)', 'aim': 65,
     \ 'allowed_keys': 'vjk', 'kind': 'visual_motion',
     \ 'prereqs': ['switch_mode_to_visual', 'move_single_char_up_down'],
     \ 'parallel_to': ['delete_two_lines_down_up',

@@ -15,7 +15,7 @@ let s:chars = ['a','b','c','d','e','f','g','h','i','j','k','m','n','p',
   \ '2','3','4','5','6','7','8','9']
 
 function! vimfluency#drills#move_single_char_up_down#meta() abort
-  return {'id': 'move_single_char_up_down', 'name': 'move one char down / up (j / k)', 'aim': 60,
+  return {'id': 'move_single_char_up_down', 'name': 'move one char down / up (j / k)', 'aim': 90,
     \ 'allowed_keys': 'jk', 'prereqs': [],
     \ 'narrower_of': 'move_single_char_up_down_left_right', 'parallel_to': ['move_single_char_left_right'], 'keys': 'j/k', 'family': 'motion',
     \ 'test_sequence': ['j', 'k']}

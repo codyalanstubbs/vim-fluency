@@ -22,7 +22,7 @@ function! vimfluency#drills#move_single_char_left_right#meta() abort
   " in principle, but a learner who reaches here is here because they
   " plateaued — keep the aim honest rather than inflated. Starting
   " guess, revise on data.
-  return {'id': 'move_single_char_left_right', 'name': 'move one char left / right (h / l)', 'aim': 60,
+  return {'id': 'move_single_char_left_right', 'name': 'move one char left / right (h / l)', 'aim': 80,
     \ 'allowed_keys': 'hl', 'prereqs': [],
     \ 'narrower_of': 'move_single_char_up_down_left_right', 'parallel_to': ['move_single_char_up_down'], 'keys': 'h/l', 'family': 'motion',
     \ 'test_sequence': ['h', 'l']}

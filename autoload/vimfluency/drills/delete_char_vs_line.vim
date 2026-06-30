@@ -56,7 +56,7 @@ function! vimfluency#drills#delete_char_vs_line#meta() abort
   " the aim is set lower than move_single_char_up_down_left_right's hjkl drill. Starting guess;
   " revise on data. Same band as move_to_vs_till_forward_backward and indent_vs_dedent disc training sessions.
   return {'id': 'delete_char_vs_line', 'name': 'delete char vs line (x / dd)',
-    \ 'aim': 35, 'allowed_keys': 'xdjk', 'kind': 'editing',
+    \ 'aim': 60, 'allowed_keys': 'xdjk', 'kind': 'editing',
     \ 'prereqs': [], 'keys': 'x/dd', 'family': 'delete',
     \ 'test_sequence': ['x', 'dd']}
 endfunction

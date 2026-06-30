@@ -46,7 +46,7 @@ let s:WORDS = ['return', 'import', 'result', 'parser', 'broken', 'hammer',
 
 function! vimfluency#drills#move_till_char_forward_backward#meta() abort
   return {'id': 'move_till_char_forward_backward', 'name': 'till char (t / T)',
-    \ 'aim': 45, 'allowed_keys': 'tT', 'prereqs': ['move_to_char_forward_backward'],
+    \ 'aim': 25, 'allowed_keys': 'tT', 'prereqs': ['move_to_char_forward_backward'],
     \ 'parallel_to': ['move_to_char_forward_backward'], 'keys': 't/T', 'family': 'motion',
     \ 'test_sequence': ['t', 'T']}
 endfunction

@@ -43,7 +43,7 @@ function! vimfluency#drills#insert_start_end_line#meta() abort
   " discrimination plus 'foo' payload, 4 strokes per item.
   return {'id': 'insert_start_end_line',
     \ 'name': 'insert at line start / end (I / A)',
-    \ 'aim': 60, 'allowed_keys': 'IAfo', 'kind': 'mode',
+    \ 'aim': 40, 'allowed_keys': 'IAfo', 'kind': 'mode',
     \ 'prereqs': [], 'keys': 'I/A', 'family': 'survival',
     \ 'parallel_to': ['insert_before_after_char'],
     \ 'credit_on_text_typed': 1,

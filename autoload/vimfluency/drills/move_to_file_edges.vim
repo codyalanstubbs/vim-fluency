@@ -42,7 +42,7 @@ let s:LINES = ['def main', 'import os', 'return val', 'while true',
 function! vimfluency#drills#move_to_file_edges#meta() abort
   return {'id': 'move_to_file_edges',
     \ 'name': 'go to file top/bottom (gg G)',
-    \ 'aim': 50, 'allowed_keys': 'gG',
+    \ 'aim': 65, 'allowed_keys': 'gG',
     \ 'prereqs': ['move_single_char_up_down'],
     \ 'parallel_to': ['move_to_line_edges_start_end'],
     \ 'keys': 'gg/G', 'family': 'motion',

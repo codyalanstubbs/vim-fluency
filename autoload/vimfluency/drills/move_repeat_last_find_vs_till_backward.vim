@@ -26,7 +26,7 @@
 function! vimfluency#drills#move_repeat_last_find_vs_till_backward#meta() abort
   return {'id': 'move_repeat_last_find_vs_till_backward',
     \ 'name': 'repeat last find vs till, backward (; ,)',
-    \ 'aim': 28, 'allowed_keys': ';,FT',
+    \ 'aim': 20, 'allowed_keys': ';,FT',
     \ 'prereqs': ['move_repeat_last_find_backward', 'move_repeat_last_till_backward'],
     \ 'parallel_to': ['move_repeat_last_find_vs_till_forward'], 'keys': ';/,', 'family': 'motion',
     \ 'test_sequence': [';', ',']}

@@ -60,7 +60,7 @@ let s:NOISE = ['a','b','c','e','g','h','i','j','k','m','n','o',
 function! vimfluency#drills#move_repeat_last_find_forward#meta() abort
   return {'id': 'move_repeat_last_find_forward',
     \ 'name': 'repeat last find, forward (; ,)',
-    \ 'aim': 40, 'allowed_keys': ';,f',
+    \ 'aim': 25, 'allowed_keys': ';,f',
     \ 'prereqs': ['move_to_char_forward_backward'],
     \ 'parallel_to': [], 'keys': ';/,', 'family': 'motion',
     \ 'test_sequence': [';', ',']}

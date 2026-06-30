@@ -13,7 +13,7 @@ let s:CMDS = [':wq', 'ZZ']
 
 function! vimfluency#drills#save_quit_vs_zz#meta() abort
   return {'id': 'save_quit_vs_zz', 'name': 'save & quit, Ex vs normal (:wq / ZZ)',
-    \ 'aim': 35, 'allowed_keys': ':wqZ', 'kind': 'command',
+    \ 'aim': 45, 'allowed_keys': ':wqZ', 'kind': 'command',
     \ 'prereqs': [], 'keys': ':wq/ZZ', 'family': 'survival',
     \ 'test_sequence': [':wq', 'ZZ']}
 endfunction

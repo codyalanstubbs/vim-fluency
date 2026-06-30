@@ -46,7 +46,7 @@ let s:NOISE = ['a','b','c','e','g','h','i','j','k','m','n','o',
 function! vimfluency#drills#move_repeat_last_find_backward#meta() abort
   return {'id': 'move_repeat_last_find_backward',
     \ 'name': 'repeat last find, backward (; ,)',
-    \ 'aim': 37, 'allowed_keys': ';,F',
+    \ 'aim': 25, 'allowed_keys': ';,F',
     \ 'prereqs': ['move_repeat_last_find_forward', 'move_to_char_forward_backward'],
     \ 'parallel_to': ['move_repeat_last_find_forward'], 'keys': ';/,', 'family': 'motion',
     \ 'test_sequence': [';', ',']}

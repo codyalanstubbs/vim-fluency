@@ -25,7 +25,7 @@ let s:words = ['def', 'class', 'return', 'import', 'from', 'while',
   \ 'data', 'value']
 
 function! vimfluency#drills#delete_to_line_edges_start_end#meta() abort
-  return {'id': 'delete_to_line_edges_start_end', 'name': 'delete to line edges (d0 / d$)', 'aim': 35,
+  return {'id': 'delete_to_line_edges_start_end', 'name': 'delete to line edges (d0 / d$)', 'aim': 45,
     \ 'allowed_keys': 'd0$', 'kind': 'editing',
     \ 'prereqs': ['move_to_line_edges_start_end'],
     \ 'parallel_to': ['delete_to_word_start_forward_backward', 'delete_single_char_left_right'], 'keys': 'd0/d$', 'family': 'delete',

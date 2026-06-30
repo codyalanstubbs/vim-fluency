@@ -45,7 +45,7 @@ function! vimfluency#drills#move_to_vs_till_forward#meta() abort
   " discrimination, single chord per item.
   return {'id': 'move_to_vs_till_forward',
     \ 'name': 'find vs till, forward (f / t)',
-    \ 'aim': 50, 'allowed_keys': 'ft',
+    \ 'aim': 20, 'allowed_keys': 'ft',
     \ 'prereqs': [], 'keys': 'f/t', 'family': 'motion',
     \ 'parallel_to': ['move_to_vs_till_backward'],
     \ 'test_sequence': ['f', 't']}

@@ -26,7 +26,7 @@ let s:targets = ['n', 'i']
 function! vimfluency#drills#switch_mode_to_insert#meta() abort
   return {'id': 'switch_mode_to_insert',
     \ 'name': 'switch mode to insert (i / Ctrl+[)',
-    \ 'aim': 80, 'allowed_keys': '', 'kind': 'mode_switch',
+    \ 'aim': 110, 'allowed_keys': '', 'kind': 'mode_switch',
     \ 'prereqs': [], 'keys': 'i/C-[', 'family': 'survival',
     \ 'stroke_counts': {'i': 1, 'C-[': 1},
     \ 'test_sequence': ['i', 'C-[']}

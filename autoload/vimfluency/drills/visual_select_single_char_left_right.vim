@@ -28,7 +28,7 @@ function! vimfluency#drills#visual_select_single_char_left_right#meta() abort
   " 60/min but above delete_single_char_left_right's 40/min — visual is
   " lighter than delete because there's no operator+motion fusion.
   return {'id': 'visual_select_single_char_left_right',
-    \ 'name': 'extend selection left / right (vh / vl)', 'aim': 50,
+    \ 'name': 'extend selection left / right (vh / vl)', 'aim': 70,
     \ 'allowed_keys': 'vhl', 'kind': 'visual_motion',
     \ 'prereqs': ['switch_mode_to_visual', 'move_single_char_left_right'],
     \ 'parallel_to': ['delete_single_char_left_right'],

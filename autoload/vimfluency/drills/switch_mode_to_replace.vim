@@ -11,7 +11,7 @@ let s:targets = ['n', 'r']
 function! vimfluency#drills#switch_mode_to_replace#meta() abort
   return {'id': 'switch_mode_to_replace',
     \ 'name': 'switch mode to replace (R / Ctrl+[)',
-    \ 'aim': 80, 'allowed_keys': '', 'kind': 'mode_switch',
+    \ 'aim': 90, 'allowed_keys': '', 'kind': 'mode_switch',
     \ 'prereqs': [], 'keys': 'R/C-[', 'family': 'survival',
     \ 'parallel_to': ['switch_mode_to_insert',
     \                 'switch_mode_to_visual',

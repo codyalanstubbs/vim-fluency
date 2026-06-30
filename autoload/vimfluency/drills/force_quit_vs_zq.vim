@@ -13,7 +13,7 @@ let s:CMDS = [':q!', 'ZQ']
 
 function! vimfluency#drills#force_quit_vs_zq#meta() abort
   return {'id': 'force_quit_vs_zq', 'name': 'force quit, Ex vs normal (:q! / ZQ)',
-    \ 'aim': 35, 'allowed_keys': ':q!ZQ', 'kind': 'command',
+    \ 'aim': 25, 'allowed_keys': ':q!ZQ', 'kind': 'command',
     \ 'prereqs': [], 'keys': ':q!/ZQ', 'family': 'survival',
     \ 'test_sequence': [':q!', 'ZQ']}
 endfunction

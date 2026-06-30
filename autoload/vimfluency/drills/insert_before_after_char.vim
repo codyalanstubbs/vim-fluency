@@ -33,7 +33,7 @@ function! vimfluency#drills#insert_before_after_char#meta() abort
   " 50/min because the discrimination set is narrower (2 cells vs 4).
   return {'id': 'insert_before_after_char',
     \ 'name': 'insert before / after char (i / a)',
-    \ 'aim': 60, 'allowed_keys': 'iafo', 'kind': 'mode',
+    \ 'aim': 35, 'allowed_keys': 'iafo', 'kind': 'mode',
     \ 'prereqs': [], 'keys': 'i/a', 'family': 'survival',
     \ 'parallel_to': ['insert_start_end_line'],
     \ 'credit_on_text_typed': 1,
