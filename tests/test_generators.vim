@@ -1980,6 +1980,55 @@ function! s:test_visual_select_single_char_left_right() abort
   endfor
 endfunction
 
+" delete_inside_around_tag: editing-kind tag-text-object discrimination.
+" expected_motion ∈ {dit, dat}; optimal_motions == 1 (single buffer-change
+" event). The cursor always sits in the strict INTERIOR of the content
+" (the cheat defense), and applying the motion to the generated buffer
+" must reproduce target_lines and land the cursor at item.target.
+function! s:test_delete_inside_around_tag() abort
+  let GenFn = function('vimfluency#drills#delete_inside_around_tag#generate')
+  let valid = ['dit', 'dat']
+  let seen = {}
+  for i in range(s:N)
+    let item = GenFn()
+    call s:assert_common('delete_inside_around_tag', item)
+    call AssertIn(item.expected_motion, valid,
+      \ 'delete_inside_around_tag: expected_motion in {dit, dat}')
+    call AssertEq(item.optimal_motions, 1,
+      \ 'delete_inside_around_tag: optimal_motions == 1')
+    call AssertEq(len(item.lines), 1, 'delete_inside_around_tag: single-line buffer')
+    call Assert(has_key(item, 'target_lines'), 'delete_inside_around_tag: has target_lines')
+    call Assert(has_key(item, 'deletion_range'), 'delete_inside_around_tag: has deletion_range')
+
+    let dr = item.deletion_range[0]
+    " Cursor starts strictly interior to the deletion's content (for dit
+    " the deletion IS the content; for dat the content is nested inside
+    " the block). Either way the start col is strictly inside the red.
+    call Assert(item.start[1] > dr[1] && item.start[1] < dr[1] + dr[2],
+      \ 'delete_inside_around_tag: cursor starts strictly inside the highlight')
+    " Cursor lands where the deletion began.
+    call AssertEq(item.target, [1, dr[1]],
+      \ 'delete_inside_around_tag: cursor lands at the deletion start col')
+
+    " Execute the real motion and confirm it reproduces the declared
+    " target — this is the cheat-gate + column-math guarantee in one.
+    enew!
+    call setline(1, item.lines)
+    call cursor(item.start[0], item.start[1])
+    execute 'normal! ' . item.expected_motion
+    call AssertEq(getline(1, '$'), item.target_lines,
+      \ 'delete_inside_around_tag/' . item.expected_motion . ': buffer matches target_lines')
+    call AssertEq([line('.'), col('.')], item.target,
+      \ 'delete_inside_around_tag/' . item.expected_motion . ': cursor matches target')
+    bwipeout!
+
+    let seen[item.expected_motion] = 1
+  endfor
+  call Assert(get(seen, 'dit', 0) == 1, 'delete_inside_around_tag: dit appeared in samples')
+  call Assert(get(seen, 'dat', 0) == 1, 'delete_inside_around_tag: dat appeared in samples')
+endfunction
+
+call s:test_delete_inside_around_tag()
 call s:test_move_single_char_up_down_left_right()
 call s:test_move_to_line_edges_all()
 call s:test_move_to_word_start_forward_backward()
