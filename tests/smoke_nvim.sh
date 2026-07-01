@@ -150,6 +150,28 @@ NS '<Esc>'; NS ':VfQuit<CR>'; settle; nap 0.5; settle
 chk "VfQuit ended session" "" "$(NV 'vimfluency#statusline()')"
 NS 'q'; settle
 
+echo "== change_inside_around_tag training: cit/cat credit_on_text_typed =="
+# The change-kind tag drill deletes the text object AND enters insert,
+# then credits via TextChangedI when the typed buffer matches — a path
+# run.sh (no event loop) can't exercise. Read each item's expected
+# motion (cit/cat), press it, type the fixed replacement; the c-delete
+# fires before InsertEnter, so the first_text_change_pending guard must
+# absorb the removed state for credit to land.
+NS ':VfTrain change_inside_around_tag 30<CR>'; settle
+chk "session started" 1 "$(NV '!empty(vimfluency#statusline())')"
+# NO trailing <Esc>: the TextChangedI credit fires on the typed payload
+# and the runner Escs itself. A manual Esc races InsertLeave (which
+# resets insert_entered for credit_on_text_typed drills) ahead of the
+# deferred credit and would kill it.
+for _ in 1 2 3; do
+  exp="$(NV 'vimfluency#_test_state().current_item.expected_motion')"
+  NS "${exp}new"; settle
+done
+chkge "cit/cat credited via TextChangedI" 3 "$(NV 'vimfluency#_test_state().items_correct')"
+NS ':VfQuit<CR>'; settle; nap 0.5; settle
+chk "VfQuit ended session" "" "$(NV 'vimfluency#statusline()')"
+NS 'Q'; settle
+
 echo "== lesson open + teardown =="
 NS ':VfLearn move_single_char_up_down_left_right<CR>'; settle
 chk "lesson buffer name" "vf-lesson-move_single_char_up_down_left_right" "$(NV 'bufname("%")')"

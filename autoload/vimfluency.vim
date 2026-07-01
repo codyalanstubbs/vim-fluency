@@ -2282,12 +2282,16 @@ function! s:next_item() abort
     silent! call matchdelete(s:session.target_match_id)
     let s:session.target_match_id = -1
   endif
-  " For editing-kind training sessions the deletion range alone tells the learner
-  " what to do; rendering a green target makes the discrimination "is
-  " green visible or not?" instead of "where is red relative to the
-  " cursor?". Motion-kind training sessions still get the green cell since that's
-  " the entire cue.
+  " When a deletion_range cue is present (editing-kind deletes, and the
+  " change-kind tag drills that delete-then-insert) the red range alone
+  " tells the learner what to do; drawing a green target both makes the
+  " discrimination "is green visible?" instead of "where is red?" AND
+  " leaks the answer — green at the inner-content vs whole-block start
+  " column would distinguish dit/dat (cit/cat) for free. So suppress
+  " green whenever red is shown. Motion-kind sessions (no deletion_range)
+  " still get the green cell since that's the entire cue.
   if s:session.kind !=# 'editing'
+    \ && (!has_key(item, 'deletion_range') || empty(item.deletion_range))
     let s:session.target_match_id = matchaddpos('VfTarget',
       \ [[s:session.header_offset + item.target[0], item.target[1], 1]], 20)
   endif

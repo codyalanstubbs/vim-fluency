@@ -85,10 +85,16 @@ this file is the static snapshot for browsing on GitHub.
 | `delete_to_word_start_forward_backward` | delete with word motion (dw / db) | `dw/db` | `editing` | 60 | `move_to_word_start_forward_backward` |
 | `delete_two_lines_down_up` | delete two lines (dj / dk) | `dj/dk` | `editing` | 70 | `move_single_char_up_down` |
 
+## Change
+
+| id (slug) | name | keys | kind | aim | prereqs |
+|---|---|---|---|---|---|
+| `change_inside_around_tag` | change inside vs around tag (cit / cat) | `cit/cat` | `mode` | 35 | `delete_inside_around_tag` |
+
 ## Indent
 
 | id (slug) | name | keys | kind | aim | prereqs |
 |---|---|---|---|---|---|
 | `indent_vs_dedent` | indent vs dedent (>> / <<) | `>>/<<` | `editing` | 50 | — |
 
-_49 drills across 5 families. Regenerate with `scripts/gen-catalog.sh`._
+_50 drills across 6 families. Regenerate with `scripts/gen-catalog.sh`._
