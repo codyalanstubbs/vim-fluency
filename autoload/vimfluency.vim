@@ -3226,6 +3226,15 @@ endfunction
 function! s:on_insert_enter() abort
   if empty(s:session) || s:session.advancing | return | endif
   if win_getid() != s:session.you_win | return | endif
+  " Clear the deletion-range red the moment insert begins: for the
+  " change tag drills (cit/cat) the marked text has just been deleted,
+  " so the fixed-position highlight would otherwise sit stale over the
+  " shifted-left remainder while the learner types the replacement.
+  " No-op for plain insert drills (i/a/o carry no deletion_range).
+  if s:session.deletion_match_id != -1
+    silent! call matchdelete(s:session.deletion_match_id)
+    let s:session.deletion_match_id = -1
+  endif
   let header_offset = s:session.header_offset
   let s:session.insert_entered = 1
   let s:session.insert_enter_pos = [line('.') - header_offset, col('.')]
@@ -4378,6 +4387,13 @@ function! s:learn_on_insert_enter() abort
   if empty(s:session) || s:session.mode !=# 'learn' || s:session.advancing | return | endif
   if win_getid() != s:session.you_win | return | endif
   if s:session.phase ==# 'complete' || s:session.frame_complete | return | endif
+  " Clear the deletion-range red the moment insert begins — see
+  " s:on_insert_enter for the rationale (stale cit/cat highlight over
+  " the shifted remainder; no-op for plain insert frames).
+  if s:session.deletion_match_id != -1
+    silent! call matchdelete(s:session.deletion_match_id)
+    let s:session.deletion_match_id = -1
+  endif
   let header_offset = s:session.header_offset
   let s:session.insert_entered = 1
   let s:session.insert_enter_pos = [line('.') - header_offset, col('.')]
