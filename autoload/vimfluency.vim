@@ -3215,6 +3215,19 @@ function! s:render_mode_item(item) abort
     silent! call matchdelete(s:session.deletion_match_id)
     let s:session.deletion_match_id = -1
   endif
+  " Deletion-range red for mode-kind drills that delete-then-insert
+  " (cit/cat) — same cue as the editing renderer. Plain insert drills
+  " (i/a/o) carry no deletion_range, so this is a no-op for them. The
+  " InsertEnter handler clears it again the moment the change fires, so
+  " the fixed-position highlight never lingers over the shifted text.
+  if has_key(a:item, 'deletion_range') && !empty(a:item.deletion_range)
+    let positions = []
+    for pos in a:item.deletion_range
+      call add(positions,
+        \ [s:session.header_offset + pos[0], pos[1], pos[2]])
+    endfor
+    let s:session.deletion_match_id = matchaddpos('VfDeletion', positions, 10)
+  endif
   call s:clear_waypoint_matches()
   call s:add_waypoint_matches(a:item)
   redrawstatus
