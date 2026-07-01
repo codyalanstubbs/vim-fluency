@@ -2073,7 +2073,7 @@ function! s:test_change_inside_around_tag() abort
     enew!
     call setline(1, item.lines)
     call cursor(item.start[0], item.start[1])
-    call feedkeys(item.expected_motion . 'new' . "\<Esc>", 'tx')
+    call feedkeys(item.expected_motion . 'foo' . "\<Esc>", 'tx')
     call AssertEq(getline(1, '$'), item.target_lines_after_type,
       \ 'change_inside_around_tag/' . item.expected_motion . ': buffer matches after-type target')
     bwipeout!
@@ -2095,7 +2095,7 @@ function! s:test_change_inside_around_tag() abort
       enew!
       call setline(1, item.lines)
       call cursor(item.start[0], item.start[1])
-      silent! call feedkeys(alt . 'new' . "\<Esc>", 'tx')
+      silent! call feedkeys(alt . 'foo' . "\<Esc>", 'tx')
       call Assert(getline(1, '$') !=# item.target_lines_after_type,
         \ 'change_inside_around_tag/' . item.expected_motion
         \ . ': ' . alt . ' must NOT reach the after-type target (cheat gate)')

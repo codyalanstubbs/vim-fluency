@@ -165,7 +165,7 @@ chk "session started" 1 "$(NV '!empty(vimfluency#statusline())')"
 # deferred credit and would kill it.
 for _ in 1 2 3; do
   exp="$(NV 'vimfluency#_test_state().current_item.expected_motion')"
-  NS "${exp}new"; settle
+  NS "${exp}foo"; settle
 done
 chkge "cit/cat credited via TextChangedI" 3 "$(NV 'vimfluency#_test_state().items_correct')"
 NS ':VfQuit<CR>'; settle; nap 0.5; settle

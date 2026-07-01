@@ -47,8 +47,9 @@ let s:contents = ['title', 'price', 'header', 'submit', 'active',
 let s:words = ['the', 'set', 'add', 'new', 'show', 'wrap',
   \ 'sort', 'find', 'open', 'load', 'edit', 'keep']
 " Fixed replacement the learner types after cit/cat. Short enough to keep
-" the focus on the text-object discrimination, not the typing.
-let s:REPLACE = 'new'
+" the focus on the text-object discrimination, not the typing; 'foo'
+" matches the insert family's payload (insert_before_after_char).
+let s:REPLACE = 'foo'
 
 function! vimfluency#drills#change_inside_around_tag#meta() abort
   " Discrimination + a 3-char payload, like insert_before_after_char's
