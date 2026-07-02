@@ -81,6 +81,7 @@ this file is the static snapshot for browsing on GitHub.
 | `delete_char_vs_line` | delete char vs line (x / dd) | `x/dd` | `editing` | 60 | — |
 | `delete_inside_angle_vs_tag` | delete inside angle vs tag (di< / dit) | `di</dit` | `editing` | 45 | `delete_inside_around_tag` |
 | `delete_inside_around_tag` | delete inside vs around tag (dit / dat) | `dit/dat` | `editing` | 50 | `delete_char_vs_line` |
+| `delete_inside_block` | delete inside block — parens vs braces (dib / diB) | `dib/diB` | `editing` | 55 | `delete_inside_brackets` |
 | `delete_inside_brackets` | delete inside brackets (di( / di{ / di[) | `di(/di{/di[` | `editing` | 55 | `delete_inside_around_tag` |
 | `delete_inside_quotes` | delete inside quotes (di" / di' / di`) | `` di"/di'/di` `` | `editing` | 55 | `delete_inside_around_tag` |
 | `delete_single_char_left_right` | delete one char (dl / dh) | `dl/dh` | `editing` | 55 | `move_single_char_left_right` |
@@ -100,4 +101,4 @@ this file is the static snapshot for browsing on GitHub.
 |---|---|---|---|---|---|
 | `indent_vs_dedent` | indent vs dedent (>> / <<) | `>>/<<` | `editing` | 50 | — |
 
-_53 drills across 6 families. Regenerate with `scripts/gen-catalog.sh`._
+_54 drills across 6 families. Regenerate with `scripts/gen-catalog.sh`._

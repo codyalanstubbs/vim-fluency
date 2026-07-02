@@ -25,8 +25,10 @@
 "     (cursor is strictly interior, never the first/last content char).
 "   - dd (2 keystrokes) deletes the whole line, but PREFIX+SUFFIX are
 "     always present → wrong buffer.
-"   Synonyms (dib=di(, diB=di{, di)=di(, di]=di[) are the SAME object,
-"   not cheats — buffer-state match credits them regardless.
+"   Synonyms — the closing-bracket forms di)=di(, di}=di{, di]=di[ — are
+"   the SAME object, not cheats; buffer-state match credits them. (The
+"   dib/diB letter aliases get their own juxtaposition drill,
+"   delete_inside_block.)
 
 " open/close/obj: `obj` is the char typed in the text object (di<obj>).
 let s:pairs = [
@@ -102,8 +104,8 @@ function! vimfluency#drills#delete_inside_brackets#lesson() abort
     \    'Three bracket text objects — di deletes what''s INSIDE the pair,',
     \    'wherever the cursor sits between them:',
     \    '',
-    \    '    di(   →   inside the parentheses   ( di) and dib do the same )',
-    \    '    di{   →   inside the braces        ( di} and diB do the same )',
+    \    '    di(   →   inside the parentheses   ( di) does the same )',
+    \    '    di{   →   inside the braces        ( di} does the same )',
     \    '    di[   →   inside the brackets      ( di] does the same )',
     \    '',
     \    'Press <Space> to continue.']},

@@ -2179,11 +2179,33 @@ function! s:test_delete_inside_angle_vs_tag() abort
     \ ['di<', 'dit'], ['diw', 'daw', 'dd', 'dt>', 'di<', 'dit'])
 endfunction
 
+" delete_inside_block: dib/diB. The literal bracket objects di(/di{ are
+" INTENDED equivalents (the drill teaches the alias), so they're not in
+" the cheat gate — instead we assert the equivalence holds.
+function! s:test_delete_inside_block() abort
+  call s:assert_inner_object_drill('delete_inside_block',
+    \ ['dib', 'diB'], ['diw', 'daw', 'dd'])
+  let GenFn = function('vimfluency#drills#delete_inside_block#generate')
+  for i in range(s:N)
+    let item = GenFn()
+    let equiv = item.expected_motion ==# 'dib' ? 'di(' : 'di{'
+    enew!
+    call setline(1, item.lines)
+    call cursor(item.start[0], item.start[1])
+    execute 'normal! ' . equiv
+    call AssertEq([getline(1, '$'), [line('.'), col('.')]],
+      \ [item.target_lines, item.target],
+      \ 'delete_inside_block/' . item.expected_motion . ': ' . equiv . ' is equivalent')
+    bwipeout!
+  endfor
+endfunction
+
 call s:test_delete_inside_around_tag()
 call s:test_change_inside_around_tag()
 call s:test_delete_inside_brackets()
 call s:test_delete_inside_quotes()
 call s:test_delete_inside_angle_vs_tag()
+call s:test_delete_inside_block()
 call s:test_move_single_char_up_down_left_right()
 call s:test_move_to_line_edges_all()
 call s:test_move_to_word_start_forward_backward()
