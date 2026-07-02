@@ -2049,25 +2049,29 @@ endfunction
 " the real motion + typing the replacement must reproduce
 " target_lines_after_type, and motion + immediate Esc (no typing) must
 " reproduce target_lines (the removed state the guard absorbs).
-function! s:test_change_inside_around_tag() abort
-  let GenFn = function('vimfluency#drills#change_inside_around_tag#generate')
-  let valid = ['cit', 'cat']
+" Shared harness for the mode-kind (credit_on_text_typed) inner-object
+" change drills. Each item carries target_lines (the removed state the
+" first_text_change_pending guard absorbs), target_lines_after_type (the
+" post-typing target), and enter_at_col (= the deletion start). The real
+" motion + typing must reach the after-type target; motion + immediate
+" Esc must reach the removed state; and no <=3-keystroke change
+" alternative in `cheats` + typing may reach the after-type target.
+function! s:assert_inner_change_drill(id, valid, cheats) abort
+  let GenFn = function('vimfluency#drills#' . a:id . '#generate')
   let seen = {}
   for i in range(s:N)
     let item = GenFn()
-    call s:assert_common('change_inside_around_tag', item)
-    call AssertIn(item.expected_motion, valid,
-      \ 'change_inside_around_tag: expected_motion in {cit, cat}')
+    call s:assert_common(a:id, item)
+    call AssertIn(item.expected_motion, a:valid,
+      \ a:id . ': expected_motion in ' . string(a:valid))
     call Assert(has_key(item, 'target_lines_after_type'),
-      \ 'change_inside_around_tag: has target_lines_after_type')
-    call Assert(has_key(item, 'enter_at_col'),
-      \ 'change_inside_around_tag: has enter_at_col')
+      \ a:id . ': has target_lines_after_type')
     call AssertEq(item.enter_at_col, item.deletion_range[0][1],
-      \ 'change_inside_around_tag: insert begins at the deletion start col')
+      \ a:id . ': insert begins at the deletion start col')
 
     let dr = item.deletion_range[0]
     call Assert(item.start[1] > dr[1] && item.start[1] < dr[1] + dr[2],
-      \ 'change_inside_around_tag: cursor starts strictly inside the highlight')
+      \ a:id . ': cursor starts strictly inside the highlight')
 
     " Real motion + typing reproduces the post-type target.
     enew!
@@ -2075,37 +2079,51 @@ function! s:test_change_inside_around_tag() abort
     call cursor(item.start[0], item.start[1])
     call feedkeys(item.expected_motion . 'foo' . "\<Esc>", 'tx')
     call AssertEq(getline(1, '$'), item.target_lines_after_type,
-      \ 'change_inside_around_tag/' . item.expected_motion . ': buffer matches after-type target')
+      \ a:id . '/' . item.expected_motion . ': buffer matches after-type target')
     bwipeout!
 
-    " Motion then immediate Esc (no typing) reproduces the removed state,
-    " which the runner's first_text_change_pending guard relies on.
+    " Motion then immediate Esc (no typing) reproduces the removed state.
     enew!
     call setline(1, item.lines)
     call cursor(item.start[0], item.start[1])
     call feedkeys(item.expected_motion . "\<Esc>", 'tx')
     call AssertEq(getline(1, '$'), item.target_lines,
-      \ 'change_inside_around_tag/' . item.expected_motion . ': removed state matches target_lines')
+      \ a:id . '/' . item.expected_motion . ': removed state matches target_lines')
     bwipeout!
 
-    " Cheat gate: no <=3-keystroke change alternative + typing may reach
-    " the after-type target. ciw/caw are the dangerous ties (two-word
-    " defense); cc changes the whole line.
-    for alt in ['ciw', 'caw', 'cc']
+    " Cheat gate.
+    for alt in a:cheats
+      if alt ==# item.expected_motion | continue | endif
       enew!
       call setline(1, item.lines)
       call cursor(item.start[0], item.start[1])
       silent! call feedkeys(alt . 'foo' . "\<Esc>", 'tx')
       call Assert(getline(1, '$') !=# item.target_lines_after_type,
-        \ 'change_inside_around_tag/' . item.expected_motion
-        \ . ': ' . alt . ' must NOT reach the after-type target (cheat gate)')
+        \ a:id . '/' . item.expected_motion . ': ' . alt
+        \ . ' must NOT reach the after-type target (cheat gate)')
       bwipeout!
     endfor
 
     let seen[item.expected_motion] = 1
   endfor
-  call Assert(get(seen, 'cit', 0) == 1, 'change_inside_around_tag: cit appeared in samples')
-  call Assert(get(seen, 'cat', 0) == 1, 'change_inside_around_tag: cat appeared in samples')
+  for m in a:valid
+    call Assert(get(seen, m, 0) == 1, a:id . ': ' . m . ' appeared in samples')
+  endfor
+endfunction
+
+function! s:test_change_inside_around_tag() abort
+  call s:assert_inner_change_drill('change_inside_around_tag',
+    \ ['cit', 'cat'], ['ciw', 'caw', 'cc'])
+endfunction
+
+function! s:test_change_inside_brackets() abort
+  call s:assert_inner_change_drill('change_inside_brackets',
+    \ ['ci(', 'ci{', 'ci['], ['ciw', 'caw', 'cc', 'ci(', 'ci{', 'ci['])
+endfunction
+
+function! s:test_change_inside_quotes() abort
+  call s:assert_inner_change_drill('change_inside_quotes',
+    \ ['ci"', "ci'", 'ci`'], ['ciw', 'caw', 'cc', 'ci"', "ci'", 'ci`'])
 endfunction
 
 " Shared harness for the editing-kind inner-object discrimination drills
@@ -2202,6 +2220,8 @@ endfunction
 
 call s:test_delete_inside_around_tag()
 call s:test_change_inside_around_tag()
+call s:test_change_inside_brackets()
+call s:test_change_inside_quotes()
 call s:test_delete_inside_brackets()
 call s:test_delete_inside_quotes()
 call s:test_delete_inside_angle_vs_tag()

@@ -94,6 +94,8 @@ this file is the static snapshot for browsing on GitHub.
 | id (slug) | name | keys | kind | aim | prereqs |
 |---|---|---|---|---|---|
 | `change_inside_around_tag` | change inside vs around tag (cit / cat) | `cit/cat` | `mode` | 35 | `delete_inside_around_tag` |
+| `change_inside_brackets` | change inside brackets (ci( / ci{ / ci[) | `ci(/ci{/ci[` | `mode` | 35 | `delete_inside_brackets` |
+| `change_inside_quotes` | change inside quotes (ci" / ci' / ci`) | `` ci"/ci'/ci` `` | `mode` | 35 | `delete_inside_quotes` |
 
 ## Indent
 
@@ -101,4 +103,4 @@ this file is the static snapshot for browsing on GitHub.
 |---|---|---|---|---|---|
 | `indent_vs_dedent` | indent vs dedent (>> / <<) | `>>/<<` | `editing` | 50 | — |
 
-_54 drills across 6 families. Regenerate with `scripts/gen-catalog.sh`._
+_56 drills across 6 families. Regenerate with `scripts/gen-catalog.sh`._

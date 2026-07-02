@@ -17,11 +17,14 @@
 "        - >>/<< (indent_vs_dedent) — nested elements live and die by
 "          indentation.
 "
-" Everything past that — the change/yank forms of the delimiter objects
-" (ci\"/ci{), the AROUND objects (da\"/di\" whitespace quirks), the rest
-" of the yank/paste families, Visual mode, search and :s — is deferred
-" to follow-on paths and stays reachable via `general`. A focused
-" on-ramp, not the whole language.
+"   4. The change forms of the delimiter objects (change_inside_quotes,
+"      change_inside_brackets: ci\"/ci{/ci( …) — gut a value and retype it,
+"      the move a frontend dev makes all day.
+"
+" Everything past that — the AROUND objects (da\"/di\" whitespace quirks),
+" the rest of the yank/paste families, Visual mode, search and :s — is
+" deferred to follow-on paths and stays reachable via `general`. A
+" focused on-ramp, not the whole language.
 "
 " As in foundational, ids listed here that aren't in the registry (a
 " planned-but-unshipped drill) are silently dropped by
@@ -39,6 +42,8 @@ function! vimfluency#paths#frontend#meta() abort
     \   'delete_inside_quotes',
     \   'delete_inside_brackets',
     \   'delete_inside_block',
+    \   'change_inside_quotes',
+    \   'change_inside_brackets',
     \   'switch_mode_to_insert',
     \   'switch_mode_to_command_line',
     \   'insert_before_after_char',
