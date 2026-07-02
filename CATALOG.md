@@ -80,6 +80,7 @@ this file is the static snapshot for browsing on GitHub.
 |---|---|---|---|---|---|
 | `delete_char_vs_line` | delete char vs line (x / dd) | `x/dd` | `editing` | 60 | — |
 | `delete_inside_around_tag` | delete inside vs around tag (dit / dat) | `dit/dat` | `editing` | 50 | `delete_char_vs_line` |
+| `delete_inside_pairs` | delete inside quotes/brackets (di" / di( / di{ / di[) | `di"/di(/di{/di[` | `editing` | 55 | `delete_inside_around_tag` |
 | `delete_single_char_left_right` | delete one char (dl / dh) | `dl/dh` | `editing` | 55 | `move_single_char_left_right` |
 | `delete_to_line_edges_start_end` | delete to line edges (d0 / d$) | `d0/d$` | `editing` | 45 | `move_to_line_edges_start_end` |
 | `delete_to_word_start_forward_backward` | delete with word motion (dw / db) | `dw/db` | `editing` | 60 | `move_to_word_start_forward_backward` |
@@ -97,4 +98,4 @@ this file is the static snapshot for browsing on GitHub.
 |---|---|---|---|---|---|
 | `indent_vs_dedent` | indent vs dedent (>> / <<) | `>>/<<` | `editing` | 50 | — |
 
-_50 drills across 6 families. Regenerate with `scripts/gen-catalog.sh`._
+_51 drills across 6 families. Regenerate with `scripts/gen-catalog.sh`._

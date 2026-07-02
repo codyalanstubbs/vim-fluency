@@ -5,16 +5,20 @@
 "      Gut an element's contents, swap a class, replace a whole node.
 "      This is the reason a frontend dev picks this path over General,
 "      so the two tag drills lead the list.
-"   2. Two motions markup leans on harder than prose does:
+"   2. The delimiter inner objects (delete_inside_pairs: di\"/di(/di{/di[)
+"      — attribute values, JSX expressions, call args, arrays. The
+"      delimiter→object reflex that ci\"/ci{ build on.
+"   3. Two motions markup leans on harder than prose does:
 "        - f/F (move_to_char) — jump straight to the delimiters markup
-"          is dense with: " = > < { and the like.
+"          is dense with: \" = > < { and the like.
 "        - >>/<< (indent_vs_dedent) — nested elements live and die by
 "          indentation.
 "
-" Everything past that — the rest of the change/yank/paste families,
-" quote/bracket/paren text objects (ci\"/ci(/ci{), Visual mode, search
-" and :s — is deferred to follow-on paths and stays reachable via the
-" `general` path. This is a focused on-ramp, not the whole language.
+" Everything past that — the change/yank forms of the delimiter objects
+" (ci\"/ci{), the AROUND objects (da\"/di\" whitespace quirks), the rest
+" of the yank/paste families, Visual mode, search and :s — is deferred
+" to follow-on paths and stays reachable via `general`. A focused
+" on-ramp, not the whole language.
 "
 " As in foundational, ids listed here that aren't in the registry (a
 " planned-but-unshipped drill) are silently dropped by
@@ -29,6 +33,7 @@ function! vimfluency#paths#frontend#meta() abort
     \ 'drill_ids': [
     \   'delete_inside_around_tag',
     \   'change_inside_around_tag',
+    \   'delete_inside_pairs',
     \   'switch_mode_to_insert',
     \   'switch_mode_to_command_line',
     \   'insert_before_after_char',

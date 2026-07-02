@@ -2108,8 +2108,65 @@ function! s:test_change_inside_around_tag() abort
   call Assert(get(seen, 'cat', 0) == 1, 'change_inside_around_tag: cat appeared in samples')
 endfunction
 
+" delete_inside_pairs: editing-kind delimiter discrimination.
+" expected_motion ∈ {di", di(, di{, di[}; optimal == 1. Cursor sits
+" strictly interior to the content. Applying the real motion reproduces
+" target_lines/target, and no <=3-keystroke alternative (incl the wrong
+" delimiter object) may reproduce both.
+function! s:test_delete_inside_pairs() abort
+  let GenFn = function('vimfluency#drills#delete_inside_pairs#generate')
+  let valid = ['di"', 'di(', 'di{', 'di[']
+  let seen = {}
+  for i in range(s:N)
+    let item = GenFn()
+    call s:assert_common('delete_inside_pairs', item)
+    call AssertIn(item.expected_motion, valid,
+      \ 'delete_inside_pairs: expected_motion in {di", di(, di{, di[}')
+    call AssertEq(item.optimal_motions, 1, 'delete_inside_pairs: optimal_motions == 1')
+    call AssertEq(len(item.lines), 1, 'delete_inside_pairs: single-line buffer')
+
+    let dr = item.deletion_range[0]
+    call Assert(item.start[1] > dr[1] && item.start[1] < dr[1] + dr[2],
+      \ 'delete_inside_pairs: cursor starts strictly inside the highlight')
+    call AssertEq(item.target, [1, dr[1]],
+      \ 'delete_inside_pairs: cursor lands at the deletion start col')
+
+    " Real motion reproduces the declared target.
+    enew!
+    call setline(1, item.lines)
+    call cursor(item.start[0], item.start[1])
+    execute 'normal! ' . item.expected_motion
+    call AssertEq(getline(1, '$'), item.target_lines,
+      \ 'delete_inside_pairs/' . item.expected_motion . ': buffer matches target_lines')
+    call AssertEq([line('.'), col('.')], item.target,
+      \ 'delete_inside_pairs/' . item.expected_motion . ': cursor matches target')
+    bwipeout!
+
+    " Cheat gate: no <=3-keystroke alternative (word objects, dd, or the
+    " OTHER delimiter objects) may reproduce both the buffer and cursor.
+    let want = [item.target_lines, item.target]
+    for alt in ['diw', 'daw', 'dd', 'di"', 'di(', 'di{', 'di[']
+      if alt ==# item.expected_motion | continue | endif
+      enew!
+      call setline(1, item.lines)
+      call cursor(item.start[0], item.start[1])
+      silent! execute 'normal! ' . alt
+      call Assert([getline(1, '$'), [line('.'), col('.')]] !=# want,
+        \ 'delete_inside_pairs/' . item.expected_motion
+        \ . ': ' . alt . ' must NOT reproduce the target (cheat gate)')
+      bwipeout!
+    endfor
+
+    let seen[item.expected_motion] = 1
+  endfor
+  for m in valid
+    call Assert(get(seen, m, 0) == 1, 'delete_inside_pairs: ' . m . ' appeared in samples')
+  endfor
+endfunction
+
 call s:test_delete_inside_around_tag()
 call s:test_change_inside_around_tag()
+call s:test_delete_inside_pairs()
 call s:test_move_single_char_up_down_left_right()
 call s:test_move_to_line_edges_all()
 call s:test_move_to_word_start_forward_backward()
