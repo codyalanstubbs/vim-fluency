@@ -5,9 +5,10 @@
 "      Gut an element's contents, swap a class, replace a whole node.
 "      This is the reason a frontend dev picks this path over General,
 "      so the two tag drills lead the list.
-"   2. The delimiter inner objects (delete_inside_pairs: di\"/di(/di{/di[)
-"      — attribute values, JSX expressions, call args, arrays. The
-"      delimiter→object reflex that ci\"/ci{ build on.
+"   2. The delimiter inner objects — quotes (delete_inside_quotes:
+"      di\"/di'/di`) for attribute values and template literals, and
+"      brackets (delete_inside_brackets: di(/di{/di[) for expressions,
+"      call args, arrays. The delimiter→object reflex ci\"/ci{ build on.
 "   3. Two motions markup leans on harder than prose does:
 "        - f/F (move_to_char) — jump straight to the delimiters markup
 "          is dense with: \" = > < { and the like.
@@ -33,7 +34,8 @@ function! vimfluency#paths#frontend#meta() abort
     \ 'drill_ids': [
     \   'delete_inside_around_tag',
     \   'change_inside_around_tag',
-    \   'delete_inside_pairs',
+    \   'delete_inside_quotes',
+    \   'delete_inside_brackets',
     \   'switch_mode_to_insert',
     \   'switch_mode_to_command_line',
     \   'insert_before_after_char',
