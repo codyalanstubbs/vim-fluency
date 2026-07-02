@@ -8,7 +8,9 @@
 "   2. The delimiter inner objects — quotes (delete_inside_quotes:
 "      di\"/di'/di`) for attribute values and template literals, and
 "      brackets (delete_inside_brackets: di(/di{/di[) for expressions,
-"      call args, arrays. The delimiter→object reflex ci\"/ci{ build on.
+"      call args, arrays — plus the dib/diB block aliases
+"      (delete_inside_block) for the two you reach for most. The
+"      delimiter→object reflex ci\"/ci{ build on.
 "   3. Two motions markup leans on harder than prose does:
 "        - f/F (move_to_char) — jump straight to the delimiters markup
 "          is dense with: \" = > < { and the like.
@@ -36,6 +38,7 @@ function! vimfluency#paths#frontend#meta() abort
     \   'change_inside_around_tag',
     \   'delete_inside_quotes',
     \   'delete_inside_brackets',
+    \   'delete_inside_block',
     \   'switch_mode_to_insert',
     \   'switch_mode_to_command_line',
     \   'insert_before_after_char',
