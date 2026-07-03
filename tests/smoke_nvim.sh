@@ -192,6 +192,25 @@ NS ':VfQuit<CR>'; settle; nap 0.5; settle
 chk "VfQuit ended session" "" "$(NV 'vimfluency#statusline()')"
 NS 'Q'; settle
 
+echo "== paste_line_below_above: full-line green + cursor-only discrimination =="
+# yyp and yyP make the SAME buffer; only the cursor row differs, so the
+# whole destination line is highlighted (target_full_line) and credit is
+# by cursor. Verify the wrong paste does NOT credit, the right one does.
+NS ':VfTrain paste_line_below_above 90<CR>'; settle
+chk "session started" 1 "$(NV '!empty(vimfluency#statusline())')"
+chkge "full-line green shown" 1 "$(NV 'len(filter(getmatches(), "v:val.group==#\"VfTarget\""))')"
+exp="$(NV 'vimfluency#_test_state().current_item.expected_motion')"
+if [ "$exp" = "yyp" ]; then wrong=P; else wrong=p; fi
+NS "yy$wrong"; settle
+chk "wrong paste does NOT credit (same buffer, wrong cursor)" 0 "$(NV 'vimfluency#_test_state().items_correct')"
+NS 'u'; settle
+right="$(NV 'vimfluency#_test_state().current_item.expected_motion[-1:]')"
+NS "yy$right"; settle
+chkge "right paste credits" 1 "$(NV 'vimfluency#_test_state().items_correct')"
+NS ':VfQuit<CR>'; settle; nap 0.5; settle
+chk "VfQuit ended session" "" "$(NV 'vimfluency#statusline()')"
+NS 'Q'; settle
+
 echo "== lesson open + teardown =="
 NS ':VfLearn move_single_char_up_down_left_right<CR>'; settle
 chk "lesson buffer name" "vf-lesson-move_single_char_up_down_left_right" "$(NV 'bufname("%")')"

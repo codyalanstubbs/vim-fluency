@@ -2231,6 +2231,52 @@ function! s:test_copy_line_to_target() abort
   call Assert(get(seen, 'yykP', 0) == 1, 'copy_line_to_target: up appeared')
 endfunction
 
+" paste_line_below_above: p vs P, linewise. yyp and yyP yield the SAME
+" buffer (two adjacent copies) — the cursor row is the only discriminator.
+function! s:test_paste_line_below_above() abort
+  let GenFn = function('vimfluency#drills#paste_line_below_above#generate')
+  let seen = {}
+  for i in range(s:N)
+    let item = GenFn()
+    call s:assert_common('paste_line_below_above', item)
+    call AssertIn(item.expected_motion, ['yyp', 'yyP'],
+      \ 'paste_line_below_above: expected_motion in {yyp, yyP}')
+    call Assert(get(item, 'show_target', 0), 'paste_line_below_above: show_target set')
+    call Assert(get(item, 'target_full_line', 0), 'paste_line_below_above: target_full_line set')
+    call AssertEq(item.optimal_motions, 1, 'paste_line_below_above: optimal == 1')
+    call AssertEq(vimfluency#_test_command_strokes(item.expected_motion),
+      \ item.expected_motion ==# 'yyp' ? 3 : 4,
+      \ 'paste_line_below_above: stroke_count yyp=3 / yyP=4')
+
+    let key = item.expected_motion[-1 :]
+    enew!
+    call setline(1, item.lines)
+    call cursor(item.start[0], item.start[1])
+    execute 'normal! yy' . key
+    call AssertEq(getline(1, '$'), item.target_lines,
+      \ 'paste_line_below_above/' . item.expected_motion . ': buffer matches target_lines')
+    call AssertEq([line('.'), col('.')], item.target,
+      \ 'paste_line_below_above/' . item.expected_motion . ': cursor matches target')
+    bwipeout!
+
+    " Discrimination proof: the OTHER paste yields the SAME buffer but a
+    " DIFFERENT cursor — so only the cursor distinguishes p from P.
+    let other = item.expected_motion ==# 'yyp' ? 'P' : 'p'
+    enew!
+    call setline(1, item.lines)
+    call cursor(item.start[0], item.start[1])
+    execute 'normal! yy' . other
+    call AssertEq(getline(1, '$'), item.target_lines,
+      \ 'paste_line_below_above: both p and P yield the same buffer')
+    call Assert([line('.'), col('.')] != item.target,
+      \ 'paste_line_below_above: the wrong paste lands the cursor elsewhere')
+    bwipeout!
+    let seen[item.expected_motion] = 1
+  endfor
+  call Assert(get(seen, 'yyp', 0) == 1, 'paste_line_below_above: yyp appeared')
+  call Assert(get(seen, 'yyP', 0) == 1, 'paste_line_below_above: yyP appeared')
+endfunction
+
 function! s:test_delete_inside_brackets() abort
   call s:assert_inner_object_drill('delete_inside_brackets',
     \ ['di(', 'di{', 'di['], ['diw', 'daw', 'dd', 'di(', 'di{', 'di['])
@@ -2276,6 +2322,7 @@ call s:test_delete_inside_quotes()
 call s:test_delete_inside_angle_vs_tag()
 call s:test_delete_inside_block()
 call s:test_copy_line_to_target()
+call s:test_paste_line_below_above()
 call s:test_move_single_char_up_down_left_right()
 call s:test_move_to_line_edges_all()
 call s:test_move_to_word_start_forward_backward()

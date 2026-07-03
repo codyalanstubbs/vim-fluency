@@ -103,10 +103,16 @@ this file is the static snapshot for browsing on GitHub.
 |---|---|---|---|---|---|
 | `copy_line_to_target` | copy a line to the target (yy … P) | `yyP` | `editing` | 30 | `move_single_char_up_down` |
 
+## Paste
+
+| id (slug) | name | keys | kind | aim | prereqs |
+|---|---|---|---|---|---|
+| `paste_line_below_above` | paste line below vs above (p / P) | `yyp/yyP` | `editing` | 35 | `copy_line_to_target` |
+
 ## Indent
 
 | id (slug) | name | keys | kind | aim | prereqs |
 |---|---|---|---|---|---|
 | `indent_vs_dedent` | indent vs dedent (>> / <<) | `>>/<<` | `editing` | 50 | — |
 
-_57 drills across 7 families. Regenerate with `scripts/gen-catalog.sh`._
+_58 drills across 8 families. Regenerate with `scripts/gen-catalog.sh`._

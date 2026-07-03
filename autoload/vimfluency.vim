@@ -2296,7 +2296,9 @@ function! s:next_item() abort
   if (s:session.kind !=# 'editing' || get(item, 'show_target', 0))
     \ && (!has_key(item, 'deletion_range') || empty(item.deletion_range))
     let s:session.target_match_id = matchaddpos('VfTarget',
-      \ [[s:session.header_offset + item.target[0], item.target[1], 1]], 20)
+      \ get(item, 'target_full_line', 0)
+      \   ? [[s:session.header_offset + item.target[0]]]
+      \   : [[s:session.header_offset + item.target[0], item.target[1], 1]], 20)
   endif
 
   " Deletion-range highlight (editing training sessions that mark which characters
@@ -4145,7 +4147,9 @@ function! s:learn_show_frame() abort
     if !is_mode && (get(s:session, 'kind', 'motion') !=# 'editing'
       \ || get(frame, 'show_target', 0))
       let s:session.target_match_id = matchaddpos('VfTarget',
-        \ [[buf_target_row, frame.target[1], 1]], 20)
+        \ get(frame, 'target_full_line', 0)
+        \   ? [[buf_target_row]]
+        \   : [[buf_target_row, frame.target[1], 1]], 20)
     endif
     if has_key(frame, 'deletion_range') && !empty(frame.deletion_range)
       let positions = []
@@ -4857,7 +4861,9 @@ function! s:learn_test_next() abort
   if !is_mode && (get(s:session, 'kind', 'motion') !=# 'editing'
     \ || get(item, 'show_target', 0))
     let s:session.target_match_id = matchaddpos('VfTarget',
-      \ [[s:session.header_offset + item.target[0], item.target[1], 1]], 20)
+      \ get(item, 'target_full_line', 0)
+      \   ? [[s:session.header_offset + item.target[0]]]
+      \   : [[s:session.header_offset + item.target[0], item.target[1], 1]], 20)
   endif
 
   if s:session.deletion_match_id != -1
