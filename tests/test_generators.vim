@@ -2183,7 +2183,7 @@ function! s:assert_inner_object_drill(id, valid, cheats) abort
 endfunction
 
 " copy_line_to_target: yank+paste combo (yy -> navigate -> P). Buffer-
-" measured. expected_motion encodes direction (yyP↓ / yyP↑); optimal =
+" measured. expected_motion encodes direction (yyjP / yykP); optimal =
 " |D-S| + 1. Executing the real combo must reproduce target_lines/target.
 function! s:test_copy_line_to_target() abort
   let GenFn = function('vimfluency#drills#copy_line_to_target#generate')
@@ -2191,19 +2191,23 @@ function! s:test_copy_line_to_target() abort
   for i in range(s:N)
     let item = GenFn()
     call s:assert_common('copy_line_to_target', item)
-    call AssertIn(item.expected_motion, ['yyP↓', 'yyP↑'],
-      \ 'copy_line_to_target: expected_motion in {yyP↓, yyP↑}')
+    call AssertIn(item.expected_motion, ['yyjP', 'yykP'],
+      \ 'copy_line_to_target: expected_motion in {yyjP, yykP}')
     let S = item.start[0]
     let D = item.target[0]
     call AssertEq(abs(D - S), 1, 'copy_line_to_target: destination is exactly one row away')
     call AssertEq(item.lines[S - 1], 'copy me', 'copy_line_to_target: source line is "copy me"')
     call AssertEq(item.lines[D - 1], 'paste here', 'copy_line_to_target: destination is "paste here"')
-    call AssertEq(item.expected_motion, D > S ? 'yyP↓' : 'yyP↑',
+    call AssertEq(item.expected_motion, D > S ? 'yyjP' : 'yykP',
       \ 'copy_line_to_target: direction token matches D vs S')
     call AssertEq(item.optimal_motions, 2,
       \ 'copy_line_to_target: optimal == 2 (one step + paste)')
     call Assert(get(item, 'show_target', 0),
       \ 'copy_line_to_target: item sets show_target (green is the cue)')
+    " Token is the literal keystrokes so the breakdown's stroke_count is
+    " honest: yy + j/k + P(shift) = 5 (not a display label with an arrow).
+    call AssertEq(vimfluency#_test_command_strokes(item.expected_motion), 5,
+      \ 'copy_line_to_target: expected_motion is 5 literal keystrokes')
 
     enew!
     call setline(1, item.lines)
@@ -2223,8 +2227,8 @@ function! s:test_copy_line_to_target() abort
     bwipeout!
     let seen[item.expected_motion] = 1
   endfor
-  call Assert(get(seen, 'yyP↓', 0) == 1, 'copy_line_to_target: down appeared')
-  call Assert(get(seen, 'yyP↑', 0) == 1, 'copy_line_to_target: up appeared')
+  call Assert(get(seen, 'yyjP', 0) == 1, 'copy_line_to_target: down appeared')
+  call Assert(get(seen, 'yykP', 0) == 1, 'copy_line_to_target: up appeared')
 endfunction
 
 function! s:test_delete_inside_brackets() abort

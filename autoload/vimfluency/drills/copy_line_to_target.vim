@@ -15,7 +15,7 @@
 "     above or below the source,
 "   - every other line is filler.
 " So the only decision is: is the green line one step up or one step
-" down? That's the discrimination axis (yyP↓ / yyP↑) — same keys, but it
+" down? That's the discrimination axis (yyjP / yykP) — same keys, but it
 " keeps per-direction stats and stops the anti-streak guard spinning on
 " a lone motion.
 "
@@ -44,7 +44,7 @@ function! vimfluency#drills#copy_line_to_target#meta() abort
   return {'id': 'copy_line_to_target', 'name': 'copy a line to the target (yy … P)',
     \ 'aim': 30, 'allowed_keys': 'yyPjk', 'kind': 'editing', 'show_target': 1,
     \ 'prereqs': ['move_single_char_up_down'], 'keys': 'yyP', 'family': 'yank',
-    \ 'test_sequence': ['yyP↓', 'yyP↑']}
+    \ 'test_sequence': ['yyjP', 'yykP']}
 endfunction
 
 function! s:rand(n) abort
@@ -91,7 +91,7 @@ function! vimfluency#drills#copy_line_to_target#generate() abort
     \ 'target': [d_row, 1],
     \ 'show_target': 1,
     \ 'prompt': 'Copy the "copy me" line onto the green "paste here" line: yy, one step, P.',
-    \ 'expected_motion': down ? 'yyP↓' : 'yyP↑',
+    \ 'expected_motion': down ? 'yyjP' : 'yykP',
     \ 'optimal_motions': 2,
     \ }
 endfunction
@@ -114,22 +114,22 @@ function! vimfluency#drills#copy_line_to_target#lesson() abort
     \ {'kind': 'try', 'lines': ['alpha', 'copy me', 'paste here', 'bravo'],
     \  'start': [2, 1], 'target': [3, 1], 'show_target': 1,
     \  'target_lines': ['alpha', 'copy me', 'copy me', 'paste here', 'bravo'],
-    \  'expected_motion': 'yyP↓', 'optimal_motions': 2,
+    \  'expected_motion': 'yyjP', 'optimal_motions': 2,
     \  'prompt': 'Green is one line down. yy, j, then P.'},
     \ {'kind': 'try', 'lines': ['alpha', 'paste here', 'copy me', 'bravo'],
     \  'start': [3, 1], 'target': [2, 1], 'show_target': 1,
     \  'target_lines': ['alpha', 'copy me', 'paste here', 'copy me', 'bravo'],
-    \  'expected_motion': 'yyP↑', 'optimal_motions': 2,
+    \  'expected_motion': 'yykP', 'optimal_motions': 2,
     \  'prompt': 'Green is one line up. yy, k, then P.'},
     \ {'kind': 'try', 'lines': ['copy me', 'paste here', 'mike', 'oscar'],
     \  'start': [1, 1], 'target': [2, 1], 'show_target': 1,
     \  'target_lines': ['copy me', 'copy me', 'paste here', 'mike', 'oscar'],
-    \  'expected_motion': 'yyP↓', 'optimal_motions': 2,
+    \  'expected_motion': 'yyjP', 'optimal_motions': 2,
     \  'prompt': 'yy, j, P.'},
     \ {'kind': 'try', 'lines': ['mike', 'oscar', 'paste here', 'copy me'],
     \  'start': [4, 1], 'target': [3, 1], 'show_target': 1,
     \  'target_lines': ['mike', 'oscar', 'copy me', 'paste here', 'copy me'],
-    \  'expected_motion': 'yyP↑', 'optimal_motions': 2,
+    \  'expected_motion': 'yykP', 'optimal_motions': 2,
     \  'prompt': 'yy, k, P.'},
     \ ]
 endfunction
