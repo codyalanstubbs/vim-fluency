@@ -101,7 +101,7 @@ this file is the static snapshot for browsing on GitHub.
 
 | id (slug) | name | keys | kind | aim | prereqs |
 |---|---|---|---|---|---|
-| `copy_line_to_target` | copy a line to the target (yy … P) | `yyP` | `editing` | 25 | `move_single_char_up_down` |
+| `copy_line_to_target` | copy a line to the target (yy … P) | `yyP` | `editing` | 30 | `move_single_char_up_down` |
 
 ## Indent
 

@@ -2195,11 +2195,13 @@ function! s:test_copy_line_to_target() abort
       \ 'copy_line_to_target: expected_motion in {yyP↓, yyP↑}')
     let S = item.start[0]
     let D = item.target[0]
-    call Assert(S != D, 'copy_line_to_target: source row != destination row')
+    call AssertEq(abs(D - S), 1, 'copy_line_to_target: destination is exactly one row away')
+    call AssertEq(item.lines[S - 1], 'copy me', 'copy_line_to_target: source line is "copy me"')
+    call AssertEq(item.lines[D - 1], 'paste here', 'copy_line_to_target: destination is "paste here"')
     call AssertEq(item.expected_motion, D > S ? 'yyP↓' : 'yyP↑',
       \ 'copy_line_to_target: direction token matches D vs S')
-    call AssertEq(item.optimal_motions, abs(D - S) + 1,
-      \ 'copy_line_to_target: optimal == |D-S| + 1')
+    call AssertEq(item.optimal_motions, 2,
+      \ 'copy_line_to_target: optimal == 2 (one step + paste)')
     call Assert(get(item, 'show_target', 0),
       \ 'copy_line_to_target: item sets show_target (green is the cue)')
 
