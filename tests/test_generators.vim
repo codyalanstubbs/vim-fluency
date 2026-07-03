@@ -2277,6 +2277,53 @@ function! s:test_paste_line_below_above() abort
   call Assert(get(seen, 'yyP', 0) == 1, 'paste_line_below_above: yyP appeared')
 endfunction
 
+" move_line_down_up: ddp (move down) vs ddkP (move up). The real motion
+" must reproduce target_lines/target; the wrong direction yields a
+" DIFFERENT buffer (the mover goes the other way). optimal ddp=2/ddkP=3,
+" strokes ddp=3/ddkP=5.
+function! s:test_move_line_down_up() abort
+  let GenFn = function('vimfluency#drills#move_line_down_up#generate')
+  let seen = {}
+  for i in range(s:N)
+    let item = GenFn()
+    call s:assert_common('move_line_down_up', item)
+    call AssertIn(item.expected_motion, ['ddp', 'ddkP'],
+      \ 'move_line_down_up: expected_motion in {ddp, ddkP}')
+    call Assert(get(item, 'show_target', 0), 'move_line_down_up: show_target set')
+    call Assert(get(item, 'target_full_line', 0), 'move_line_down_up: target_full_line set')
+    call AssertEq(item.optimal_motions, item.expected_motion ==# 'ddp' ? 2 : 3,
+      \ 'move_line_down_up: optimal ddp=2 / ddkP=3')
+    call AssertEq(vimfluency#_test_command_strokes(item.expected_motion),
+      \ item.expected_motion ==# 'ddp' ? 3 : 5,
+      \ 'move_line_down_up: stroke_count ddp=3 / ddkP=5')
+    call AssertEq(abs(item.target[0] - item.start[0]), 1,
+      \ 'move_line_down_up: destination is one row from the source')
+
+    enew!
+    call setline(1, item.lines)
+    call cursor(item.start[0], item.start[1])
+    execute 'normal! ' . item.expected_motion
+    call AssertEq(getline(1, '$'), item.target_lines,
+      \ 'move_line_down_up/' . item.expected_motion . ': buffer matches target_lines')
+    call AssertEq([line('.'), col('.')], item.target,
+      \ 'move_line_down_up/' . item.expected_motion . ': cursor matches target')
+    bwipeout!
+
+    " Discrimination: the OTHER direction produces a DIFFERENT buffer.
+    let other = item.expected_motion ==# 'ddp' ? 'ddkP' : 'ddp'
+    enew!
+    call setline(1, item.lines)
+    call cursor(item.start[0], item.start[1])
+    silent! execute 'normal! ' . other
+    call Assert(getline(1, '$') !=# item.target_lines,
+      \ 'move_line_down_up: the wrong direction yields a different buffer')
+    bwipeout!
+    let seen[item.expected_motion] = 1
+  endfor
+  call Assert(get(seen, 'ddp', 0) == 1, 'move_line_down_up: ddp appeared')
+  call Assert(get(seen, 'ddkP', 0) == 1, 'move_line_down_up: ddkP appeared')
+endfunction
+
 function! s:test_delete_inside_brackets() abort
   call s:assert_inner_object_drill('delete_inside_brackets',
     \ ['di(', 'di{', 'di['], ['diw', 'daw', 'dd', 'di(', 'di{', 'di['])
@@ -2323,6 +2370,7 @@ call s:test_delete_inside_angle_vs_tag()
 call s:test_delete_inside_block()
 call s:test_copy_line_to_target()
 call s:test_paste_line_below_above()
+call s:test_move_line_down_up()
 call s:test_move_single_char_up_down_left_right()
 call s:test_move_to_line_edges_all()
 call s:test_move_to_word_start_forward_backward()

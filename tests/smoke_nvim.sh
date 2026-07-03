@@ -211,6 +211,19 @@ NS ':VfQuit<CR>'; settle; nap 0.5; settle
 chk "VfQuit ended session" "" "$(NV 'vimfluency#statusline()')"
 NS 'Q'; settle
 
+echo "== move_line_down_up: dd-then-paste move, buffer credit =="
+# The cut-and-paste move idiom (ddp / ddkP): dd removes a line, p/P puts
+# it back one row over. Drives the real sequence and checks credit.
+NS ':VfTrain move_line_down_up 90<CR>'; settle
+chk "session started" 1 "$(NV '!empty(vimfluency#statusline())')"
+chkge "full-line green shown" 1 "$(NV 'len(filter(getmatches(), "v:val.group==#\"VfTarget\""))')"
+mv_exp="$(NV 'vimfluency#_test_state().current_item.expected_motion')"
+NS "$mv_exp"; settle
+chkge "ddp/ddkP move credited" 1 "$(NV 'vimfluency#_test_state().items_correct')"
+NS ':VfQuit<CR>'; settle; nap 0.5; settle
+chk "VfQuit ended session" "" "$(NV 'vimfluency#statusline()')"
+NS 'Q'; settle
+
 echo "== lesson open + teardown =="
 NS ':VfLearn move_single_char_up_down_left_right<CR>'; settle
 chk "lesson buffer name" "vf-lesson-move_single_char_up_down_left_right" "$(NV 'bufname("%")')"
