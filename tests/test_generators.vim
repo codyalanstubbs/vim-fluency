@@ -2182,6 +2182,49 @@ function! s:assert_inner_object_drill(id, valid, cheats) abort
   endfor
 endfunction
 
+" copy_line_to_target: yank+paste combo (yy -> navigate -> P). Buffer-
+" measured. expected_motion encodes direction (yyP↓ / yyP↑); optimal =
+" |D-S| + 1. Executing the real combo must reproduce target_lines/target.
+function! s:test_copy_line_to_target() abort
+  let GenFn = function('vimfluency#drills#copy_line_to_target#generate')
+  let seen = {}
+  for i in range(s:N)
+    let item = GenFn()
+    call s:assert_common('copy_line_to_target', item)
+    call AssertIn(item.expected_motion, ['yyP↓', 'yyP↑'],
+      \ 'copy_line_to_target: expected_motion in {yyP↓, yyP↑}')
+    let S = item.start[0]
+    let D = item.target[0]
+    call Assert(S != D, 'copy_line_to_target: source row != destination row')
+    call AssertEq(item.expected_motion, D > S ? 'yyP↓' : 'yyP↑',
+      \ 'copy_line_to_target: direction token matches D vs S')
+    call AssertEq(item.optimal_motions, abs(D - S) + 1,
+      \ 'copy_line_to_target: optimal == |D-S| + 1')
+    call Assert(get(item, 'show_target', 0),
+      \ 'copy_line_to_target: item sets show_target (green is the cue)')
+
+    enew!
+    call setline(1, item.lines)
+    call cursor(S, 1)
+    normal! yy
+    let steps = D - S
+    if steps > 0
+      execute 'normal! ' . steps . 'j'
+    else
+      execute 'normal! ' . (-steps) . 'k'
+    endif
+    normal! P
+    call AssertEq(getline(1, '$'), item.target_lines,
+      \ 'copy_line_to_target/' . item.expected_motion . ': buffer matches target_lines')
+    call AssertEq([line('.'), col('.')], item.target,
+      \ 'copy_line_to_target/' . item.expected_motion . ': cursor matches target')
+    bwipeout!
+    let seen[item.expected_motion] = 1
+  endfor
+  call Assert(get(seen, 'yyP↓', 0) == 1, 'copy_line_to_target: down appeared')
+  call Assert(get(seen, 'yyP↑', 0) == 1, 'copy_line_to_target: up appeared')
+endfunction
+
 function! s:test_delete_inside_brackets() abort
   call s:assert_inner_object_drill('delete_inside_brackets',
     \ ['di(', 'di{', 'di['], ['diw', 'daw', 'dd', 'di(', 'di{', 'di['])
@@ -2226,6 +2269,7 @@ call s:test_delete_inside_brackets()
 call s:test_delete_inside_quotes()
 call s:test_delete_inside_angle_vs_tag()
 call s:test_delete_inside_block()
+call s:test_copy_line_to_target()
 call s:test_move_single_char_up_down_left_right()
 call s:test_move_to_line_edges_all()
 call s:test_move_to_word_start_forward_backward()

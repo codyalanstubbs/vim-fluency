@@ -2290,7 +2290,10 @@ function! s:next_item() abort
   " column would distinguish dit/dat (cit/cat) for free. So suppress
   " green whenever red is shown. Motion-kind sessions (no deletion_range)
   " still get the green cell since that's the entire cue.
-  if s:session.kind !=# 'editing'
+  " show_target lets a buffer-changing drill opt back into the green cell
+  " when the target IS the cue (the paste family: no red range, the green
+  " marks where the copied text should land).
+  if (s:session.kind !=# 'editing' || get(item, 'show_target', 0))
     \ && (!has_key(item, 'deletion_range') || empty(item.deletion_range))
     let s:session.target_match_id = matchaddpos('VfTarget',
       \ [[s:session.header_offset + item.target[0], item.target[1], 1]], 20)
@@ -4139,7 +4142,8 @@ function! s:learn_show_frame() abort
     " Editing- and mode-kind lessons hide the green single-cell target
     " — editing because the deletion-range red shows what to do, mode
     " because the '▶◀' indicator already marks the gap.
-    if !is_mode && get(s:session, 'kind', 'motion') !=# 'editing'
+    if !is_mode && (get(s:session, 'kind', 'motion') !=# 'editing'
+      \ || get(frame, 'show_target', 0))
       let s:session.target_match_id = matchaddpos('VfTarget',
         \ [[buf_target_row, frame.target[1], 1]], 20)
     endif
@@ -4850,7 +4854,8 @@ function! s:learn_test_next() abort
     silent! call matchdelete(s:session.target_match_id)
     let s:session.target_match_id = -1
   endif
-  if !is_mode && get(s:session, 'kind', 'motion') !=# 'editing'
+  if !is_mode && (get(s:session, 'kind', 'motion') !=# 'editing'
+    \ || get(item, 'show_target', 0))
     let s:session.target_match_id = matchaddpos('VfTarget',
       \ [[s:session.header_offset + item.target[0], item.target[1], 1]], 20)
   endif

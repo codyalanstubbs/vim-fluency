@@ -172,6 +172,26 @@ NS ':VfQuit<CR>'; settle; nap 0.5; settle
 chk "VfQuit ended session" "" "$(NV 'vimfluency#statusline()')"
 NS 'Q'; settle
 
+echo "== copy_line_to_target: yy->nav->P + show_target green =="
+# First yank/paste drill: editing kind that opts back into the green
+# target cell (show_target) because the destination is the cue, not a
+# red range. Drives the real combo and checks buffer-state credit.
+NS ':VfTrain copy_line_to_target 60<CR>'; settle
+chk "session started" 1 "$(NV '!empty(vimfluency#statusline())')"
+chkge "green destination cue shown (show_target)" 1 "$(NV 'len(filter(getmatches(), "v:val.group==#\"VfTarget\""))')"
+chk "no red range (paste has nothing to delete)" 0 "$(NV 'len(filter(getmatches(), "v:val.group==#\"VfDeletion\""))')"
+for _ in 1 2 3; do
+  s="$(NV 'vimfluency#_test_state().current_item.start[0]')"
+  d="$(NV 'vimfluency#_test_state().current_item.target[0]')"
+  NS 'yy'; settle
+  if [ "$d" -gt "$s" ]; then NS "$((d-s))j"; else NS "$((s-d))k"; fi; settle
+  NS 'P'; settle
+done
+chkge "yy->nav->P credited (buffer-state)" 3 "$(NV 'vimfluency#_test_state().items_correct')"
+NS ':VfQuit<CR>'; settle; nap 0.5; settle
+chk "VfQuit ended session" "" "$(NV 'vimfluency#statusline()')"
+NS 'Q'; settle
+
 echo "== lesson open + teardown =="
 NS ':VfLearn move_single_char_up_down_left_right<CR>'; settle
 chk "lesson buffer name" "vf-lesson-move_single_char_up_down_left_right" "$(NV 'bufname("%")')"

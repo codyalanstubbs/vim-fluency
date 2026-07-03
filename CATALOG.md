@@ -97,10 +97,16 @@ this file is the static snapshot for browsing on GitHub.
 | `change_inside_brackets` | change inside brackets (ci( / ci{ / ci[) | `ci(/ci{/ci[` | `mode` | 35 | `delete_inside_brackets` |
 | `change_inside_quotes` | change inside quotes (ci" / ci' / ci`) | `` ci"/ci'/ci` `` | `mode` | 35 | `delete_inside_quotes` |
 
+## Yank
+
+| id (slug) | name | keys | kind | aim | prereqs |
+|---|---|---|---|---|---|
+| `copy_line_to_target` | copy a line to the target (yy … P) | `yyP` | `editing` | 25 | `move_single_char_up_down` |
+
 ## Indent
 
 | id (slug) | name | keys | kind | aim | prereqs |
 |---|---|---|---|---|---|
 | `indent_vs_dedent` | indent vs dedent (>> / <<) | `>>/<<` | `editing` | 50 | — |
 
-_56 drills across 6 families. Regenerate with `scripts/gen-catalog.sh`._
+_57 drills across 7 families. Regenerate with `scripts/gen-catalog.sh`._
