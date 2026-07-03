@@ -3797,6 +3797,7 @@ function! vimfluency#learn(...) abort
     \ 'kind': get(info, 'kind', 'motion'),
     \ 'credit_on_text_typed': get(info, 'credit_on_text_typed', 0),
     \ 'fills_buffer': get(info, 'fills_buffer', 0),
+    \ 'allowed_keys': get(info, 'allowed_keys', ''),
     \ 'frames': frames,
     \ 'frame_idx': 0,
     \ 'frame_complete': 0,
@@ -4248,10 +4249,19 @@ function! s:learn_install_autocmds() abort
   nnoremap <buffer> <silent> <CR> :call <SID>learn_advance_show()<CR>
   if kind !=# 'recall'
     " Q is the documented quit key (uppercase nav keys everywhere);
-    " lowercase q stays as a silent muscle-memory alias.
+    " lowercase q / p are muscle-memory aliases (q=quit, p=practice).
+    " But skip either when the drill actually PRESSES that key — the
+    " paste drills press p, so the map would shadow the paste (same
+    " reason recall skips q/p, since :q/:wq contain them). Uppercase Q
+    " stays: the drilled keys here are the lowercase forms.
+    let drilled = get(s:session, 'allowed_keys', '')
     nnoremap <buffer> <silent> Q :call vimfluency#learn_stop()<CR>
-    nnoremap <buffer> <silent> q :call vimfluency#learn_stop()<CR>
-    nnoremap <buffer> <silent> p :call <SID>learn_start_train()<CR>
+    if stridx(drilled, 'q') < 0
+      nnoremap <buffer> <silent> q :call vimfluency#learn_stop()<CR>
+    endif
+    if stridx(drilled, 'p') < 0
+      nnoremap <buffer> <silent> p :call <SID>learn_start_train()<CR>
+    endif
   endif
   " Ctrl-C → Esc, mirroring the training path. Vim's Ctrl-C exits insert
   " without firing InsertLeave by design, so unmapped it would leave
