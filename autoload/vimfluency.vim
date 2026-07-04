@@ -3914,6 +3914,21 @@ function! s:learn_top_keys() abort
   return (s:session.header_offset + 1) . 'G'
 endfunction
 
+" Cue-aware goal text for an editing-kind lesson item/frame: name what the
+" learner is actually looking at, instead of always claiming a green cell
+" (editing drills cue with a red range, the ▶◀ seam, or a green target —
+" or nothing, when the prompt alone carries the task).
+function! s:learn_cue_goal(item) abort
+  if has_key(a:item, 'deletion_range') && !empty(a:item.deletion_range)
+    return 'delete the red range'
+  elseif has_key(a:item, 'enter_at_col')
+    return 'paste at the ▶◀'
+  elseif get(a:item, 'show_target', 0)
+    return get(a:item, 'target_full_line', 0) ? 'reach the green line' : 'reach the green cell'
+  endif
+  return 'edit to match the target'
+endfunction
+
 " Build the lesson header line dynamically. Reads s:session.frame_complete
 " so the same function works both for initial render and the post-success
 " "✓ Press <Space>" update. Test phase has its own format (streak counter
@@ -3943,6 +3958,9 @@ function! s:learn_header_line() abort
         let goal = 'change into the prompted mode'
       elseif kind ==# 'recall'
         let goal = 'type the keystrokes for the prompt'
+      elseif kind ==# 'editing'
+        let goal = s:learn_cue_goal(get(s:session, 'current_test_item', {}))
+          \ . ', fewest keystrokes'
       else
         let goal = 'reach the green cell, fewest keystrokes'
       endif
@@ -3970,6 +3988,8 @@ function! s:learn_header_line() abort
       let hint = '[change into the prompted mode]'
     elseif kind ==# 'recall'
       let hint = '[type the keystrokes for the prompt]'
+    elseif kind ==# 'editing'
+      let hint = '[' . s:learn_cue_goal(frame) . ']'
     else
       let hint = '[reach the green cell]'
     endif
