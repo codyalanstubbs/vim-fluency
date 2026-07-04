@@ -2256,6 +2256,10 @@ function! s:next_item() abort
   if s:session.kind ==# 'editing'
     let prompt = get(item, 'prompt', 'edit to match the target')
     let header = [prompt, repeat('─', 60)]
+    " ▶◀ seam indicator for before/after-a-char editing drills (the
+    " charwise p/P paste drill). Empty for items without enter_at_col.
+    let ind = s:mode_gap_indicator(item)
+    if !empty(ind) | call add(header, ind) | endif
   endif
   " Waypoint annotation row sits at the END of the header (just above the
   " content) so the deferred-fire guard's cur_lines comparison still
@@ -2277,6 +2281,7 @@ function! s:next_item() abort
     call setline(1, header + item.lines)
   endif
   call cursor(s:session.header_offset + item.start[0], item.start[1])
+  call s:seed_register(item)
 
   if s:session.target_match_id != -1
     silent! call matchdelete(s:session.target_match_id)
@@ -2922,6 +2927,15 @@ endfunction
 " No coloring on the content row — leaves the buffer visually clean.
 " No trailing pad after ◀ — listchars=trail:· would otherwise render
 " those spaces as dots and clutter the cue.
+" Pre-load the unnamed register from an item's register_payload, charwise
+" — for paste drills that credit p/P without making the learner yank
+" first (the yank is taught in the lesson intro). No-op for other items.
+function! s:seed_register(item) abort
+  if has_key(a:item, 'register_payload')
+    call setreg('"', a:item.register_payload, 'c')
+  endif
+endfunction
+
 function! s:mode_gap_indicator(item) abort
   if !has_key(a:item, 'enter_at_col') || get(a:item, 'hide_target', 0)
     return ''
@@ -4091,12 +4105,12 @@ function! s:learn_show_frame() abort
   " Mode-kind frames may get a '▶◀' gap indicator row — try frames
   " always do (it's the cue); show frames optionally, when they
   " declare enter_at_col to demonstrate the cue itself.
+  " Indicator shows whenever the frame declares enter_at_col — mode
+  " frames (the ▶◀ gap) and the charwise editing paste drill alike.
   let mode_extra = []
-  if is_mode
-    let ind = s:mode_gap_indicator(frame)
-    if !empty(ind)
-      call add(mode_extra, ind)
-    endif
+  let ind = s:mode_gap_indicator(frame)
+  if !empty(ind)
+    call add(mode_extra, ind)
   endif
   " Annotation row sits at the END of the header (just above the
   " content), so the cur_lines comparison in s:learn_on_change still
@@ -4162,6 +4176,7 @@ function! s:learn_show_frame() abort
     endif
     call s:add_waypoint_matches(frame)
   endif
+  call s:seed_register(frame)
 
   let s:session.advancing = 0
 endfunction
@@ -4843,13 +4858,12 @@ function! s:learn_test_next() abort
     let prompt = get(item, 'prompt', 'edit to match the target')
     let editing_header = [prompt, repeat('─', 60)]
   endif
-  " Mode items get the gap indicator above the content.
+  " Gap indicator: mode items, and the charwise editing paste drill
+  " (any item declaring enter_at_col).
   let mode_extra = []
-  if is_mode
-    let ind = s:mode_gap_indicator(item)
-    if !empty(ind)
-      call add(mode_extra, ind)
-    endif
+  let ind = s:mode_gap_indicator(item)
+  if !empty(ind)
+    call add(mode_extra, ind)
   endif
   let full_header = lesson_header + editing_header + mode_extra
     \ + s:waypoint_annotation(item) + s:deletion_annotation(item)
@@ -4863,6 +4877,7 @@ function! s:learn_test_next() abort
     call setline(1, full_header + item.lines)
   endif
   call cursor(s:session.header_offset + item.start[0], item.start[1])
+  call s:seed_register(item)
 
   if s:session.target_match_id != -1
     silent! call matchdelete(s:session.target_match_id)

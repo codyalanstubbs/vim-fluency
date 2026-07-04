@@ -2324,6 +2324,56 @@ function! s:test_move_line_down_up() abort
   call Assert(get(seen, 'ddkP', 0) == 1, 'move_line_down_up: ddkP appeared')
 endfunction
 
+" paste_char_before_after: charwise p vs P at a ▶◀ seam. Register
+" pre-seeded; both correct answers reach the same target, the wrong key
+" lands the word one column off. p under ▶ (cursor left of seam), P under
+" ◀ (right). enter_at_col is the seam's right column.
+function! s:test_paste_char_before_after() abort
+  let GenFn = function('vimfluency#drills#paste_char_before_after#generate')
+  let seen = {}
+  for i in range(s:N)
+    let item = GenFn()
+    call s:assert_common('paste_char_before_after', item)
+    call AssertIn(item.expected_motion, ['p', 'P'],
+      \ 'paste_char_before_after: expected_motion in {p, P}')
+    call AssertEq(item.optimal_motions, 1, 'paste_char_before_after: optimal == 1')
+    call Assert(has_key(item, 'register_payload'), 'paste_char_before_after: has register_payload')
+    call Assert(has_key(item, 'enter_at_col'), 'paste_char_before_after: has enter_at_col (seam)')
+    " p: cursor is one left of the seam edge; P: cursor is on it.
+    call AssertEq(item.enter_at_col,
+      \ item.expected_motion ==# 'p' ? item.start[1] + 1 : item.start[1],
+      \ 'paste_char_before_after: enter_at_col places the cursor under ▶ (p) / ◀ (P)')
+    call AssertEq(vimfluency#_test_command_strokes(item.expected_motion),
+      \ item.expected_motion ==# 'p' ? 1 : 2,
+      \ 'paste_char_before_after: stroke_count p=1 / P=2')
+
+    enew!
+    call setreg('"', item.register_payload, 'c')
+    call setline(1, item.lines)
+    call cursor(item.start[0], item.start[1])
+    execute 'normal! ' . item.expected_motion
+    call AssertEq(getline(1, '$'), item.target_lines,
+      \ 'paste_char_before_after/' . item.expected_motion . ': buffer matches target_lines')
+    call AssertEq([line('.'), col('.')], item.target,
+      \ 'paste_char_before_after/' . item.expected_motion . ': cursor matches target')
+    bwipeout!
+
+    " The wrong key lands the word one column off — different buffer.
+    let other = item.expected_motion ==# 'p' ? 'P' : 'p'
+    enew!
+    call setreg('"', item.register_payload, 'c')
+    call setline(1, item.lines)
+    call cursor(item.start[0], item.start[1])
+    execute 'normal! ' . other
+    call Assert(getline(1, '$') !=# item.target_lines,
+      \ 'paste_char_before_after: the wrong key yields a different buffer')
+    bwipeout!
+    let seen[item.expected_motion] = 1
+  endfor
+  call Assert(get(seen, 'p', 0) == 1, 'paste_char_before_after: p appeared')
+  call Assert(get(seen, 'P', 0) == 1, 'paste_char_before_after: P appeared')
+endfunction
+
 function! s:test_delete_inside_brackets() abort
   call s:assert_inner_object_drill('delete_inside_brackets',
     \ ['di(', 'di{', 'di['], ['diw', 'daw', 'dd', 'di(', 'di{', 'di['])
@@ -2371,6 +2421,7 @@ call s:test_delete_inside_block()
 call s:test_copy_line_to_target()
 call s:test_paste_line_below_above()
 call s:test_move_line_down_up()
+call s:test_paste_char_before_after()
 call s:test_move_single_char_up_down_left_right()
 call s:test_move_to_line_edges_all()
 call s:test_move_to_word_start_forward_backward()

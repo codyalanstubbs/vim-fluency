@@ -108,6 +108,7 @@ this file is the static snapshot for browsing on GitHub.
 | id (slug) | name | keys | kind | aim | prereqs |
 |---|---|---|---|---|---|
 | `move_line_down_up` | move a line down / up (ddp / ddkP) | `ddp/ddkP` | `editing` | 30 | `delete_char_vs_line`, `paste_line_below_above` |
+| `paste_char_before_after` | paste word before / after cursor (p / P) | `p/P` | `editing` | 35 | `paste_line_below_above` |
 | `paste_line_below_above` | paste line below vs above (p / P) | `yyp/yyP` | `editing` | 35 | `copy_line_to_target` |
 
 ## Indent
@@ -116,4 +117,4 @@ this file is the static snapshot for browsing on GitHub.
 |---|---|---|---|---|---|
 | `indent_vs_dedent` | indent vs dedent (>> / <<) | `>>/<<` | `editing` | 50 | — |
 
-_59 drills across 8 families. Regenerate with `scripts/gen-catalog.sh`._
+_60 drills across 8 families. Regenerate with `scripts/gen-catalog.sh`._

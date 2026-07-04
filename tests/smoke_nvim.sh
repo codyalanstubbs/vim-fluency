@@ -224,6 +224,26 @@ NS ':VfQuit<CR>'; settle; nap 0.5; settle
 chk "VfQuit ended session" "" "$(NV 'vimfluency#statusline()')"
 NS 'Q'; settle
 
+echo "== paste_char_before_after: register pre-seed + gap indicator + p/P =="
+# Charwise p/P: the register is pre-loaded (no yank needed) and a gap
+# indicator marks the seam. Verifies the seed, the editing-kind ▶◀
+# render, and that the wrong side does not credit.
+NS ':VfTrain paste_char_before_after 90<CR>'; settle
+chk "session started" 1 "$(NV '!empty(vimfluency#statusline())')"
+chk "register pre-seeded" "foo" "$(NV 'getreg("\"")')"
+# prompt + divider + gap-indicator = 3 header rows (2 without the indicator)
+chk "gap indicator adds a header row" 3 "$(NV 'vimfluency#_test_state().header_offset')"
+pc_exp="$(NV 'vimfluency#_test_state().current_item.expected_motion')"
+if [ "$pc_exp" = "p" ]; then pc_wrong=P; else pc_wrong=p; fi
+NS "$pc_wrong"; settle
+chk "wrong side does NOT credit" 0 "$(NV 'vimfluency#_test_state().items_correct')"
+NS 'u'; settle
+NS "$(NV 'vimfluency#_test_state().current_item.expected_motion')"; settle
+chkge "correct side credits" 1 "$(NV 'vimfluency#_test_state().items_correct')"
+NS ':VfQuit<CR>'; settle; nap 0.5; settle
+chk "VfQuit ended session" "" "$(NV 'vimfluency#statusline()')"
+NS 'Q'; settle
+
 echo "== lesson open + teardown =="
 NS ':VfLearn move_single_char_up_down_left_right<CR>'; settle
 chk "lesson buffer name" "vf-lesson-move_single_char_up_down_left_right" "$(NV 'bufname("%")')"
