@@ -227,9 +227,13 @@ NS 'Q'; settle
 echo "== paste_char_before_after: register pre-seed + gap indicator + p/P =="
 # Charwise p/P: the register is pre-loaded (no yank needed) and a gap
 # indicator marks the seam. Verifies the seed, the editing-kind ▶◀
-# render, and that the wrong side does not credit.
+# render, and that the wrong side does not credit. Under clipboard=
+# unnamedplus, p/P would read +/* — so the session must neutralize
+# 'clipboard' (else the seed misses → "Nothing in register").
+NS ':set clipboard=unnamedplus<CR>'; settle
 NS ':VfTrain paste_char_before_after 90<CR>'; settle
 chk "session started" 1 "$(NV '!empty(vimfluency#statusline())')"
+chk "clipboard neutralized during session" "" "$(NV '&clipboard')"
 chk "register pre-seeded" "foo" "$(NV 'getreg("\"")')"
 # prompt + divider + gap-indicator = 3 header rows (2 without the indicator)
 chk "gap indicator adds a header row" 3 "$(NV 'vimfluency#_test_state().header_offset')"
@@ -243,6 +247,8 @@ chkge "correct side credits" 1 "$(NV 'vimfluency#_test_state().items_correct')"
 NS ':VfQuit<CR>'; settle; nap 0.5; settle
 chk "VfQuit ended session" "" "$(NV 'vimfluency#statusline()')"
 NS 'Q'; settle
+chk "clipboard restored after session" "unnamedplus" "$(NV '&clipboard')"
+NS ':set clipboard=<CR>'; settle   # reset for later blocks
 
 echo "== lesson open + teardown =="
 NS ':VfLearn move_single_char_up_down_left_right<CR>'; settle

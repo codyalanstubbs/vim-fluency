@@ -1639,6 +1639,7 @@ function! vimfluency#start(...) abort
     \ 'prev_laststatus': &laststatus,
     \ 'prev_ttimeoutlen': &ttimeoutlen,
     \ 'prev_cpoptions': &cpoptions,
+    \ 'prev_clipboard': &clipboard,
     \ }
   " ttimeoutlen is what gates how long vim waits after Esc / Ctrl+[
   " to see if a function-key sequence is starting. Default is 100ms
@@ -1657,6 +1658,12 @@ function! vimfluency#start(...) abort
   " vimfluency#stop. Harmless for non-t drills (f/F/;/, are
   " unaffected by the flag).
   set cpoptions-=;
+  " Neutralize 'clipboard' for the session: with unnamed / unnamedplus the
+  " unnamed register aliases * / +, so drill yanks (yy/dd/x) would clobber
+  " the user's system clipboard, and paste drills couldn't pre-seed @"
+  " (p/P would read the empty/stale clipboard → "Nothing in register").
+  " Empty it here; restored in vimfluency#stop.
+  set clipboard=
 
   " Self-driving demo: flag the session so a paced timer (below) plays
   " it. NOTE: items are still random per render — byte-identical
@@ -3534,12 +3541,14 @@ function! vimfluency#stop(reason) abort
   let prev_laststatus = s:session.prev_laststatus
   let prev_ttimeoutlen = get(s:session, 'prev_ttimeoutlen', &ttimeoutlen)
   let prev_cpoptions = get(s:session, 'prev_cpoptions', &cpoptions)
+  let prev_clipboard = get(s:session, 'prev_clipboard', &clipboard)
   let you_win = get(s:session, 'you_win', -1)
   let drill_id = record.drill_id
   let s:session = {}
 
   let &ttimeoutlen = prev_ttimeoutlen
   let &cpoptions = prev_cpoptions
+  let &clipboard = prev_clipboard
   " Restore the user's laststatus FIRST so the end screen captures it
   " as the value to put back when the learner finally quits the screen.
   let &laststatus = prev_laststatus
@@ -3834,6 +3843,7 @@ function! vimfluency#learn(...) abort
     \ 'current_test_item': {},
     \ 'prev_ttimeoutlen': &ttimeoutlen,
     \ 'prev_cpoptions': &cpoptions,
+    \ 'prev_clipboard': &clipboard,
     \ 'target_match_id': -1,
     \ 'deletion_match_id': -1,
     \ 'waypoint_match_ids': [],
@@ -3848,6 +3858,10 @@ function! vimfluency#learn(...) abort
   " a t/T find skip to the next match instead of sticking. Restored
   " in vimfluency#learn_stop.
   set cpoptions-=;
+  " See vimfluency#start: neutralize 'clipboard' so drill yanks don't
+  " clobber the system clipboard and paste drills can pre-seed @".
+  " Restored in vimfluency#learn_stop.
+  set clipboard=
 
   call s:learn_setup_window()
   call s:learn_show_frame()
@@ -4660,6 +4674,7 @@ function! s:learn_show_complete() abort
   call s:stop_learn_auto_advance()
   let &ttimeoutlen = get(s:session, 'prev_ttimeoutlen', &ttimeoutlen)
   let &cpoptions = get(s:session, 'prev_cpoptions', &cpoptions)
+  let &clipboard = get(s:session, 'prev_clipboard', &clipboard)
   if s:session.target_match_id != -1
     silent! call matchdelete(s:session.target_match_id)
   endif
@@ -4921,6 +4936,7 @@ function! vimfluency#learn_stop() abort
   let id = s:session.id
   let prev_ttl = get(s:session, 'prev_ttimeoutlen', &ttimeoutlen)
   let prev_cpo = get(s:session, 'prev_cpoptions', &cpoptions)
+  let prev_clip = get(s:session, 'prev_clipboard', &clipboard)
   " Resolve the tab by window id at close time — the tab NUMBER captured
   " at setup goes stale if the user opens/closes tabs mid-session.
   let tabnr = win_id2tabwin(get(s:session, 'you_win', -1))[0]
@@ -4929,6 +4945,7 @@ function! vimfluency#learn_stop() abort
   endif
   let &ttimeoutlen = prev_ttl
   let &cpoptions = prev_cpo
+  let &clipboard = prev_clip
   let s:session = {}
   echo 'lesson ended for ' . id . ' — try :VfTrain ' . id
 endfunction
