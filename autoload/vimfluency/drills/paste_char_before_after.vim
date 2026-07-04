@@ -73,8 +73,7 @@ function! vimfluency#drills#paste_char_before_after#lesson() abort
   " line1 'the quick fox': seam k=3 (after "the"). line2 'vim edits fast':
   " seam k=9 (after "edits").
   return [
-    \ {'kind': 'show', 'lines': ['the quick fox'], 'cursor': [1, 3], 'enter_at_col': 4,
-    \  'register_payload': t,
+    \ {'kind': 'show', 'lines': ['the quick fox'], 'cursor': [1, 3],
     \  'prompt': [
     \    printf('Say you yanked a word with yiw — it''s in the register (here: "%s").', t),
     \    'Paste it either side of the cursor:',
@@ -82,7 +81,9 @@ function! vimfluency#drills#paste_char_before_after#lesson() abort
     \    '    p   →   paste AFTER the cursor   (cursor under ▶)',
     \    '    P   →   paste BEFORE the cursor  (cursor under ◀)',
     \    '',
-    \    'The ▶◀ marks the seam where the word lands. Press <Space>.']},
+    \    'The ▶◀ marks the seam — you''ll see it on the next screen.',
+    \    '',
+    \    'Press <Space> to continue.']},
     \ {'kind': 'try', 'lines': ['the quick fox'], 'start': [1, 3], 'target': [1, 6],
     \  'enter_at_col': 4, 'register_payload': t,
     \  'target_lines': ['thefoo quick fox'],
