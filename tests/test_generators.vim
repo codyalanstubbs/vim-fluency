@@ -1292,6 +1292,24 @@ endfunction
 function! s:test_substitute_line_vs_file() abort
   call s:test_save_quit_pair('substitute_line_vs_file', 'substitute_line_vs_file',
     \ [':s/foo/bar/g', ':%s/foo/bar/g'])
+  " after_lines (the result the runner paints on success) must match the
+  " command scope: :s changes line 1 only, :%s changes every line.
+  let GenFn = function('vimfluency#drills#substitute_line_vs_file#generate')
+  for i in range(s:N)
+    let item = GenFn()
+    call Assert(has_key(item, 'after_lines'), 'substitute: item has after_lines')
+    let before = item.snippet.lines
+    let after = item.after_lines
+    call AssertEq(len(after), len(before), 'substitute: after_lines same line count')
+    if item.expected_answer ==# ':%s/foo/bar/g'
+      call AssertEq(after, map(copy(before), 'substitute(v:val, "foo", "bar", "g")'),
+        \ 'substitute/:%s: every line foo->bar')
+    else
+      call AssertEq(after[0], substitute(before[0], 'foo', 'bar', 'g'),
+        \ 'substitute/:s: line 1 foo->bar')
+      call AssertEq(after[1 :], before[1 :], 'substitute/:s: other lines unchanged')
+    endif
+  endfor
 endfunction
 function! s:test_save_quit_vs_force_quit() abort
   call s:test_save_quit_pair('save_quit_vs_force_quit', 'save_quit_vs_force_quit', [':wq', ':q!'])

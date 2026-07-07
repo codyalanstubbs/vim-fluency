@@ -53,13 +53,28 @@ function! s:rand(n) abort
   return rand() % a:n
 endfunction
 
+" The snippet after the substitution runs: foo→bar on every line (file
+" scope, :%s) or on the first line only (line scope, :s) — mirroring the
+" command so the learner sees the result the runner paints on success.
+function! s:after_lines(snippet, file_scope) abort
+  let out = copy(a:snippet.lines)
+  if a:file_scope
+    call map(out, 'substitute(v:val, "foo", "bar", "g")')
+  else
+    let out[0] = substitute(out[0], 'foo', 'bar', 'g')
+  endif
+  return out
+endfunction
+
 function! vimfluency#drills#substitute_line_vs_file#generate() abort
   let cmd = s:CMDS[s:rand(len(s:CMDS))]
+  let snippet = s:SNIPPETS[s:rand(len(s:SNIPPETS))]
   return {
     \ 'lines': [],
     \ 'start': [1, 1],
     \ 'target': [1, 1],
-    \ 'snippet': s:SNIPPETS[s:rand(len(s:SNIPPETS))],
+    \ 'snippet': snippet,
+    \ 'after_lines': s:after_lines(snippet, cmd =~# '^:%s'),
     \ 'goal': s:GOALS[cmd],
     \ 'expected_answer': cmd,
     \ 'expected_motion': cmd,
@@ -88,10 +103,12 @@ function! vimfluency#drills#substitute_line_vs_file#lesson() abort
     \ {'kind': 'try', 'lines': [],
     \  'expected_answer': ':s/foo/bar/g', 'expected_motion': ':s/foo/bar/g',
     \  'optimal_motions': len(':s/foo/bar/g'),
-    \  'snippet': snippet, 'goal': s:GOALS[':s/foo/bar/g']},
+    \  'snippet': snippet, 'after_lines': s:after_lines(snippet, 0),
+    \  'goal': s:GOALS[':s/foo/bar/g']},
     \ {'kind': 'try', 'lines': [],
     \  'expected_answer': ':%s/foo/bar/g', 'expected_motion': ':%s/foo/bar/g',
     \  'optimal_motions': len(':%s/foo/bar/g'),
-    \  'snippet': snippet, 'goal': s:GOALS[':%s/foo/bar/g']},
+    \  'snippet': snippet, 'after_lines': s:after_lines(snippet, 1),
+    \  'goal': s:GOALS[':%s/foo/bar/g']},
     \ ]
 endfunction

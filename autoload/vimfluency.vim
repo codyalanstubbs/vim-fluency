@@ -2888,6 +2888,18 @@ function! s:command_check(typed) abort
     return
   endif
 
+  " Buffer-transforming commands (substitute) leave no visual trace on
+  " their own — the command is captured, not executed. When the item
+  " carries the post-command snippet, paint it so the learner SEES the
+  " result. It survives the lesson's ✓ repaint (which only rewrites the
+  " header line); in training the next item renders over it immediately.
+  if has_key(item, 'after_lines')
+    \ && win_getid() == get(s:session, 'you_win', -1)
+    setlocal modifiable
+    call setline(s:session.header_offset + 1, item.after_lines)
+    setlocal nomodifiable
+  endif
+
   if mode ==# 'train'
     call s:credit_item()
     return
