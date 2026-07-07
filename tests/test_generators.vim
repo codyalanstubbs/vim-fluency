@@ -1288,6 +1288,11 @@ endfunction
 function! s:test_save_vs_quit() abort
   call s:test_save_quit_pair('save_vs_quit', 'save_vs_quit', [':w', ':q'])
 endfunction
+
+function! s:test_substitute_line_vs_file() abort
+  call s:test_save_quit_pair('substitute_line_vs_file', 'substitute_line_vs_file',
+    \ [':s/foo/bar/g', ':%s/foo/bar/g'])
+endfunction
 function! s:test_save_quit_vs_force_quit() abort
   call s:test_save_quit_pair('save_quit_vs_force_quit', 'save_quit_vs_force_quit', [':wq', ':q!'])
 endfunction
@@ -2451,6 +2456,7 @@ call s:test_insert_start_end_line()
 call s:test_insert_before_after_char_start_end_line()
 call s:test_insert_line_above_below()
 call s:test_save_vs_quit()
+call s:test_substitute_line_vs_file()
 call s:test_save_quit_vs_force_quit()
 call s:test_save_quit_vs_zz()
 call s:test_force_quit_vs_zq()

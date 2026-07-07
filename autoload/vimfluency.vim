@@ -601,6 +601,7 @@ let s:FAMILY_NAMES = [
   \ ['yank',              'Yank'],
   \ ['paste',             'Paste'],
   \ ['indent',            'Indent'],
+  \ ['substitute',        'Substitute'],
   \ ['text-object-recall', 'Text objects'],
   \ ]
 

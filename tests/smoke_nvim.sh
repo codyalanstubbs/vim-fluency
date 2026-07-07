@@ -250,6 +250,19 @@ NS 'Q'; settle
 chk "clipboard restored after session" "unnamedplus" "$(NV '&clipboard')"
 NS ':set clipboard=<CR>'; settle   # reset for later blocks
 
+echo "== substitute_line_vs_file: command capture + string-match credit =="
+# kind 'command': ':' opens input(), the typed command is captured and
+# string-matched (never executed). Drives a full :s/:%s command.
+NS ':VfTrain substitute_line_vs_file 90<CR>'; settle
+chk "session started" 1 "$(NV '!empty(vimfluency#statusline())')"
+chk "goal comment rendered" 1 "$(NV 'getline(1) =~# "Goal"')"
+sub_exp="$(NV 'vimfluency#_test_state().current_item.expected_motion')"
+NS ':'; settle; NS "${sub_exp#:}<CR>"; settle
+chkge "typed substitute command credited" 1 "$(NV 'vimfluency#_test_state().items_correct')"
+NS ':VfQuit<CR>'; settle; nap 0.5; settle
+chk "VfQuit ended session" "" "$(NV 'vimfluency#statusline()')"
+NS 'Q'; settle
+
 echo "== lesson open + teardown =="
 NS ':VfLearn move_single_char_up_down_left_right<CR>'; settle
 chk "lesson buffer name" "vf-lesson-move_single_char_up_down_left_right" "$(NV 'bufname("%")')"

@@ -117,4 +117,10 @@ this file is the static snapshot for browsing on GitHub.
 |---|---|---|---|---|---|
 | `indent_vs_dedent` | indent vs dedent (>> / <<) | `>>/<<` | `editing` | 50 | — |
 
-_60 drills across 8 families. Regenerate with `scripts/gen-catalog.sh`._
+## substitute
+
+| id (slug) | name | keys | kind | aim | prereqs |
+|---|---|---|---|---|---|
+| `substitute_line_vs_file` | substitute line vs file (:s / :%s) | `:s//g / :%s//g` | `command` | 25 | `switch_mode_to_command_line` |
+
+_61 drills across 9 families. Regenerate with `scripts/gen-catalog.sh`._
