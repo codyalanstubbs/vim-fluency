@@ -1642,6 +1642,7 @@ function! vimfluency#start(...) abort
     \ 'prev_ttimeoutlen': &ttimeoutlen,
     \ 'prev_cpoptions': &cpoptions,
     \ 'prev_clipboard': &clipboard,
+    \ 'prev_search': @/,
     \ }
   " ttimeoutlen is what gates how long vim waits after Esc / Ctrl+[
   " to see if a function-key sequence is starting. Default is 100ms
@@ -3571,6 +3572,7 @@ function! vimfluency#stop(reason) abort
   let prev_ttimeoutlen = get(s:session, 'prev_ttimeoutlen', &ttimeoutlen)
   let prev_cpoptions = get(s:session, 'prev_cpoptions', &cpoptions)
   let prev_clipboard = get(s:session, 'prev_clipboard', &clipboard)
+  let prev_search = get(s:session, 'prev_search', @/)
   let you_win = get(s:session, 'you_win', -1)
   let drill_id = record.drill_id
   let s:session = {}
@@ -3578,6 +3580,7 @@ function! vimfluency#stop(reason) abort
   let &ttimeoutlen = prev_ttimeoutlen
   let &cpoptions = prev_cpoptions
   let &clipboard = prev_clipboard
+  let @/ = prev_search
   " Restore the user's laststatus FIRST so the end screen captures it
   " as the value to put back when the learner finally quits the screen.
   let &laststatus = prev_laststatus
@@ -3873,6 +3876,7 @@ function! vimfluency#learn(...) abort
     \ 'prev_ttimeoutlen': &ttimeoutlen,
     \ 'prev_cpoptions': &cpoptions,
     \ 'prev_clipboard': &clipboard,
+    \ 'prev_search': @/,
     \ 'target_match_id': -1,
     \ 'deletion_match_id': -1,
     \ 'waypoint_match_ids': [],
@@ -4724,6 +4728,7 @@ function! s:learn_show_complete() abort
   let &ttimeoutlen = get(s:session, 'prev_ttimeoutlen', &ttimeoutlen)
   let &cpoptions = get(s:session, 'prev_cpoptions', &cpoptions)
   let &clipboard = get(s:session, 'prev_clipboard', &clipboard)
+  let @/ = get(s:session, 'prev_search', @/)
   if s:session.target_match_id != -1
     silent! call matchdelete(s:session.target_match_id)
   endif
@@ -4986,6 +4991,7 @@ function! vimfluency#learn_stop() abort
   let prev_ttl = get(s:session, 'prev_ttimeoutlen', &ttimeoutlen)
   let prev_cpo = get(s:session, 'prev_cpoptions', &cpoptions)
   let prev_clip = get(s:session, 'prev_clipboard', &clipboard)
+  let prev_srch = get(s:session, 'prev_search', @/)
   " Resolve the tab by window id at close time — the tab NUMBER captured
   " at setup goes stale if the user opens/closes tabs mid-session.
   let tabnr = win_id2tabwin(get(s:session, 'you_win', -1))[0]
@@ -4995,6 +5001,7 @@ function! vimfluency#learn_stop() abort
   let &ttimeoutlen = prev_ttl
   let &cpoptions = prev_cpo
   let &clipboard = prev_clip
+  let @/ = prev_srch
   let s:session = {}
   echo 'lesson ended for ' . id . ' — try :VfTrain ' . id
 endfunction
