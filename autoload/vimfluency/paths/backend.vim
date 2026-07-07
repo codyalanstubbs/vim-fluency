@@ -5,7 +5,8 @@
 "   1. Navigate by symbol and refactor — the signatures, so they lead:
 "        - */# (search_word_forward_backward) — jump to the next/prev
 "          occurrence of the identifier under the cursor, no pattern to
-"          type. The core code-reading move.
+"          type. The core code-reading move. And / ? (typed search,
+"          search_pattern_forward_backward) — find text you're NOT on.
 "        - :s / :%s (substitute_line_vs_file) — rename on this line vs
 "          across the whole file — and the /g flag, first match vs all
 "          on the line (substitute_first_vs_all).
@@ -22,8 +23,8 @@
 "      w/b/e word motions, 0/$ line edges, and yy/p, ddp/ddkP to copy and
 "      reorder lines.
 "
-" Deferred to follow-on paths (and reachable via `general`): typed search
-" (/ ? n N), the substitute confirm flag (/gc), the around objects,
+" Deferred to follow-on paths (and reachable via `general`): search
+" repeat (n / N), the substitute confirm flag (/gc), the around objects,
 " macros (q/@), marks, and the quickfix list.
 "
 " Ids not yet in the registry (a planned-but-unshipped drill) are silently
@@ -37,6 +38,7 @@ function! vimfluency#paths#backend#meta() abort
     \ 'include_all': 0,
     \ 'drill_ids': [
     \   'search_word_forward_backward',
+    \   'search_pattern_forward_backward',
     \   'substitute_line_vs_file',
     \   'substitute_first_vs_all',
     \   'delete_inside_brackets',

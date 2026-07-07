@@ -283,6 +283,24 @@ NS ':VfQuit<CR>'; settle; nap 0.5; settle
 chk "VfQuit ended session" "" "$(NV 'vimfluency#statusline()')"
 NS 'Q'; settle
 
+echo "== search_pattern_forward_backward: typed /pattern + requires_search gate =="
+# Typed search in motion kind: /word<CR> lands on the target and sets @/;
+# a count-word motion reaches the cell but leaves @/ empty (requires_search
+# → non-empty), so it must not credit.
+NS ':VfTrain search_pattern_forward_backward 90<CR>'; settle
+chk "session started" 1 "$(NV '!empty(vimfluency#statusline())')"
+sp_word="$(NV 'split(vimfluency#_test_state().current_item.lines[0])[0]')"
+sp_exp="$(NV 'vimfluency#_test_state().current_item.expected_motion')"
+sp_s="$(NV 'vimfluency#_test_state().current_item.start[1]')"
+if [ "$sp_exp" = "/" ]; then NS '2w'; else NS '2b'; fi; settle
+chk "count-word cheat does NOT credit (no @/)" 0 "$(NV 'vimfluency#_test_state().items_correct')"
+NS 'gg'; NS "${sp_s}|"; settle
+NS "${sp_exp}${sp_word}"; settle; NS '<CR>'; settle
+chkge "typed /pattern credits" 1 "$(NV 'vimfluency#_test_state().items_correct')"
+NS ':VfQuit<CR>'; settle; nap 0.5; settle
+chk "VfQuit ended session" "" "$(NV 'vimfluency#statusline()')"
+NS 'Q'; settle
+
 echo "== lesson open + teardown =="
 NS ':VfLearn move_single_char_up_down_left_right<CR>'; settle
 chk "lesson buffer name" "vf-lesson-move_single_char_up_down_left_right" "$(NV 'bufname("%")')"

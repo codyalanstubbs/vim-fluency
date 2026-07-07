@@ -1334,6 +1334,50 @@ function! s:test_search_word_forward_backward() abort
   call Assert(get(seen, '#', 0) == 1, 'search_word_forward_backward: # appeared')
 endfunction
 
+" search_pattern_forward_backward: typed /pattern (fwd) / ?pattern (bwd)
+" to a word that sits both ahead and behind the cursor. The real search
+" reaches the green cell AND leaves @/ non-empty; the count-word cheat
+" reaches the cell but leaves @/ empty, so the requires_search gate rejects.
+function! s:test_search_pattern_forward_backward() abort
+  let GenFn = function('vimfluency#drills#search_pattern_forward_backward#generate')
+  let seen = {}
+  for i in range(s:N)
+    let item = GenFn()
+    call s:assert_common('search_pattern_forward_backward', item)
+    call AssertIn(item.expected_motion, ['/', '?'],
+      \ 'search_pattern_forward_backward: expected_motion in {/, ?}')
+    call AssertEq(item.optimal_motions, 1, 'search_pattern_forward_backward: optimal == 1')
+    call Assert(get(item, 'requires_search', 0), 'search_pattern_forward_backward: requires_search set')
+
+    let word = split(item.lines[0])[0]
+    enew!
+    call setline(1, item.lines)
+    call cursor(item.start[0], item.start[1])
+    let @/ = ''
+    execute 'normal! ' . item.expected_motion . word . "\<CR>"
+    call AssertEq([line('.'), col('.')], item.target,
+      \ 'search_pattern_forward_backward/' . item.expected_motion . ': reaches target')
+    call Assert(!empty(getreg('/')),
+      \ 'search_pattern_forward_backward/' . item.expected_motion . ': sets @/ non-empty')
+    bwipeout!
+
+    " Cheat gate: the count-word motion may reach the cell but leaves @/
+    " empty (it was cleared at item start), so the runner won't credit it.
+    let alt = item.expected_motion ==# '/' ? '2w' : '2b'
+    enew!
+    call setline(1, item.lines)
+    call cursor(item.start[0], item.start[1])
+    let @/ = ''
+    silent! execute 'normal! ' . alt
+    call Assert(empty(getreg('/')),
+      \ 'search_pattern_forward_backward: ' . alt . ' leaves @/ empty (cheat gate)')
+    bwipeout!
+    let seen[item.expected_motion] = 1
+  endfor
+  call Assert(get(seen, '/', 0) == 1, 'search_pattern_forward_backward: / appeared')
+  call Assert(get(seen, '?', 0) == 1, 'search_pattern_forward_backward: ? appeared')
+endfunction
+
 function! s:test_substitute_first_vs_all() abort
   call s:test_save_quit_pair('substitute_first_vs_all', 'substitute_first_vs_all',
     \ [':s/foo/bar/', ':s/foo/bar/g'])
@@ -2542,6 +2586,7 @@ call s:test_save_vs_quit()
 call s:test_substitute_line_vs_file()
 call s:test_substitute_first_vs_all()
 call s:test_search_word_forward_backward()
+call s:test_search_pattern_forward_backward()
 call s:test_save_quit_vs_force_quit()
 call s:test_save_quit_vs_zz()
 call s:test_force_quit_vs_zq()

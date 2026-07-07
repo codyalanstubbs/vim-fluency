@@ -2958,19 +2958,29 @@ function! s:seed_register(item) abort
   endif
   " Clear @/ for search drills so a STALE pattern (from a prior item, or
   " the user's pre-session search) can't satisfy the search-credit check.
-  " Only a fresh */# search in THIS item should count — this is what
-  " defeats a counted word motion (2w) landing on the same cell.
-  if !empty(get(a:item, 'expected_search', ''))
+  " Only a fresh search in THIS item should count — this is what defeats
+  " a counted word motion (2w) landing on the same cell.
+  if !empty(get(a:item, 'expected_search', '')) || get(a:item, 'requires_search', 0)
     call setreg('/', '')
   endif
 endfunction
 
-" Search drills credit only when @/ holds the expected pattern: a real
-" */# (or /pattern) sets it; a 2w that lands on the same cell does not.
-" Items without expected_search (everything else) are always ok.
+" Search drills credit only when a real search happened this item — a
+" motion like 2w that lands on the same cell leaves @/ untouched (and it
+" was cleared at item start). Two modes:
+"   expected_search — @/ must equal this EXACT pattern (*/# set \<word\>).
+"   requires_search — @/ just has to be non-empty (typed /pattern, where
+"                     the learner chooses the pattern).
+" Everything else (no search fields) is always ok.
 function! s:search_ok(item) abort
   let want = get(a:item, 'expected_search', '')
-  return empty(want) || getreg('/') ==# want
+  if !empty(want)
+    return getreg('/') ==# want
+  endif
+  if get(a:item, 'requires_search', 0)
+    return !empty(getreg('/'))
+  endif
+  return 1
 endfunction
 
 function! s:mode_gap_indicator(item) abort
