@@ -1334,6 +1334,26 @@ function! s:test_search_word_forward_backward() abort
   call Assert(get(seen, '#', 0) == 1, 'search_word_forward_backward: # appeared')
 endfunction
 
+function! s:test_substitute_first_vs_all() abort
+  call s:test_save_quit_pair('substitute_first_vs_all', 'substitute_first_vs_all',
+    \ [':s/foo/bar/', ':s/foo/bar/g'])
+  " after_lines: line-scope, so only line 1 changes — first match without
+  " g, every match with it, and line 1 always has foo>1 so they differ.
+  let GenFn = function('vimfluency#drills#substitute_first_vs_all#generate')
+  for i in range(s:N)
+    let item = GenFn()
+    call Assert(has_key(item, 'after_lines'), 'substitute_first_vs_all: has after_lines')
+    let before = item.snippet.lines
+    let after = item.after_lines
+    call AssertEq(after[1 :], before[1 :], 'substitute_first_vs_all: only line 1 changes')
+    let is_all = item.expected_answer[-1 :] ==# 'g'
+    call AssertEq(after[0], substitute(before[0], 'foo', 'bar', is_all ? 'g' : ''),
+      \ 'substitute_first_vs_all: line 1 first vs all')
+    call Assert(substitute(before[0], 'foo', 'bar', '') !=# substitute(before[0], 'foo', 'bar', 'g'),
+      \ 'substitute_first_vs_all: line 1 has foo>1 so first != all')
+  endfor
+endfunction
+
 function! s:test_substitute_line_vs_file() abort
   call s:test_save_quit_pair('substitute_line_vs_file', 'substitute_line_vs_file',
     \ [':s/foo/bar/g', ':%s/foo/bar/g'])
@@ -2520,6 +2540,7 @@ call s:test_insert_before_after_char_start_end_line()
 call s:test_insert_line_above_below()
 call s:test_save_vs_quit()
 call s:test_substitute_line_vs_file()
+call s:test_substitute_first_vs_all()
 call s:test_search_word_forward_backward()
 call s:test_save_quit_vs_force_quit()
 call s:test_save_quit_vs_zz()

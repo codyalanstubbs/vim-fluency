@@ -7,7 +7,8 @@
 "          occurrence of the identifier under the cursor, no pattern to
 "          type. The core code-reading move.
 "        - :s / :%s (substitute_line_vs_file) — rename on this line vs
-"          across the whole file.
+"          across the whole file — and the /g flag, first match vs all
+"          on the line (substitute_first_vs_all).
 "   2. The code-structure text objects — edit what's inside the brackets,
 "      quotes, and blocks code is built from:
 "        - di(/di{/di[ and ci(/ci{/ci[ (delete/change_inside_brackets) —
@@ -22,8 +23,8 @@
 "      reorder lines.
 "
 " Deferred to follow-on paths (and reachable via `general`): typed search
-" (/ ? n N), the substitute flag/confirm variants (/g first-vs-all, /gc),
-" the around objects, macros (q/@), marks, and the quickfix list.
+" (/ ? n N), the substitute confirm flag (/gc), the around objects,
+" macros (q/@), marks, and the quickfix list.
 "
 " Ids not yet in the registry (a planned-but-unshipped drill) are silently
 " dropped by s:filter_registry_by_path, so the path survives rename /
@@ -37,6 +38,7 @@ function! vimfluency#paths#backend#meta() abort
     \ 'drill_ids': [
     \   'search_word_forward_backward',
     \   'substitute_line_vs_file',
+    \   'substitute_first_vs_all',
     \   'delete_inside_brackets',
     \   'change_inside_brackets',
     \   'delete_inside_quotes',

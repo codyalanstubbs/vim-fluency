@@ -127,6 +127,7 @@ this file is the static snapshot for browsing on GitHub.
 
 | id (slug) | name | keys | kind | aim | prereqs |
 |---|---|---|---|---|---|
+| `substitute_first_vs_all` | substitute first vs all (:s vs :s…g) | `:s// / :s//g` | `command` | 25 | `substitute_line_vs_file` |
 | `substitute_line_vs_file` | substitute line vs file (:s / :%s) | `:s//g / :%s//g` | `command` | 25 | `switch_mode_to_command_line` |
 
-_62 drills across 10 families. Regenerate with `scripts/gen-catalog.sh`._
+_63 drills across 10 families. Regenerate with `scripts/gen-catalog.sh`._
