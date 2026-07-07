@@ -1289,6 +1289,51 @@ function! s:test_save_vs_quit() abort
   call s:test_save_quit_pair('save_vs_quit', 'save_vs_quit', [':w', ':q'])
 endfunction
 
+" search_word_forward_backward: */# jump to the next/prev occurrence of
+" the word under the cursor. The real motion reaches the target AND sets
+" @/ to \<word\>; the count-word cheat (2w) may reach the cell but leaves
+" @/ empty, so the runner's search-credit gate rejects it.
+function! s:test_search_word_forward_backward() abort
+  let GenFn = function('vimfluency#drills#search_word_forward_backward#generate')
+  let seen = {}
+  for i in range(s:N)
+    let item = GenFn()
+    call s:assert_common('search_word_forward_backward', item)
+    call AssertIn(item.expected_motion, ['*', '#'],
+      \ 'search_word_forward_backward: expected_motion in {*, #}')
+    call AssertEq(item.optimal_motions, 1, 'search_word_forward_backward: optimal == 1')
+    call Assert(has_key(item, 'expected_search'), 'search_word_forward_backward: has expected_search')
+    call AssertEq(item.expected_search[0:1], '\<', 'search_word_forward_backward: expected_search opens \<')
+    call AssertEq(item.expected_search[-2 :], '\>', 'search_word_forward_backward: expected_search closes \>')
+
+    enew!
+    call setline(1, item.lines)
+    call cursor(item.start[0], item.start[1])
+    let @/ = ''
+    execute 'normal! ' . item.expected_motion
+    call AssertEq([line('.'), col('.')], item.target,
+      \ 'search_word_forward_backward/' . item.expected_motion . ': reaches target cell')
+    call AssertEq(getreg('/'), item.expected_search,
+      \ 'search_word_forward_backward/' . item.expected_motion . ': sets @/ to expected_search')
+    bwipeout!
+
+    " Cheat gate: the count-word motion may land on the same cell but must
+    " NOT set @/ to the expected pattern (so the runner won't credit it).
+    let alt = item.expected_motion ==# '*' ? '2w' : '2b'
+    enew!
+    call setline(1, item.lines)
+    call cursor(item.start[0], item.start[1])
+    let @/ = ''
+    silent! execute 'normal! ' . alt
+    call Assert(getreg('/') !=# item.expected_search,
+      \ 'search_word_forward_backward: ' . alt . ' does not set @/ (cheat gate)')
+    bwipeout!
+    let seen[item.expected_motion] = 1
+  endfor
+  call Assert(get(seen, '*', 0) == 1, 'search_word_forward_backward: * appeared')
+  call Assert(get(seen, '#', 0) == 1, 'search_word_forward_backward: # appeared')
+endfunction
+
 function! s:test_substitute_line_vs_file() abort
   call s:test_save_quit_pair('substitute_line_vs_file', 'substitute_line_vs_file',
     \ [':s/foo/bar/g', ':%s/foo/bar/g'])
@@ -2475,6 +2520,7 @@ call s:test_insert_before_after_char_start_end_line()
 call s:test_insert_line_above_below()
 call s:test_save_vs_quit()
 call s:test_substitute_line_vs_file()
+call s:test_search_word_forward_backward()
 call s:test_save_quit_vs_force_quit()
 call s:test_save_quit_vs_zz()
 call s:test_force_quit_vs_zq()

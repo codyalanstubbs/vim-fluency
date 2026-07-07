@@ -601,6 +601,7 @@ let s:FAMILY_NAMES = [
   \ ['yank',              'Yank'],
   \ ['paste',             'Paste'],
   \ ['indent',            'Indent'],
+  \ ['search',            'Search'],
   \ ['substitute',        'Substitute'],
   \ ['text-object-recall', 'Text objects'],
   \ ]
@@ -2513,7 +2514,7 @@ function! s:on_change() abort
     return
   endif
 
-  if cur_lines ==# target_lines && cur_pos == item.target
+  if cur_lines ==# target_lines && cur_pos == item.target && s:search_ok(item)
     call s:credit_item()
   endif
 endfunction
@@ -2954,6 +2955,21 @@ function! s:seed_register(item) abort
   if has_key(a:item, 'register_payload')
     call setreg('"', a:item.register_payload, 'c')
   endif
+  " Clear @/ for search drills so a STALE pattern (from a prior item, or
+  " the user's pre-session search) can't satisfy the search-credit check.
+  " Only a fresh */# search in THIS item should count — this is what
+  " defeats a counted word motion (2w) landing on the same cell.
+  if !empty(get(a:item, 'expected_search', ''))
+    call setreg('/', '')
+  endif
+endfunction
+
+" Search drills credit only when @/ holds the expected pattern: a real
+" */# (or /pattern) sets it; a 2w that lands on the same cell does not.
+" Items without expected_search (everything else) are always ok.
+function! s:search_ok(item) abort
+  let want = get(a:item, 'expected_search', '')
+  return empty(want) || getreg('/') ==# want
 endfunction
 
 function! s:mode_gap_indicator(item) abort
@@ -4440,7 +4456,7 @@ function! s:learn_on_change() abort
     let s:session.last_event_state = new_state
     let s:session.test_motion_count += 1
 
-    if cur_lines ==# target_lines && cur_pos == item.target
+    if cur_lines ==# target_lines && cur_pos == item.target && s:search_ok(item)
       let s:session.frame_complete = 1
       let s:session.last_item_motions = s:session.test_motion_count
       let s:session.last_item_optimal = get(item, 'optimal_motions', 1)
