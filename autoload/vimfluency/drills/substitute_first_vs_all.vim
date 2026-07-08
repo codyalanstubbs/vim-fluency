@@ -32,7 +32,7 @@ function! vimfluency#drills#substitute_first_vs_all#meta() abort
   return {'id': 'substitute_first_vs_all', 'name': 'substitute first vs all (:s vs :s…g)',
     \ 'aim': 25, 'allowed_keys': ':sfobarg/', 'kind': 'command',
     \ 'prereqs': ['substitute_line_vs_file'],
-    \ 'keys': ':s// / :s//g', 'family': 'substitute',
+    \ 'keys': ':s// / :s//g', 'commands_display': ':s//   :s//g', 'family': 'substitute',
     \ 'test_sequence': [':s/foo/bar/', ':s/foo/bar/g']}
 endfunction
 

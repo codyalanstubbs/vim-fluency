@@ -984,10 +984,12 @@ function! s:build_list_view(registry, sessions_by_id, expanded, ...) abort
     let rate_field = rate > 0 ? printf('%3d/min', float2nr(rate + 0.5))
       \ : '—'
     let date_field = empty(prev_date[id]) ? '—' : prev_date[id]
-    " 'commands' renders meta()'s `keys` field with slashes turned into
-    " spaces (i/a/I/A → i a I A). The field stays slash-separated for
-    " backwards compatibility; the column is a render concern only.
-    let commands = substitute(get(m, 'keys', ''), '/', ' ', 'g')
+    " 'commands' renders meta()'s `keys` field with the slash separators
+    " turned into spaces (i/a/I/A → i a I A). That mangles commands whose
+    " keystrokes CONTAIN a slash (/foo, :s/…/g), so those drills provide a
+    " verbatim `commands_display` to opt out of the substitution.
+    let commands = get(m, 'commands_display',
+      \ substitute(get(m, 'keys', ''), '/', ' ', 'g'))
     " aim is 8 cols: %3d/min + trailing space or '*' when the user has
     " set a personal override via :VfSetAim. The asterisk sits at the
     " column's right edge; non-overridden rows pad with a trailing

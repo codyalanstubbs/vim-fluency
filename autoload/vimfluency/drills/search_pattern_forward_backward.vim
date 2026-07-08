@@ -31,7 +31,8 @@ let s:FILLERS = ['set', 'get', 'add', 'run', 'let', 'new',
 function! vimfluency#drills#search_pattern_forward_backward#meta() abort
   return {'id': 'search_pattern_forward_backward', 'name': 'search for a pattern (/ vs ?)',
     \ 'aim': 40, 'allowed_keys': '/?foo', 'kind': 'motion',
-    \ 'prereqs': ['search_word_forward_backward'], 'keys': '/foo / ?foo', 'family': 'search',
+    \ 'prereqs': ['search_word_forward_backward'], 'keys': '/foo / ?foo',
+    \ 'commands_display': '/foo   ?foo', 'family': 'search',
     \ 'test_sequence': ['/', '?']}
 endfunction
 

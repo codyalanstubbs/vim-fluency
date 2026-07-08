@@ -45,7 +45,7 @@ function! vimfluency#drills#substitute_line_vs_file#meta() abort
   return {'id': 'substitute_line_vs_file', 'name': 'substitute line vs file (:s / :%s)',
     \ 'aim': 25, 'allowed_keys': ':%sfobarg/', 'kind': 'command',
     \ 'prereqs': ['switch_mode_to_command_line'],
-    \ 'keys': ':s//g / :%s//g', 'family': 'substitute',
+    \ 'keys': ':s//g / :%s//g', 'commands_display': ':s//g   :%s//g', 'family': 'substitute',
     \ 'test_sequence': [':s/foo/bar/g', ':%s/foo/bar/g']}
 endfunction
 
