@@ -1348,17 +1348,30 @@ function! s:test_search_pattern_forward_backward() abort
       \ 'search_pattern_forward_backward: expected_motion in {/, ?}')
     call AssertEq(item.optimal_motions, 1, 'search_pattern_forward_backward: optimal == 1')
     call Assert(get(item, 'requires_search', 0), 'search_pattern_forward_backward: requires_search set')
+    call AssertEq(split(item.lines[0])[0], 'foo',
+      \ 'search_pattern_forward_backward: pattern word is always foo')
 
-    let word = split(item.lines[0])[0]
+    " Full /foo (or ?foo) reaches the target and sets @/.
     enew!
     call setline(1, item.lines)
     call cursor(item.start[0], item.start[1])
     let @/ = ''
-    execute 'normal! ' . item.expected_motion . word . "\<CR>"
+    execute 'normal! ' . item.expected_motion . 'foo' . "\<CR>"
     call AssertEq([line('.'), col('.')], item.target,
-      \ 'search_pattern_forward_backward/' . item.expected_motion . ': reaches target')
+      \ 'search_pattern_forward_backward/' . item.expected_motion . ': /foo reaches target')
     call Assert(!empty(getreg('/')),
       \ 'search_pattern_forward_backward/' . item.expected_motion . ': sets @/ non-empty')
+    bwipeout!
+
+    " The decoys force the full pattern: a partial /fo lands on a fo*
+    " look-alike, NOT the target — so it can't credit (wrong cell).
+    enew!
+    call setline(1, item.lines)
+    call cursor(item.start[0], item.start[1])
+    let @/ = ''
+    silent! execute 'normal! ' . item.expected_motion . 'fo' . "\<CR>"
+    call Assert([line('.'), col('.')] != item.target,
+      \ 'search_pattern_forward_backward: partial /fo lands on a decoy, not the target')
     bwipeout!
 
     " Cheat gate: the count-word motion may reach the cell but leaves @/
