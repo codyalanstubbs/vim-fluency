@@ -1796,6 +1796,26 @@ function! s:demo_solution(item) abort
     return {'seq': s:demo_feedable(em), 'feed': 'repeat', 'nav': nav}
   endif
 
+  " Search motions (* # / ?) credit through the search register @/, which
+  " the runner's search-credit gate reads. They MUST be fed through the
+  " main loop (feed 'burst' = feedkeys), NOT played via :normal! like the
+  " other motions: vim saves and restores @/ around a timer callback (a
+  " background timer must not disturb editor state), so a search run inside
+  " the demo tick has its @/ side-effect discarded and never credits.
+  "   * / #  — search the word under the cursor (sets @/ = \<word\>).
+  "   / / ?  — a typed pattern: the target cell's whole word, submitted
+  "            with <CR> (a short pattern would stop on a fo* look-alike
+  "            decoy, so type the whole word).
+  if em ==# '*' || em ==# '#'
+    return {'seq': em, 'feed': 'burst'}
+  endif
+  if (em ==# '/' || em ==# '?') && has_key(a:item, 'target')
+    let tcol = a:item.target[1]
+    let line = a:item.lines[a:item.target[0] - 1]
+    let word = matchstr(line[tcol - 1 :], '^\S\+')
+    return {'seq': em . word . "\r", 'feed': 'burst'}
+  endif
+
   " motion (default): a list of keystroke atoms played one (or a chunk)
   " per tick via :normal!. An atom is one complete motion, so a multi-char
   " motion (ge/g_, or a primed find like 'fx') is never split mid-key.
