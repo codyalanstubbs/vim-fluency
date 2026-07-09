@@ -2000,7 +2000,14 @@ function! s:learn_demo_tick(timer) abort
   elseif phase ==# 'test'
     let item = get(s:session, 'current_test_item', {})
   endif
-  if empty(item) || !has_key(item, 'start') | return | endif
+  " Most kinds anchor the play at item.start; command-kind try frames have
+  " no cursor target (they credit on the typed Ex command via the per-frame
+  " fake cmdline), so they carry no 'start' — let those through, keep
+  " skipping other start-less frames (e.g. recall).
+  if empty(item) | return | endif
+  if !has_key(item, 'start') && get(s:session, 'kind', '') !=# 'command'
+    return
+  endif
   " (Re)load the solution when the item changes; current_item is what the
   " play functions + s:demo_anchor read.
   let key = phase . ':' . s:session.frame_idx . ':'
