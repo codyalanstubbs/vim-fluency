@@ -19,12 +19,19 @@ Output "{{OUTPUT}}.mp4"
 
 Source "_dims-default.tape"
 Source "_setup.tape"
+# Make the lesson demo dwell on the intro rule frame (ms) so a viewer can
+# read it before it auto-advances; the runner reads this env at play time.
+# Only set here (the preview), so verify-learn advances the intro instantly.
+Env VF_LEARN_INTRO_DWELL "10000"
 Source "_launch.tape"
 
+# ~2s command beat: the ~80ms/char typing plays the command out, then a
+# short settle holds the fully-typed command before it runs.
 Type ":VfLearnDemo {{DRILL_ID}}"
-Sleep 400ms
+Sleep 800ms
 Enter
 
-# Auto-played lesson for {{DRILL_ID}} ({{DRILL_NAME}}): rule frames, try
-# frames, then the test phase to graduation. Hold across the walkthrough.
+# Auto-played lesson for {{DRILL_ID}} ({{DRILL_NAME}}): a 10s hold on the
+# intro rule frame, then the try frames and the test phase to graduation.
+# Hold across the whole walkthrough plus the end-screen landing.
 Sleep {{HOLD}}

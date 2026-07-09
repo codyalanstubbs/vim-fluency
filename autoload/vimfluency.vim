@@ -2004,6 +2004,21 @@ function! s:learn_demo_tick(timer) abort
     if s:session.frame_idx >= len(s:session.frames) | return | endif
     let frame = s:session.frames[s:session.frame_idx]
     if get(frame, 'kind', '') ==# 'show'
+      " The intro (first) rule frame is a wall of text; auto-advancing it on
+      " the next tick flashes it past a preview viewer. Dwell on it for
+      " $VF_LEARN_INTRO_DWELL ms so a rendered preview holds it long enough
+      " to read. The env is set only by the preview tape — verify-learn and
+      " any other driver leave it unset (0) and advance immediately, so the
+      " sweep stays fast. Only the intro dwells; later show frames don't.
+      let dwell = s:session.frame_idx == 0 ? str2nr($VF_LEARN_INTRO_DWELL) : 0
+      if dwell > 0
+        if !has_key(s:session, 'learn_demo_intro_at')
+          let s:session.learn_demo_intro_at = reltime()
+        endif
+        if reltimefloat(reltime(s:session.learn_demo_intro_at)) * 1000 < dwell
+          return
+        endif
+      endif
       call s:learn_advance_show()          " read it, move on
       return
     endif

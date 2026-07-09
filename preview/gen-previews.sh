@@ -23,7 +23,9 @@ LEARN_TEMPLATE="$DEMO_DIR/_learn.template.tape"
 
 DURATION=10          # seconds the :VfDemo (train) auto-plays
 HOLD="13s"           # train camera hold: DURATION + end-screen landing
-LEARN_HOLD="24s"     # learn camera hold: rule + try + test phase to graduation
+LEARN_HOLD="42s"     # learn camera hold: 10s intro dwell + try + test phase +
+                     # end-screen landing (the slowest lessons run ~30s of
+                     # play on top of the intro)
 
 RENDER=0
 if [ "${1:-}" = "--render" ]; then RENDER=1; shift; fi
