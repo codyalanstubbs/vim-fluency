@@ -2586,7 +2586,7 @@ function! s:on_change() abort
   endif
   " One-shot: consume the n/N flag on any cursor event so a wrong repeat
   " (or a later counted motion) can't ride it to the target.
-  if has_key(item, 'search_pattern')
+  if get(item, 'requires_repeat', 0)
     let s:session.search_repeated = 0
   endif
 endfunction
@@ -3034,13 +3034,12 @@ function! s:seed_register(item) abort
   if !empty(get(a:item, 'expected_search', '')) || get(a:item, 'requires_search', 0)
     call setreg('/', '')
   endif
-  " n/N repeat drills: PRE-SEED the search (as if the learner already ran
-  " /pattern forward) so n/N have something to repeat, and clear the
-  " one-shot flag the n/N maps set — cleared here so a counted motion to
-  " the same cell can't ride a stale flag from a prior item.
-  if has_key(a:item, 'search_pattern')
-    call setreg('/', a:item.search_pattern)
-    let v:searchforward = 1
+  " n/N repeat drills: the learner runs the search themselves (/foo), then
+  " repeats with n/N. Clear @/ so a stale pattern can't let n work without
+  " a fresh search, and arm the one-shot flag the n/N maps set — cleared
+  " here so a counted motion to the same cell can't ride a stale flag.
+  if get(a:item, 'requires_repeat', 0)
+    call setreg('/', '')
     let s:session.search_repeated = 0
   endif
 endfunction
@@ -3051,11 +3050,13 @@ endfunction
 "   expected_search — @/ must equal this EXACT pattern (*/# set \<word\>).
 "   requires_search — @/ just has to be non-empty (typed /pattern, where
 "                     the learner chooses the pattern).
-"   search_pattern  — @/ is PRE-SEEDED, so @/ can't tell n from a motion;
-"                     credit only when the n/N maps set the one-shot flag.
+"   requires_repeat — the learner searched (/foo) then repeated with n/N.
+"                     @/ is non-empty either way (the search set it), so it
+"                     can't tell n from a motion to the same cell; credit
+"                     only when the n/N maps set the one-shot flag.
 " Everything else (no search fields) is always ok.
 function! s:search_ok(item) abort
-  if has_key(a:item, 'search_pattern')
+  if get(a:item, 'requires_repeat', 0)
     return get(s:session, 'search_repeated', 0)
   endif
   let want = get(a:item, 'expected_search', '')
@@ -4587,7 +4588,7 @@ function! s:learn_on_change() abort
       endif
       call s:learn_render_complete()
     endif
-    if has_key(item, 'search_pattern')
+    if get(item, 'requires_repeat', 0)
       let s:session.search_repeated = 0
     endif
     return

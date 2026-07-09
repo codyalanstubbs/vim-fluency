@@ -122,7 +122,7 @@ this file is the static snapshot for browsing on GitHub.
 | id (slug) | name | keys | kind | aim | prereqs |
 |---|---|---|---|---|---|
 | `search_pattern_forward_backward` | search for a pattern (/ vs ?) | `/foo / ?foo` | `motion` | 40 | `search_word_forward_backward` |
-| `search_repeat_next_prev` | repeat search next / prev (n / N) | `n/N` | `motion` | 55 | `search_word_forward_backward` |
+| `search_repeat_next_prev` | search then repeat (n / N) | `n/N` | `motion` | 45 | `search_pattern_forward_backward` |
 | `search_word_forward_backward` | search word under cursor (* / #) | `*/#` | `motion` | 45 | — |
 
 ## substitute

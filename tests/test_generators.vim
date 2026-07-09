@@ -1338,10 +1338,11 @@ endfunction
 " to a word that sits both ahead and behind the cursor. The real search
 " reaches the green cell AND leaves @/ non-empty; the count-word cheat
 " reaches the cell but leaves @/ empty, so the requires_search gate rejects.
-" search_repeat_next_prev: n/N repeat the PRE-SEEDED search to the next/
-" prev match. The generator side: with @/ set to the pattern, n/N reach
-" the target. (The counted-motion cheat defense is a runner concern — the
-" one-shot flag — covered by the live smoke.)
+" search_repeat_next_prev: the learner searches (/foo) then repeats with
+" n/N. Generator side: starting with @/ cleared, /foo<CR> lands on the
+" middle foo and n/N reach the target match. optimal is 2 events (the
+" search jump + the repeat). (The counted-motion cheat defense is a runner
+" concern — the one-shot flag — covered by the live smoke.)
 function! s:test_search_repeat_next_prev() abort
   let GenFn = function('vimfluency#drills#search_repeat_next_prev#generate')
   let seen = {}
@@ -1350,17 +1351,18 @@ function! s:test_search_repeat_next_prev() abort
     call s:assert_common('search_repeat_next_prev', item)
     call AssertIn(item.expected_motion, ['n', 'N'],
       \ 'search_repeat_next_prev: expected_motion in {n, N}')
-    call AssertEq(item.optimal_motions, 1, 'search_repeat_next_prev: optimal == 1')
-    call Assert(has_key(item, 'search_pattern'), 'search_repeat_next_prev: has search_pattern')
+    call AssertEq(item.optimal_motions, 2, 'search_repeat_next_prev: optimal == 2')
+    call Assert(get(item, 'requires_repeat', 0), 'search_repeat_next_prev: requires_repeat set')
 
     enew!
     call setline(1, item.lines)
-    call setreg('/', item.search_pattern)
-    let v:searchforward = 1
+    call setreg('/', '')
     call cursor(item.start[0], item.start[1])
+    " the real workflow: search, then repeat
+    silent! execute "normal /foo\<CR>"
     execute 'normal! ' . item.expected_motion
     call AssertEq([line('.'), col('.')], item.target,
-      \ 'search_repeat_next_prev/' . item.expected_motion . ': repeats to the target match')
+      \ 'search_repeat_next_prev/' . item.expected_motion . ': /foo then repeat reaches the target')
     bwipeout!
     let seen[item.expected_motion] = 1
   endfor
