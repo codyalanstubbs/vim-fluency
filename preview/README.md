@@ -32,10 +32,19 @@ drills that define a lesson, a `<id>-learn` pair.
 ```sh
 make verify              # render-free: assert :VfDemo plays EVERY drill
 make verify DRILL=<id>   # ...just one
+make verify-learn            # render-free: assert EVERY lesson graduates (slow)
+make verify-learn DRILL=<id> # ...just one (fast; run when adding a drill)
 make preview DRILL=<id>  # generate + render one -> renders/<id>-{train,learn}.{gif,mp4}
 make previews            # generate + render all
 make tapes               # generate the per-drill tapes only (no render)
 ```
+
+`verify` catches a drill whose kind `:VfDemo` can't auto-play; `verify-learn`
+catches a lesson that `:VfLearnDemo` can't walk to graduation (a stalled try
+frame or test phase). Both assert behavior without rendering pixels — run the
+single-`DRILL` form when adding a drill. The full `verify-learn` sweep is slow
+(a lesson walks its frames on a live timer), so it polls and moves on the
+instant each lesson graduates.
 
 ## Feature scenes
 
@@ -71,6 +80,9 @@ phase to graduation, and lands on the end screen.
 - **`verify-demo.sh`** + **`verify-demo.vim`** — render-free check that
   `:VfDemo` plays each drill (asserts the `correct` counter climbs). Catches
   a new drill whose kind the demo can't auto-play, without rendering.
+- **`verify-learn.sh`** + **`verify-learn.vim`** — the learn twin: asserts
+  `:VfLearnDemo` walks each lesson to graduation (the `vf-complete` end
+  screen). Catches a lesson kind the demo can't play, without rendering.
 - **`scenes/*.tape`** — one tape per feature/flow.
 - **`render-scene.sh`** — renders scenes (reaps orphaned `ttyd` between).
 

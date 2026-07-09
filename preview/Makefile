@@ -6,6 +6,8 @@
 #   lesson):
 #     make verify              # render-free: assert :VfDemo plays every drill
 #     make verify DRILL=<id>   # ...just one drill
+#     make verify-learn            # render-free: assert every lesson graduates
+#     make verify-learn DRILL=<id> # ...just one (fast; use when adding a drill)
 #     make preview DRILL=<id>  # generate + render one drill's train & learn GIF+MP4
 #     make previews            # generate + render every drill's
 #     make tapes               # generate the per-drill tapes only (no render)
@@ -30,10 +32,13 @@ DRILL ?=
 NAME ?=
 SITE ?=
 
-.PHONY: verify preview previews tapes scene scenes scene-list publish clean
+.PHONY: verify verify-learn preview previews tapes scene scenes scene-list publish clean
 
 verify:
 	./verify-demo.sh $(DRILL)
+
+verify-learn:
+	./verify-learn.sh $(DRILL)
 
 preview:
 	@test -n "$(DRILL)" || { echo "usage: make preview DRILL=<id>"; exit 2; }
