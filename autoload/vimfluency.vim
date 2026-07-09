@@ -2000,12 +2000,16 @@ function! s:learn_demo_tick(timer) abort
   elseif phase ==# 'test'
     let item = get(s:session, 'current_test_item', {})
   endif
-  " Most kinds anchor the play at item.start; command-kind try frames have
-  " no cursor target (they credit on the typed Ex command via the per-frame
-  " fake cmdline), so they carry no 'start' — let those through, keep
-  " skipping other start-less frames (e.g. recall).
+  " Motion / editing / visual frames anchor the play at item.start. The
+  " keystroke-only kinds don't: command frames credit on the typed Ex
+  " command (per-frame fake cmdline), and mode / mode_switch frames credit
+  " on reaching a target mode — none carry a cursor target, so none have a
+  " 'start'. Require 'start' only for the anchored kinds; without this the
+  " lesson demo returns here every tick and the lesson never graduates.
   if empty(item) | return | endif
-  if !has_key(item, 'start') && get(s:session, 'kind', '') !=# 'command'
+  if !has_key(item, 'start')
+    \ && index(['command', 'mode', 'mode_switch', 'recall'],
+    \          get(s:session, 'kind', 'motion')) < 0
     return
   endif
   " (Re)load the solution when the item changes; current_item is what the
