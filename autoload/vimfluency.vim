@@ -1816,6 +1816,19 @@ function! s:demo_solution(item) abort
     let word = matchstr(line[tcol - 1 :], '^\S\+')
     return {'seq': em . word . "\r", 'feed': 'burst'}
   endif
+  " n / N (search-repeat): the optimal solve is two events — a typed
+  " /<word> to set @/ and land on the first match, then n/N to repeat to the
+  " target. Fed via burst so the search runs in the main loop (@/ persists)
+  " AND n/N fire the search_repeat_maps intercept that sets the credit flag;
+  " :normal! would bypass that buffer map, so the flag never sets and the
+  " item never credits. The pattern is the target cell's whole word (every
+  " match is that same word, so /<word> reaches the first one, n/N the rest).
+  if (em ==# 'n' || em ==# 'N') && has_key(a:item, 'target')
+    let tcol = a:item.target[1]
+    let line = a:item.lines[a:item.target[0] - 1]
+    let word = matchstr(line[tcol - 1 :], '^\S\+')
+    return {'seq': '/' . word . "\r" . em, 'feed': 'burst'}
+  endif
 
   " motion (default): a list of keystroke atoms played one (or a chunk)
   " per tick via :normal!. An atom is one complete motion, so a multi-char
