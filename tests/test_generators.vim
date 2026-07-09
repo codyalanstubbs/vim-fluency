@@ -1338,6 +1338,36 @@ endfunction
 " to a word that sits both ahead and behind the cursor. The real search
 " reaches the green cell AND leaves @/ non-empty; the count-word cheat
 " reaches the cell but leaves @/ empty, so the requires_search gate rejects.
+" search_repeat_next_prev: n/N repeat the PRE-SEEDED search to the next/
+" prev match. The generator side: with @/ set to the pattern, n/N reach
+" the target. (The counted-motion cheat defense is a runner concern — the
+" one-shot flag — covered by the live smoke.)
+function! s:test_search_repeat_next_prev() abort
+  let GenFn = function('vimfluency#drills#search_repeat_next_prev#generate')
+  let seen = {}
+  for i in range(s:N)
+    let item = GenFn()
+    call s:assert_common('search_repeat_next_prev', item)
+    call AssertIn(item.expected_motion, ['n', 'N'],
+      \ 'search_repeat_next_prev: expected_motion in {n, N}')
+    call AssertEq(item.optimal_motions, 1, 'search_repeat_next_prev: optimal == 1')
+    call Assert(has_key(item, 'search_pattern'), 'search_repeat_next_prev: has search_pattern')
+
+    enew!
+    call setline(1, item.lines)
+    call setreg('/', item.search_pattern)
+    let v:searchforward = 1
+    call cursor(item.start[0], item.start[1])
+    execute 'normal! ' . item.expected_motion
+    call AssertEq([line('.'), col('.')], item.target,
+      \ 'search_repeat_next_prev/' . item.expected_motion . ': repeats to the target match')
+    bwipeout!
+    let seen[item.expected_motion] = 1
+  endfor
+  call Assert(get(seen, 'n', 0) == 1, 'search_repeat_next_prev: n appeared')
+  call Assert(get(seen, 'N', 0) == 1, 'search_repeat_next_prev: N appeared')
+endfunction
+
 function! s:test_search_pattern_forward_backward() abort
   let GenFn = function('vimfluency#drills#search_pattern_forward_backward#generate')
   let seen = {}
@@ -2600,6 +2630,7 @@ call s:test_substitute_line_vs_file()
 call s:test_substitute_first_vs_all()
 call s:test_search_word_forward_backward()
 call s:test_search_pattern_forward_backward()
+call s:test_search_repeat_next_prev()
 call s:test_save_quit_vs_force_quit()
 call s:test_save_quit_vs_zz()
 call s:test_force_quit_vs_zq()

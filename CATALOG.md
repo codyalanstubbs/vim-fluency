@@ -122,6 +122,7 @@ this file is the static snapshot for browsing on GitHub.
 | id (slug) | name | keys | kind | aim | prereqs |
 |---|---|---|---|---|---|
 | `search_pattern_forward_backward` | search for a pattern (/ vs ?) | `/foo / ?foo` | `motion` | 40 | `search_word_forward_backward` |
+| `search_repeat_next_prev` | repeat search next / prev (n / N) | `n/N` | `motion` | 55 | `search_word_forward_backward` |
 | `search_word_forward_backward` | search word under cursor (* / #) | `*/#` | `motion` | 45 | — |
 
 ## substitute
@@ -131,4 +132,4 @@ this file is the static snapshot for browsing on GitHub.
 | `substitute_first_vs_all` | substitute first vs all (:s vs :s…g) | `:s// / :s//g` | `command` | 25 | `substitute_line_vs_file` |
 | `substitute_line_vs_file` | substitute line vs file (:s / :%s) | `:s//g / :%s//g` | `command` | 25 | `switch_mode_to_command_line` |
 
-_64 drills across 10 families. Regenerate with `scripts/gen-catalog.sh`._
+_65 drills across 10 families. Regenerate with `scripts/gen-catalog.sh`._

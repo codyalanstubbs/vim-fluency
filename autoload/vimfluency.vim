@@ -1622,6 +1622,7 @@ function! vimfluency#start(...) abort
     \ 'module': info.module,
     \ 'kind': get(info, 'kind', 'motion'),
     \ 'credit_on_text_typed': get(info, 'credit_on_text_typed', 0),
+    \ 'search_repeat_maps': get(info, 'search_repeat_maps', 0),
     \ 'duration': duration,
     \ 'only_filter': only_filter,
     \ 'started_at': reltime(),
@@ -2475,6 +2476,12 @@ function! s:install_autocmds() abort
     endif
   augroup END
   nnoremap <buffer> <silent> <Tab> :call <SID>skip()<CR>
+  " Repeat-search drills route n/N through s:search_repeat so a real
+  " repeat is distinguishable from a counted motion to the same cell.
+  if get(s:session, 'search_repeat_maps', 0)
+    nnoremap <buffer> <silent> n :call <SID>search_repeat('n')<CR>
+    nnoremap <buffer> <silent> N :call <SID>search_repeat('N')<CR>
+  endif
   " Ctrl-C in vim is the interrupt key — it exits insert mode but
   " explicitly does NOT fire InsertLeave, by design. Real-world
   " users still reach for it as a faster Esc, so within training
@@ -2576,6 +2583,11 @@ function! s:on_change() abort
 
   if cur_lines ==# target_lines && cur_pos == item.target && s:search_ok(item)
     call s:credit_item()
+  endif
+  " One-shot: consume the n/N flag on any cursor event so a wrong repeat
+  " (or a later counted motion) can't ride it to the target.
+  if has_key(item, 'search_pattern')
+    let s:session.search_repeated = 0
   endif
 endfunction
 
@@ -3022,16 +3034,30 @@ function! s:seed_register(item) abort
   if !empty(get(a:item, 'expected_search', '')) || get(a:item, 'requires_search', 0)
     call setreg('/', '')
   endif
+  " n/N repeat drills: PRE-SEED the search (as if the learner already ran
+  " /pattern forward) so n/N have something to repeat, and clear the
+  " one-shot flag the n/N maps set — cleared here so a counted motion to
+  " the same cell can't ride a stale flag from a prior item.
+  if has_key(a:item, 'search_pattern')
+    call setreg('/', a:item.search_pattern)
+    let v:searchforward = 1
+    let s:session.search_repeated = 0
+  endif
 endfunction
 
 " Search drills credit only when a real search happened this item — a
 " motion like 2w that lands on the same cell leaves @/ untouched (and it
-" was cleared at item start). Two modes:
+" was cleared at item start). Modes:
 "   expected_search — @/ must equal this EXACT pattern (*/# set \<word\>).
 "   requires_search — @/ just has to be non-empty (typed /pattern, where
 "                     the learner chooses the pattern).
+"   search_pattern  — @/ is PRE-SEEDED, so @/ can't tell n from a motion;
+"                     credit only when the n/N maps set the one-shot flag.
 " Everything else (no search fields) is always ok.
 function! s:search_ok(item) abort
+  if has_key(a:item, 'search_pattern')
+    return get(s:session, 'search_repeated', 0)
+  endif
   let want = get(a:item, 'expected_search', '')
   if !empty(want)
     return getreg('/') ==# want
@@ -3040,6 +3066,18 @@ function! s:search_ok(item) abort
     return !empty(getreg('/'))
   endif
   return 1
+endfunction
+
+" n/N maps for repeat-search drills route through here: record that a
+" real search-repeat happened (the one-shot flag), then run the actual
+" n/N. on_change / learn_on_change credit if it landed on the target and
+" the flag is set, then clear the flag — so a later counted motion can't
+" reuse it.
+function! s:search_repeat(key) abort
+  if !empty(s:session)
+    let s:session.search_repeated = 1
+  endif
+  execute 'normal! ' . a:key
 endfunction
 
 function! s:mode_gap_indicator(item) abort
@@ -3920,6 +3958,7 @@ function! vimfluency#learn(...) abort
     \ 'module': info.module,
     \ 'kind': get(info, 'kind', 'motion'),
     \ 'credit_on_text_typed': get(info, 'credit_on_text_typed', 0),
+    \ 'search_repeat_maps': get(info, 'search_repeat_maps', 0),
     \ 'fills_buffer': get(info, 'fills_buffer', 0),
     \ 'allowed_keys': get(info, 'allowed_keys', ''),
     \ 'frames': frames,
@@ -4414,6 +4453,12 @@ function! s:learn_install_autocmds() abort
       nnoremap <buffer> <silent> p :call <SID>learn_start_train()<CR>
     endif
   endif
+  " Repeat-search lessons route n/N through s:search_repeat (mirrors the
+  " training path) so the one-shot flag is set on a real repeat.
+  if get(s:session, 'search_repeat_maps', 0)
+    nnoremap <buffer> <silent> n :call <SID>search_repeat('n')<CR>
+    nnoremap <buffer> <silent> N :call <SID>search_repeat('N')<CR>
+  endif
   " Ctrl-C → Esc, mirroring the training path. Vim's Ctrl-C exits insert
   " without firing InsertLeave by design, so unmapped it would leave
   " the mode-kind matcher hanging.
@@ -4541,6 +4586,9 @@ function! s:learn_on_change() abort
         let s:session.wrongs += 1
       endif
       call s:learn_render_complete()
+    endif
+    if has_key(item, 'search_pattern')
+      let s:session.search_repeated = 0
     endif
     return
   endif

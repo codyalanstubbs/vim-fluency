@@ -301,6 +301,33 @@ NS ':VfQuit<CR>'; settle; nap 0.5; settle
 chk "VfQuit ended session" "" "$(NV 'vimfluency#statusline()')"
 NS 'Q'; settle
 
+echo "== search_repeat_next_prev: n/N via one-shot flag, motion can't cheat =="
+# @/ is PRE-SEEDED, so @/ can't tell n from a counted motion to the same
+# match. The n/N maps set a one-shot flag; a counted motion never does.
+NS ':VfTrain search_repeat_next_prev 90<CR>'; settle
+chk "session started" 1 "$(NV '!empty(vimfluency#statusline())')"
+chk "search pre-seeded" 1 "$(NV '!empty(getreg("/"))')"
+nn_exp="$(NV 'vimfluency#_test_state().current_item.expected_motion')"
+nn_s="$(NV 'vimfluency#_test_state().current_item.start[1]')"
+nn_d="$(NV 'vimfluency#_test_state().current_item.target[1]')"
+# counted motion lands exactly on the target cell...
+if [ "$nn_exp" = "n" ]; then NS '2w'; else NS '2b'; fi; settle
+chk "counted motion lands on the target cell" "$nn_d" "$(NV 'col(".")')"
+chk "...but does NOT credit (no flag)" 0 "$(NV 'vimfluency#_test_state().items_correct')"
+# wrong direction (flag set, wrong cell) must not leave the flag armed
+NS 'gg'; NS "${nn_s}|"; settle
+if [ "$nn_exp" = "n" ]; then NS 'N'; else NS 'n'; fi; settle
+NS 'gg'; NS "${nn_s}|"; settle
+if [ "$nn_exp" = "n" ]; then NS '2w'; else NS '2b'; fi; settle
+chk "motion after a wrong repeat still does NOT credit (one-shot)" 0 "$(NV 'vimfluency#_test_state().items_correct')"
+# the real n/N credits
+NS 'gg'; NS "${nn_s}|"; settle
+NS "$nn_exp"; settle
+chkge "real n/N credits" 1 "$(NV 'vimfluency#_test_state().items_correct')"
+NS ':VfQuit<CR>'; settle; nap 0.5; settle
+chk "VfQuit ended session" "" "$(NV 'vimfluency#statusline()')"
+NS 'Q'; settle
+
 echo "== lesson open + teardown =="
 NS ':VfLearn move_single_char_up_down_left_right<CR>'; settle
 chk "lesson buffer name" "vf-lesson-move_single_char_up_down_left_right" "$(NV 'bufname("%")')"
