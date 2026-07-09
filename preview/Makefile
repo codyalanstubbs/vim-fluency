@@ -1,10 +1,12 @@
 # Preview generation for Vim Fluency — re-render a feature's GIF/MP4 when
 # you change it, for docs and social. Two kinds of previews:
 #
-#   Per-drill training (auto-played :VfDemo, generated from the registry):
+#   Per-drill previews (auto-played :VfDemo train + :VfLearnDemo learn,
+#   generated from the registry — a learn preview for every drill with a
+#   lesson):
 #     make verify              # render-free: assert :VfDemo plays every drill
 #     make verify DRILL=<id>   # ...just one drill
-#     make preview DRILL=<id>  # generate + render one drill's train GIF+MP4
+#     make preview DRILL=<id>  # generate + render one drill's train & learn GIF+MP4
 #     make previews            # generate + render every drill's
 #     make tapes               # generate the per-drill tapes only (no render)
 #

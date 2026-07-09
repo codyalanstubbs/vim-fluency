@@ -7,25 +7,32 @@ it captures — change a feature, re-render its preview.
 Two kinds of previews, both themed to match the editor (cyberdream) via
 `_setup.tape`:
 
-1. **Per-drill training** — auto-played `:VfDemo`, generated from the drill
-   registry (one per drill, so adding a drill auto-produces its preview).
+1. **Per-drill previews** — auto-played `:VfDemo` (train) and `:VfLearnDemo`
+   (learn), generated from the drill registry (every drill gets a train
+   preview; every drill with a lesson also gets a learn preview — so adding
+   a drill auto-produces its previews).
 2. **Feature scenes** — hand-authored views and flows in `scenes/*.tape`
    (dashboard, list, chart, history, nav loop, end screen, lesson).
 
 Needs `vhs` (`brew install vhs`, pulls `ttyd`) and `ffmpeg`. Run `make`
 targets from this dir.
 
-## Per-drill training previews
+## Per-drill previews
 
 `:VfDemo <id>` plays the optimal motion for each generated item — the
 cursor jumps to target and the `correct` / `rate` counters climb on their
-own, then it auto-stops onto the end screen. No human typing, and demo
-sessions never write the session log.
+own, then it auto-stops onto the end screen. `:VfLearnDemo <id>` auto-plays
+the whole lesson instead: the rule frames, each try frame's canonical
+motion, then the test phase to graduation, landing on the same end screen.
+No human typing, and demo sessions never write the session log.
+
+Each `make preview` / `make previews` renders a `<id>-train` pair and, for
+drills that define a lesson, a `<id>-learn` pair.
 
 ```sh
 make verify              # render-free: assert :VfDemo plays EVERY drill
 make verify DRILL=<id>   # ...just one
-make preview DRILL=<id>  # generate + render one -> renders/<id>-train.{gif,mp4}
+make preview DRILL=<id>  # generate + render one -> renders/<id>-{train,learn}.{gif,mp4}
 make previews            # generate + render all
 make tapes               # generate the per-drill tapes only (no render)
 ```
@@ -57,9 +64,10 @@ phase to graduation, and lands on the end screen.
   seed history before vim starts.
 - **`_launch.tape`** — off-camera vim launch (plugin from `..`). Source it
   after `_setup` (and any seed step).
-- **`_train.template.tape`** + **`gen-previews.sh`** — the per-drill
-  generator; reads `discover_drills()` so the set always matches the
-  shipped drills.
+- **`_train.template.tape`** / **`_learn.template.tape`** +
+  **`gen-previews.sh`** — the per-drill generator; reads `discover_drills()`
+  so the set always matches the shipped drills, and emits a learn tape for
+  every drill that defines `#lesson()`.
 - **`verify-demo.sh`** + **`verify-demo.vim`** — render-free check that
   `:VfDemo` plays each drill (asserts the `correct` counter climbs). Catches
   a new drill whose kind the demo can't auto-play, without rendering.
