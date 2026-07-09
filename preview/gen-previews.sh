@@ -23,9 +23,10 @@ LEARN_TEMPLATE="$DEMO_DIR/_learn.template.tape"
 
 DURATION=10          # seconds the :VfDemo (train) auto-plays
 HOLD="13s"           # train camera hold: DURATION + end-screen landing
-LEARN_HOLD="42s"     # learn camera hold: 10s intro dwell + try + test phase +
-                     # end-screen landing (the slowest lessons run ~30s of
-                     # play on top of the intro)
+LEARN_WAIT="45s"     # learn: safety timeout for Wait+Screen /LESSON COMPLETE/.
+                     # The tape waits for the end screen then holds 3s, so the
+                     # recording ends just after graduation; the slowest lesson
+                     # (~40s: 10s intro dwell + a long test phase) clears this.
 
 RENDER=0
 if [ "${1:-}" = "--render" ]; then RENDER=1; shift; fi
@@ -90,7 +91,7 @@ gen_learn() {
   local out="$RENDERS/$id-learn"
   sed -e "s|{{DRILL_ID}}|$id|g" \
       -e "s|{{DRILL_NAME}}|$name|g" \
-      -e "s|{{HOLD}}|$LEARN_HOLD|g" \
+      -e "s|{{WAIT}}|$LEARN_WAIT|g" \
       -e "s|{{OUTPUT}}|$out|g" \
       "$LEARN_TEMPLATE" > "$tape"
   echo "  wrote $tape"

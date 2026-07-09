@@ -33,5 +33,9 @@ Enter
 
 # Auto-played lesson for {{DRILL_ID}} ({{DRILL_NAME}}): a 10s hold on the
 # intro rule frame, then the try frames and the test phase to graduation.
-# Hold across the whole walkthrough plus the end-screen landing.
-Sleep {{HOLD}}
+# Wait for the end screen to appear (rather than a fixed hold), so the
+# recording ends ~3s after graduation instead of sitting on the end screen
+# for the fixed remainder. @{{WAIT}} is the safety timeout — the slowest
+# lesson graduates well under it; on timeout the Sleep still lands a tail.
+Wait+Screen@{{WAIT}} /LESSON COMPLETE/
+Sleep 3s
