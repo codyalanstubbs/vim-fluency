@@ -1842,9 +1842,20 @@ function! s:demo_solution(item) abort
     endif
     return {'atoms': [em . ch], 'feed': 'step'}
   endif
+  " gg lands on the buffer's ABSOLUTE first line. In a lesson (fills_buffer
+  " drills, header_offset > 0) that's the prompt header, not the first
+  " content line, so the lesson remaps gg -> a counted (header_offset+1)G
+  " to reach content top. The demo plays motions with :normal! (no remap),
+  " which bypasses that map — so translate gg the same way here. In training
+  " header_offset is 0, where this reduces to 1G (== gg). (G needs no fixup:
+  " the content is the last thing in the buffer, so G's last line already is
+  " the last content line.)
+  if em ==# 'gg'
+    return {'atoms': [(get(s:session, 'header_offset', 0) + 1) . 'G'], 'feed': 'step'}
+  endif
   " A single feedable key, repeated optimal_motions times. Includes the
-  " whole-file jumps gg / G (one press lands on the first/last line).
-  if em =~# '^[hjklwbeWBE0$^G]$' || em ==# 'ge' || em ==# 'g_' || em ==# 'gg'
+  " whole-file jump G (one press lands on the last line).
+  if em =~# '^[hjklwbeWBE0$^G]$' || em ==# 'ge' || em ==# 'g_'
     return {'atoms': repeat([em], opt), 'feed': 'step'}
   endif
   " Otherwise synthesize a start→target hjkl path. expected_motion is NOT
