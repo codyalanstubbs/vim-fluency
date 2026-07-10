@@ -133,3 +133,22 @@ function! vimfluency#drills#substitute_confirm_matches#lesson() abort
     \  'prompt': 'Run :s/foo/bar/gc, then n y y n — only the two ▼ foo''s in the middle.'},
     \ ]
 endfunction
+
+" Demo auto-play: run :s/foo/bar/gc, then answer each foo left-to-right — y
+" where its column is a replace_cell (a ▼ match), n otherwise. Returned as a
+" LIST so the demo paces it — the command on one tick, then one y/n per tick
+" — and the viewer watches each match get confirmed or skipped in turn (a
+" single string would answer the whole confirm loop in one frame). Credit is
+" on the resulting buffer once the substitute completes.
+function! vimfluency#drills#substitute_confirm_matches#solve(item) abort
+  let rcols = map(copy(a:item.replace_cells), 'v:val[1]')
+  let steps = [":s/foo/bar/gc\r"]
+  let i = 0
+  while 1
+    let idx = match(a:item.lines[0], 'foo', i)
+    if idx < 0 | break | endif
+    call add(steps, index(rcols, idx + 1) >= 0 ? 'y' : 'n')
+    let i = idx + 3
+  endwhile
+  return steps
+endfunction

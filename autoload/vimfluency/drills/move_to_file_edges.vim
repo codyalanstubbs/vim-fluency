@@ -111,3 +111,13 @@ function! vimfluency#drills#move_to_file_edges#generate() abort
     \ 'start': [cursor_line, 1], 'target': [target_line, 1],
     \ 'expected_motion': motion, 'optimal_motions': 1}
 endfunction
+
+" Demo auto-play: gg / G, but fed through the main loop (with remaps) rather
+" than the default :normal! motion path. In a lesson the buffer sits below an
+" in-buffer prompt header, so the lesson remaps gg -> a header-aware counted G
+" to reach the first CONTENT line; :normal! gg would bypass that map and land
+" on the prompt chrome, never crediting. G needs no remap (content is the last
+" thing in the buffer) but rides the same path for uniformity.
+function! vimfluency#drills#move_to_file_edges#solve(item) abort
+  return a:item.expected_motion
+endfunction

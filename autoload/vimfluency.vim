@@ -1803,6 +1803,29 @@ function! s:demo_solution(item) abort
   let em = get(a:item, 'expected_motion', '')
   let opt = get(a:item, 'optimal_motions', 1)
 
+  " A drill may declare vimfluency#drills#<id>#solve(item) — the exact
+  " keystrokes an expert types to solve THIS item — for credit mechanisms the
+  " generic feeds can't drive: a real search (must set @/, which vim discards
+  " when :normal! runs it in the demo timer), an interactive prompt (:s//gc's
+  " y/n loop), or keys that must fire buffer remaps (n/N's repeat intercept,
+  " gg's header-aware remap in a lesson). The keys are fed through the main
+  " loop (burst = feedkeys with remaps active) — the very reason these need a
+  " hook. Return '' to fall through to the generic feeds below. (Distinct from
+  " the item.solve FIELD, a :normal! atom list for repeat-find/till motions.)
+  " A string is fed whole ('burst'); a LIST is fed one element per tick
+  " ('burst_paced') so a multi-step solve steps VISIBLY — e.g. the :s//gc
+  " confirm loop feeds the command, then one y/n answer per tick, so the
+  " viewer sees each match confirmed in turn instead of all at once.
+  let solver = 'vimfluency#drills#' . get(s:session, 'id', '') . '#solve'
+  if exists('*' . solver)
+    let keys = call(solver, [a:item])
+    if type(keys) == type([])
+      if !empty(keys) | return {'atoms': keys, 'feed': 'burst_paced'} | endif
+    elseif !empty(keys)
+      return {'seq': keys, 'feed': 'burst'}
+    endif
+  endif
+
   if kind ==# 'command'
     " ':...' submits through the fake cmdline and needs <CR>; ZZ/ZQ run
     " straight off the normal-mode map. Fed with remaps on (the ':' and
@@ -1823,26 +1846,6 @@ function! s:demo_solution(item) abort
   endif
 
   if kind ==# 'editing'
-    " An interactive confirm substitute (:s/pat/rep/…c…) can't be played by
-    " the :normal! operator path below — vim prompts y/n at each match. Type
-    " the Ex command, then answer each pat occurrence left-to-right (y where
-    " its column is a replace_cell, n otherwise), fed via burst so the cmdline
-    " runs and the confirm loop reads the answers from the typeahead. Credit
-    " is on the resulting buffer (ignore_cursor), same as any editing item.
-    let sub = matchlist(em, '^:s/\(.\{-}\)/.\{-}/\([a-z]*\)$')
-    if !empty(sub) && sub[2] =~# 'c' && has_key(a:item, 'replace_cells')
-      let pat = sub[1]
-      let rcols = map(copy(a:item.replace_cells), 'v:val[1]')
-      let ans = ''
-      let i = 0
-      while 1
-        let idx = match(a:item.lines[0], '\V' . escape(pat, '\'), i)
-        if idx < 0 | break | endif
-        let ans .= index(rcols, idx + 1) >= 0 ? 'y' : 'n'
-        let i = idx + len(pat)
-      endwhile
-      return {'seq': em . "\r" . ans, 'feed': 'burst'}
-    endif
     " expected_motion is the literal operator keystrokes (dw, >>, x, dd,
     " <C-r>, ...). Most editing items operate at the cursor's start row;
     " the discrimination drills (delete_char_vs_line) deliberately start
@@ -1856,39 +1859,6 @@ function! s:demo_solution(item) abort
     let drow = op_row - a:item.start[0]
     let nav = drow == 0 ? '' : repeat(drow > 0 ? 'j' : 'k', abs(drow))
     return {'seq': s:demo_feedable(em), 'feed': 'repeat', 'nav': nav}
-  endif
-
-  " Search motions (* # / ?) credit through the search register @/, which
-  " the runner's search-credit gate reads. They MUST be fed through the
-  " main loop (feed 'burst' = feedkeys), NOT played via :normal! like the
-  " other motions: vim saves and restores @/ around a timer callback (a
-  " background timer must not disturb editor state), so a search run inside
-  " the demo tick has its @/ side-effect discarded and never credits.
-  "   * / #  — search the word under the cursor (sets @/ = \<word\>).
-  "   / / ?  — a typed pattern: the target cell's whole word, submitted
-  "            with <CR> (a short pattern would stop on a fo* look-alike
-  "            decoy, so type the whole word).
-  if em ==# '*' || em ==# '#'
-    return {'seq': em, 'feed': 'burst'}
-  endif
-  if (em ==# '/' || em ==# '?') && has_key(a:item, 'target')
-    let tcol = a:item.target[1]
-    let line = a:item.lines[a:item.target[0] - 1]
-    let word = matchstr(line[tcol - 1 :], '^\S\+')
-    return {'seq': em . word . "\r", 'feed': 'burst'}
-  endif
-  " n / N (search-repeat): the optimal solve is two events — a typed
-  " /<word> to set @/ and land on the first match, then n/N to repeat to the
-  " target. Fed via burst so the search runs in the main loop (@/ persists)
-  " AND n/N fire the search_repeat_maps intercept that sets the credit flag;
-  " :normal! would bypass that buffer map, so the flag never sets and the
-  " item never credits. The pattern is the target cell's whole word (every
-  " match is that same word, so /<word> reaches the first one, n/N the rest).
-  if (em ==# 'n' || em ==# 'N') && has_key(a:item, 'target')
-    let tcol = a:item.target[1]
-    let line = a:item.lines[a:item.target[0] - 1]
-    let word = matchstr(line[tcol - 1 :], '^\S\+')
-    return {'seq': '/' . word . "\r" . em, 'feed': 'burst'}
   endif
 
   " motion (default): a list of keystroke atoms played one (or a chunk)
@@ -1917,19 +1887,11 @@ function! s:demo_solution(item) abort
     endif
     return {'atoms': [em . ch], 'feed': 'step'}
   endif
-  " gg lands on the buffer's ABSOLUTE first line. In a lesson (fills_buffer
-  " drills, header_offset > 0) that's the prompt header, not the first
-  " content line, so the lesson remaps gg -> a counted (header_offset+1)G
-  " to reach content top. The demo plays motions with :normal! (no remap),
-  " which bypasses that map — so translate gg the same way here. In training
-  " header_offset is 0, where this reduces to 1G (== gg). (G needs no fixup:
-  " the content is the last thing in the buffer, so G's last line already is
-  " the last content line.)
-  if em ==# 'gg'
-    return {'atoms': [(get(s:session, 'header_offset', 0) + 1) . 'G'], 'feed': 'step'}
-  endif
   " A single feedable key, repeated optimal_motions times. Includes the
-  " whole-file jump G (one press lands on the last line).
+  " whole-file jump G (one press lands on the last line). gg is NOT here:
+  " in a headered lesson buffer :normal! gg lands on the prompt chrome, not
+  " content line 1, so move_to_file_edges#solve plays gg/G through the buffer
+  " remap instead (feedkeys) — see the #solve hook at the top of this function.
   if em =~# '^[hjklwbeWBE0$^G]$' || em ==# 'ge' || em ==# 'g_'
     return {'atoms': repeat([em], opt), 'feed': 'step'}
   endif
@@ -1994,6 +1956,8 @@ function! s:demo_dispatch() abort
     call s:demo_play_type()
   elseif feed ==# 'burst'
     call s:demo_play_burst()
+  elseif feed ==# 'burst_paced'
+    call s:demo_play_burst_paced()
   elseif feed ==# 'repeat'
     call s:demo_play_editing()
   else
@@ -2040,6 +2004,8 @@ function! s:demo_load(item) abort
   if sol.feed ==# 'step'
     let s:session.demo_atoms = sol.atoms
     let s:session.demo_step_chunk = max([1, len(sol.atoms) / 6])
+  elseif sol.feed ==# 'burst_paced'
+    let s:session.demo_atoms = sol.atoms   " one element fed per tick
   else
     let s:session.demo_seq = sol.seq
     let s:session.demo_nav = get(sol, 'nav', '')
@@ -2243,6 +2209,21 @@ function! s:demo_play_burst() abort
   if mode() ==# 'c' | return | endif
   let s:session.demo_seq = ''
   call feedkeys(seq, 'm')
+endfunction
+
+" Paced burst: feed the drill's #solve list one element per tick (rather
+" than the whole string at once), so a multi-step solve steps visibly. The
+" confirm substitute (:s//gc) uses it — the command runs on the first tick
+" and blocks at each match's y/n prompt; a later tick feeds the next answer
+" INTO that prompt (vim's timers fire during the confirm's char-wait, and
+" feedkeys lands in the typeahead the prompt reads). Credit is the natural
+" TextChanged once the whole substitute completes, same as any editing item.
+function! s:demo_play_burst_paced() abort
+  let atoms = get(s:session, 'demo_atoms', [])
+  if empty(atoms) | return | endif
+  let s:session.demo_stall = 0
+  let s:session.demo_atoms = atoms[1:]
+  call feedkeys(atoms[0], 'm')
 endfunction
 
 " mode_switch auto-play: drive vim's mode toward the item's target one

@@ -111,3 +111,11 @@ function! vimfluency#drills#search_word_forward_backward#lesson() abort
     \  'prompt': 'Behind → #.'},
     \ ]
 endfunction
+
+" Demo auto-play (:VfDemo / :VfLearnDemo): * / # search the word under the
+" cursor and set @/, which the credit gate reads. The demo feeds this through
+" the main loop (a search run in the demo's :normal! timer has its @/ discarded
+" by vim's timer save/restore), so just hand back the key.
+function! vimfluency#drills#search_word_forward_backward#solve(item) abort
+  return a:item.expected_motion
+endfunction

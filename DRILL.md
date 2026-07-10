@@ -30,6 +30,7 @@ Each file must export:
 - `vimfluency#drills#<slug>#meta()` → `{id, name, aim, allowed_keys, keys, prereqs, family, test_sequence, kind}`
 - `vimfluency#drills#<slug>#generate()` → `{lines, start, target, expected_motion, optimal_motions}`
 - `vimfluency#drills#<slug>#lesson()` → list of show/try frames (optional; most motions need it)
+- `vimfluency#drills#<slug>#solve(item)` → keystroke string for `:VfDemo`/`:VfLearnDemo` auto-play (optional; see §7)
 
 ### meta() fields
 
@@ -172,7 +173,9 @@ fires through the normal credit path (a `:call cursor()` map moves the
 cursor but doesn't trigger the autocmd). `G` needs no remap. See
 `move_to_file_edges.vim` (`fills_buffer: 1`) for the worked example; any
 future file-level motion drill should set the flag and keep edge content
-lines non-indented so the column-1 target matches.
+lines non-indented so the column-1 target matches. The same remap is why
+such a drill needs a `#solve()` (§7): the demo's default `:normal! gg`
+bypasses the buffer map, so it plays `gg`/`G` through `feedkeys` instead.
 
 ---
 
@@ -189,7 +192,64 @@ lines non-indented so the column-1 target matches.
 
 ---
 
-## 7. Adding a new drill (checklist)
+## 7. Demo auto-play and the `#solve()` hook
+
+`:VfDemo <id>` and `:VfLearnDemo <id>` auto-play a session / lesson for the
+preview GIFs (see `preview/`). For most drills the demo synthesizes the
+keystrokes from the item — it repeats a feedable motion key, jumps an
+`f`/`t` to its char, walks an `hjkl` path to the target, applies an editing
+operator, or types an insert payload. When that generic playback can't
+drive a drill's **credit mechanism**, the drill declares its own solve:
+
+- `vimfluency#drills#<slug>#solve(item)` → the keystrokes an expert types
+  to solve `item`, fed through the **main loop** (`feedkeys`, remaps
+  active). Return a **string** to feed it all at once, or a **list** of
+  chunks to feed one per demo tick (paced, so a multi-step solve steps
+  *visibly*). Return `''` / `[]` to fall back to the generic playback.
+  `<CR>` is a literal carriage return (`"\r"` / `"\<CR>"`).
+
+Reach for it when the credit gate needs something a `:normal!` from the
+demo timer can't provide:
+
+- **A real search.** `*` `#` `/` `?` `n` `N` credit through `@/`, but vim
+  saves and restores the search register around a timer callback, so a
+  search run inside the demo tick has its `@/` discarded. Feeding through
+  the main loop makes it stick.
+- **A buffer remap.** `:normal!` bypasses buffer-local maps. `n`/`N`'s
+  `search_repeat_maps` intercept (which sets the credit flag) and the
+  `fills_buffer` `gg` remap (§5) only fire when the keys go through the map
+  — i.e. `feedkeys`.
+- **An interactive prompt.** `:s//gc` stops at each match for a `y`/`n`;
+  the answers ride in the typeahead after the command. Return them as a
+  **list** (`[':s/foo/bar/gc\r', 'y', 'n', …]`) so the demo paces the loop
+  — the command runs and blocks at the first prompt, then a later tick
+  feeds the next answer into it (vim's timers fire during the confirm's
+  char-wait), so the viewer watches each match get confirmed or skipped.
+
+Because `solve(item)` receives the item, it reads `expected_motion`,
+`target`, `replace_cells`, etc. to build the exact keys — the drill owns
+the knowledge (its pattern, its subset), so this beats the demo
+reverse-engineering it. Worked examples: `search_word_forward_backward`,
+`search_pattern_forward_backward`, `search_repeat_next_prev`,
+`substitute_confirm_matches`, `move_to_file_edges`.
+
+**Not the `item.solve` FIELD.** A few motion drills set a `solve` list on
+the generated item (in `generate()`) — a sequence of `:normal!` keystroke
+*atoms* for a motion the demo can't synthesize from start→target
+(repeat-find/till: prime with `f`/`t`, then `;`/`,`). That field is played
+curswant-faithfully via `:normal!`; the `#solve()` *function* is played via
+`feedkeys`. Use the field for pure motions needing a fixed `:normal!`
+sequence; use the function when the main loop — search register, remaps,
+interactive prompts — is the whole point.
+
+**Always run `make verify DRILL=<id>` and `make verify-learn DRILL=<id>`
+after adding a drill** (render-free, seconds each). They assert `:VfDemo`
+credits and the lesson graduates, catching a credit mechanism the demo
+can't play *before* you spend minutes on a render that stalls.
+
+---
+
+## 8. Adding a new drill (checklist)
 
 1. Create `autoload/vimfluency/drills/<slug>.vim`.
 2. Define `meta()` with `id`, `name`, `aim` (starting guess),
@@ -202,15 +262,18 @@ lines non-indented so the column-1 target matches.
    [`LESSONS.md`](LESSONS.md).
 6. Add property tests in `tests/test_generators.vim` covering the
    `optimal_motions` formula and the `expected_motion` set.
-7. Regenerate the catalog: `./scripts/gen-catalog.sh`. `CATALOG.md` is
+7. Check the demo can auto-play it: `make verify DRILL=<id>` and
+   `make verify-learn DRILL=<id>` (render-free, seconds each). If either
+   stalls, the credit mechanism needs a `#solve()` (§7).
+8. Regenerate the catalog: `./scripts/gen-catalog.sh`. `CATALOG.md` is
    machine-generated from drill `meta()` — never hand-edit it; CI fails
    on a stale copy. The live, always-current index is `:VfList`.
-8. Run `tests/run.sh` (or `make test` for the full CI equivalent).
-9. Commit (no `Co-Authored-By: Claude` trailer in this project).
+9. Run `tests/run.sh` (or `make test` for the full CI equivalent).
+10. Commit (no `Co-Authored-By: Claude` trailer in this project).
 
 ---
 
-## 8. Renaming a drill slug
+## 9. Renaming a drill slug
 
 Slugs are user data — they're typed into `:VfTrain` and stored as
 `drill_id` in every JSONL session record. To rename one:
@@ -230,7 +293,7 @@ Slugs are user data — they're typed into `:VfTrain` and stored as
 
 ---
 
-## 9. Conformance checklist (per drill)
+## 10. Conformance checklist (per drill)
 
 - [ ] Cheat-analysis comment block at the top of the file; intended
       motion is the strictly shortest path on every generated item.
@@ -241,6 +304,8 @@ Slugs are user data — they're typed into `:VfTrain` and stored as
       [`LESSONS.md`](LESSONS.md).
 - [ ] Property tests in `tests/test_generators.vim` cover the
       `optimal_motions` formula and `expected_motion` set.
+- [ ] `make verify DRILL=<id>` and `make verify-learn DRILL=<id>` pass —
+      a `#solve()` (§7) added if the demo can't play the credit mechanism.
 - [ ] Line-removing / whole-buffer drills use the §4 / §5 workarounds.
 - [ ] Vim 8.1 baseline — no newer functions snuck in.
 - [ ] Catalog regenerated; `tests/run.sh` (or `make test`) green.

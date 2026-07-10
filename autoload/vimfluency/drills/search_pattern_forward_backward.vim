@@ -103,3 +103,10 @@ function! vimfluency#drills#search_pattern_forward_backward#lesson() abort
     \  'prompt': 'Behind → ?foo<CR>.'},
     \ ]
 endfunction
+
+" Demo auto-play: type the whole pattern (always foo — a short pattern stops
+" on a fo* decoy) then <CR>, forward with / or backward with ?. Fed through the
+" main loop so the typed search actually sets @/ (the requires_search gate).
+function! vimfluency#drills#search_pattern_forward_backward#solve(item) abort
+  return a:item.expected_motion . 'foo' . "\r"
+endfunction

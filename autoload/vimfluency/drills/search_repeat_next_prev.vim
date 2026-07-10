@@ -114,3 +114,11 @@ function! vimfluency#drills#search_repeat_next_prev#lesson() abort
     \  'prompt': '/foo<CR>, then N — behind.'},
     \ ]
 endfunction
+
+" Demo auto-play: search /foo to land on the first match, then repeat to the
+" target with n / N. Fed through the main loop so the search sets @/ AND n/N
+" fire the search_repeat_maps intercept that sets the credit flag (:normal!
+" would bypass the buffer map, so the flag never sets and it never credits).
+function! vimfluency#drills#search_repeat_next_prev#solve(item) abort
+  return "/foo\r" . a:item.expected_motion
+endfunction
