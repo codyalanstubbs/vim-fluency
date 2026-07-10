@@ -6,10 +6,13 @@
 " :s/foo/bar/gc and then types y / n to hit a specific subset.
 "
 " The line holds foo four times; the ones to replace are highlighted green
-" (replace_cells). The learner runs the substitute, then confirms y on the
-" green foo and n on the rest, left to right. foo -> bar is length-
-" preserving, so columns never shift and the cursor ends on the last match
-" (a fixed cell) — kind 'editing' credits on the resulting buffer.
+" (replace_cells) AND flagged with a ▼ marker row above them. The green is
+" transient — vim's confirm loop whites it out the instant it lands on a
+" match — so the durable cue the learner reads mid-loop is the ▼. Run the
+" substitute, then confirm y on each ▼ foo and n on the rest, left to
+" right. foo -> bar is length-preserving, so columns never shift and the
+" cursor ends on the last match (a fixed cell) — kind 'editing' credits on
+" the resulting buffer.
 "
 " Cheat defense: the target is a SUBSET of identical foo's, so no plainer
 " substitute reaches it — /g (or /gc answered all-y) replaces all four
@@ -90,7 +93,7 @@ function! vimfluency#drills#substitute_confirm_matches#generate() abort
     \ 'target_lines': [join(target_tokens, ' ')],
     \ 'replace_cells': replace_cells,
     \ 'ignore_cursor': 1,
-    \ 'prompt': 'Run :s/foo/bar/gc, then y on each green foo and n on the rest.',
+    \ 'prompt': 'Run :s/foo/bar/gc, then y on each ▼ foo and n on the rest.',
     \ 'expected_motion': ':s/foo/bar/gc',
     \ 'optimal_motions': 1,
     \ }
@@ -113,19 +116,20 @@ function! vimfluency#drills#substitute_confirm_matches#lesson() abort
     \    '    y = yes, replace     n = no, skip',
     \    '    a = all the rest     q = quit',
     \    '',
-    \    'The green foo''s are the ones to replace. Run the substitute, then',
-    \    'answer y on a green foo and n on the rest — left to right.',
+    \    'The foo''s to replace are green AND marked ▼. The green disappears',
+    \    'under vim''s prompt as it lands on each match, so read the ▼: run',
+    \    'the substitute, then y on each ▼ foo and n on the rest.',
     \    '',
     \    'Press <Space> to continue.']},
     \ {'kind': 'try', 'lines': bufA, 'start': [1, 1], 'target': [1, 21],
     \  'target_lines': ['let bar add foo run bar'],
     \  'replace_cells': [[1, 5, 3], [1, 21, 3]], 'ignore_cursor': 1,
     \  'expected_motion': ':s/foo/bar/gc', 'optimal_motions': 1,
-    \  'prompt': 'Run :s/foo/bar/gc, then y n y — replace the green foo''s, skip the middle one.'},
+    \  'prompt': 'Run :s/foo/bar/gc, then y n y — replace the two ▼ foo''s, skip the middle one.'},
     \ {'kind': 'try', 'lines': bufB, 'start': [1, 1], 'target': [1, 29],
     \  'target_lines': ['set foo pop bar map bar fix foo'],
     \  'replace_cells': [[1, 13, 3], [1, 21, 3]], 'ignore_cursor': 1,
     \  'expected_motion': ':s/foo/bar/gc', 'optimal_motions': 1,
-    \  'prompt': 'Run :s/foo/bar/gc, then n y y n — only the two green foo''s in the middle.'},
+    \  'prompt': 'Run :s/foo/bar/gc, then n y y n — only the two ▼ foo''s in the middle.'},
     \ ]
 endfunction

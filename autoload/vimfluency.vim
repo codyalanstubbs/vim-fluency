@@ -156,6 +156,37 @@ function! s:deletion_annotation(item) abort
   return [substitute(annotation, '\s\+$', '', '')]
 endfunction
 
+" Marker row (▼ over each foo to replace) for /gc-style drills. The
+" confirm loop's own current-match highlight whites out the green
+" VfTarget cell the instant vim lands on that match, so a learner mid-loop
+" can't tell whether the foo under the prompt was a target. The ▼ row
+" lives in the header, immune to the confirm highlight — it persists as
+" the durable "say y here" cue alongside the (transient) green. Keyed on
+" replace_cells and always on when present; single-row, mirroring
+" s:deletion_annotation (column-accounted append, not strpart splicing,
+" so the multi-byte ▼ can't desync later byte offsets).
+function! s:replace_annotation(item) abort
+  if !has_key(a:item, 'replace_cells') || empty(a:item.replace_cells)
+    return []
+  endif
+  if empty(a:item.lines) | return [] | endif
+  let llen = len(a:item.lines[0])
+  let cols = {}
+  for cell in a:item.replace_cells
+    if cell[0] != 1 | continue | endif
+    let clen = get(cell, 2, 1)
+    for c in range(cell[1], cell[1] + clen - 1)
+      if c >= 1 && c <= llen | let cols[c] = 1 | endif
+    endfor
+  endfor
+  if empty(cols) | return [] | endif
+  let annotation = ''
+  for c in range(1, llen)
+    let annotation .= has_key(cols, c) ? '▼' : ' '
+  endfor
+  return [substitute(annotation, '\s\+$', '', '')]
+endfunction
+
 " Add VfTarget highlights for each declared waypoint at its buffer row
 " (header_offset + item-coord row). Stores match IDs on the session so
 " they can be cleared on render_complete or the next frame.
@@ -2361,6 +2392,7 @@ function! s:next_item() abort
   " for items where cursor sits between two char occurrences.
   let header += s:waypoint_annotation(item)
   let header += s:deletion_annotation(item)
+  let header += s:replace_annotation(item)
   let s:session.header_offset = len(header)
 
   setlocal modifiable
@@ -3389,6 +3421,7 @@ function! s:render_mode_item(item) abort
 
   let header += s:waypoint_annotation(a:item)
   let header += s:deletion_annotation(a:item)
+  let header += s:replace_annotation(a:item)
   let s:session.header_offset = len(header)
 
   setlocal modifiable
@@ -4317,7 +4350,7 @@ function! s:learn_show_frame() abort
   " content), so the cur_lines comparison in s:learn_on_change still
   " excludes it via header_offset.
   let header = base_header + mode_extra + s:waypoint_annotation(frame)
-    \ + s:deletion_annotation(frame)
+    \ + s:deletion_annotation(frame) + s:replace_annotation(frame)
   let s:session.header_offset = len(header)
 
   setlocal modifiable
@@ -5085,6 +5118,7 @@ function! s:learn_test_next() abort
   endif
   let full_header = lesson_header + editing_header + mode_extra
     \ + s:waypoint_annotation(item) + s:deletion_annotation(item)
+    \ + s:replace_annotation(item)
   let s:session.header_offset = len(full_header)
 
   setlocal modifiable
