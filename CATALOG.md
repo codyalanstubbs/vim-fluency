@@ -81,6 +81,7 @@ this file is the static snapshot for browsing on GitHub.
 | `delete_char_vs_line` | delete char vs line (x / dd) | `x/dd` | `editing` | 60 | — |
 | `delete_inside_angle_vs_tag` | delete inside angle vs tag (di< / dit) | `di</dit` | `editing` | 45 | `delete_inside_around_tag` |
 | `delete_inside_around_tag` | delete inside vs around tag (dit / dat) | `dit/dat` | `editing` | 50 | `delete_char_vs_line` |
+| `delete_inside_around_word` | delete inside vs around word (diw / daw) | `diw/daw` | `editing` | 50 | `delete_char_vs_line` |
 | `delete_inside_block` | delete inside block — parens vs braces (dib / diB) | `dib/diB` | `editing` | 55 | `delete_inside_brackets` |
 | `delete_inside_brackets` | delete inside brackets (di( / di{ / di[) | `di(/di{/di[` | `editing` | 55 | `delete_inside_around_tag` |
 | `delete_inside_quotes` | delete inside quotes (di" / di' / di`) | `` di"/di'/di` `` | `editing` | 55 | `delete_inside_around_tag` |
@@ -133,4 +134,4 @@ this file is the static snapshot for browsing on GitHub.
 | `substitute_first_vs_all` | substitute first vs all (:s vs :s…g) | `:s// / :s//g` | `command` | 25 | `substitute_line_vs_file` |
 | `substitute_line_vs_file` | substitute line vs file (:s / :%s) | `:s//g / :%s//g` | `command` | 25 | `switch_mode_to_command_line` |
 
-_66 drills across 10 families. Regenerate with `scripts/gen-catalog.sh`._
+_67 drills across 10 families. Regenerate with `scripts/gen-catalog.sh`._

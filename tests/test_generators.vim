@@ -2260,6 +2260,78 @@ function! s:test_delete_inside_around_tag() abort
   call Assert(get(seen, 'dat', 0) == 1, 'delete_inside_around_tag: dat appeared in samples')
 endfunction
 
+" delete_inside_around_word: editing-kind word-text-object discrimination.
+" expected_motion ∈ {diw, daw}; optimal_motions == 1. The cursor sits in
+" the strict INTERIOR of the target word (the dw cheat defense). Executing
+" the real motion must reproduce target_lines — this is where the daw
+" whitespace-eating (single vs double gap) is checked against real vim.
+function! s:test_delete_inside_around_word() abort
+  let GenFn = function('vimfluency#drills#delete_inside_around_word#generate')
+  let valid = ['diw', 'daw']
+  let seen = {}
+  for i in range(s:N)
+    let item = GenFn()
+    call s:assert_common('delete_inside_around_word', item)
+    call AssertIn(item.expected_motion, valid,
+      \ 'delete_inside_around_word: expected_motion in {diw, daw}')
+    call AssertEq(item.optimal_motions, 1,
+      \ 'delete_inside_around_word: optimal_motions == 1')
+    call AssertEq(len(item.lines), 1, 'delete_inside_around_word: single-line buffer')
+    call Assert(has_key(item, 'target_lines'), 'delete_inside_around_word: has target_lines')
+    call Assert(has_key(item, 'deletion_range'), 'delete_inside_around_word: has deletion_range')
+
+    let dr = item.deletion_range[0]
+    " Cursor strictly interior to the WORD. For daw the red range runs one
+    " cell past the word (the trailing space), so bound the interior check
+    " to the word length rather than dr[2].
+    let wordlen = item.expected_motion ==# 'diw' ? dr[2] : dr[2] - 1
+    call Assert(item.start[1] > dr[1] && item.start[1] < dr[1] + wordlen,
+      \ 'delete_inside_around_word: cursor starts strictly inside the word')
+    " daw's range is exactly one cell longer than diw's (the eaten space).
+    if item.expected_motion ==# 'daw'
+      call AssertEq(item.lines[0][dr[1] + wordlen - 1], ' ',
+        \ 'delete_inside_around_word: daw range ends on a trailing space')
+    endif
+    " Cursor lands where the deletion began.
+    call AssertEq(item.target, [1, dr[1]],
+      \ 'delete_inside_around_word: cursor lands at the deletion start col')
+    " Prefix and suffix present (the dd defense): word is never alone.
+    let words = split(item.lines[0])
+    call AssertEq(len(words), 3, 'delete_inside_around_word: PREFIX word SUFFIX (3 words)')
+
+    " Execute the real motion — the column-math + whitespace guarantee.
+    enew!
+    call setline(1, item.lines)
+    call cursor(item.start[0], item.start[1])
+    execute 'normal! ' . item.expected_motion
+    call AssertEq(getline(1, '$'), item.target_lines,
+      \ 'delete_inside_around_word/' . item.expected_motion . ': buffer matches target_lines')
+    call AssertEq([line('.'), col('.')], item.target,
+      \ 'delete_inside_around_word/' . item.expected_motion . ': cursor matches target')
+    bwipeout!
+
+    " Cheat gate: no <=3-keystroke alternative may reproduce BOTH the
+    " target buffer and cursor. The SIBLING object (the one-space
+    " difference) plus dw (interior-cursor defense) and db/de/dd.
+    let want = [item.target_lines, item.target]
+    let sibling = item.expected_motion ==# 'diw' ? 'daw' : 'diw'
+    for alt in [sibling, 'dw', 'db', 'de', 'dd']
+      enew!
+      call setline(1, item.lines)
+      call cursor(item.start[0], item.start[1])
+      silent! execute 'normal! ' . alt
+      call Assert([getline(1, '$'), [line('.'), col('.')]] !=# want,
+        \ 'delete_inside_around_word/' . item.expected_motion
+        \ . ': ' . alt . ' must NOT reproduce the target (cheat gate)')
+      bwipeout!
+    endfor
+
+    let seen[item.expected_motion] = 1
+  endfor
+  call Assert(get(seen, 'diw', 0) == 1, 'delete_inside_around_word: diw appeared in samples')
+  call Assert(get(seen, 'daw', 0) == 1, 'delete_inside_around_word: daw appeared in samples')
+endfunction
+
 " change_inside_around_tag: mode-kind (credit_on_text_typed) tag-text-object
 " discrimination. expected_motion ∈ {cit, cat}; optimal == 1 + len(replacement).
 " The cursor sits strictly interior to the content (cheat defense). Applying
@@ -2628,6 +2700,7 @@ function! s:test_delete_inside_block() abort
 endfunction
 
 call s:test_delete_inside_around_tag()
+call s:test_delete_inside_around_word()
 call s:test_change_inside_around_tag()
 call s:test_change_inside_brackets()
 call s:test_change_inside_quotes()
