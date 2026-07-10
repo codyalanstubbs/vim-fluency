@@ -1823,6 +1823,26 @@ function! s:demo_solution(item) abort
   endif
 
   if kind ==# 'editing'
+    " An interactive confirm substitute (:s/pat/rep/…c…) can't be played by
+    " the :normal! operator path below — vim prompts y/n at each match. Type
+    " the Ex command, then answer each pat occurrence left-to-right (y where
+    " its column is a replace_cell, n otherwise), fed via burst so the cmdline
+    " runs and the confirm loop reads the answers from the typeahead. Credit
+    " is on the resulting buffer (ignore_cursor), same as any editing item.
+    let sub = matchlist(em, '^:s/\(.\{-}\)/.\{-}/\([a-z]*\)$')
+    if !empty(sub) && sub[2] =~# 'c' && has_key(a:item, 'replace_cells')
+      let pat = sub[1]
+      let rcols = map(copy(a:item.replace_cells), 'v:val[1]')
+      let ans = ''
+      let i = 0
+      while 1
+        let idx = match(a:item.lines[0], '\V' . escape(pat, '\'), i)
+        if idx < 0 | break | endif
+        let ans .= index(rcols, idx + 1) >= 0 ? 'y' : 'n'
+        let i = idx + len(pat)
+      endwhile
+      return {'seq': em . "\r" . ans, 'feed': 'burst'}
+    endif
     " expected_motion is the literal operator keystrokes (dw, >>, x, dd,
     " <C-r>, ...). Most editing items operate at the cursor's start row;
     " the discrimination drills (delete_char_vs_line) deliberately start
