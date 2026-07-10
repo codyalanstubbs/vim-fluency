@@ -9,8 +9,9 @@
 "          search_pattern_forward_backward) — find text you're NOT on.
 "          And n / N (search_repeat_next_prev) — cycle the matches.
 "        - :s / :%s (substitute_line_vs_file) — rename on this line vs
-"          across the whole file — and the /g flag, first match vs all
-"          on the line (substitute_first_vs_all).
+"          across the whole file — the /g flag, first match vs all on the
+"          line (substitute_first_vs_all), and the /gc confirm flag to
+"          replace a chosen subset by hand (substitute_confirm_matches).
 "   2. The code-structure text objects — edit what's inside the brackets,
 "      quotes, and blocks code is built from:
 "        - di(/di{/di[ and ci(/ci{/ci[ (delete/change_inside_brackets) —
@@ -24,9 +25,8 @@
 "      w/b/e word motions, 0/$ line edges, and yy/p, ddp/ddkP to copy and
 "      reorder lines.
 "
-" Deferred to follow-on paths (and reachable via `general`): the
-" substitute confirm flag (/gc), the around objects, macros (q/@),
-" marks, and the quickfix list.
+" Deferred to follow-on paths (and reachable via `general`): the around
+" objects, macros (q/@), marks, and the quickfix list.
 "
 " Ids not yet in the registry (a planned-but-unshipped drill) are silently
 " dropped by s:filter_registry_by_path, so the path survives rename /
@@ -43,6 +43,7 @@ function! vimfluency#paths#backend#meta() abort
     \   'search_repeat_next_prev',
     \   'substitute_line_vs_file',
     \   'substitute_first_vs_all',
+    \   'substitute_confirm_matches',
     \   'delete_inside_brackets',
     \   'change_inside_brackets',
     \   'delete_inside_quotes',

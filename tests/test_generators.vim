@@ -1465,6 +1465,46 @@ function! s:test_substitute_line_vs_file() abort
     endif
   endfor
 endfunction
+" substitute_confirm_matches: the interactive /gc drill. Editing kind —
+" credit is on the resulting buffer (ignore_cursor), so the generator
+" contract is that target_lines flips EXACTLY the green (replace_cells)
+" foo's to bar and leaves the rest, and the subset is a real 2-or-3 of 4
+" (never all — that's /g — never a lone one).
+function! s:test_substitute_confirm_matches() abort
+  let GenFn = function('vimfluency#drills#substitute_confirm_matches#generate')
+  let sizes = {}
+  for i in range(s:N)
+    let item = GenFn()
+    call s:assert_common('substitute_confirm_matches', item)
+    call AssertEq(item.expected_motion, ':s/foo/bar/gc',
+      \ 'substitute_confirm_matches: expected_motion')
+    call AssertEq(item.optimal_motions, 1, 'substitute_confirm_matches: optimal == 1')
+    call Assert(get(item, 'ignore_cursor', 0), 'substitute_confirm_matches: ignore_cursor set')
+    call AssertEq(count(split(item.lines[0]), 'foo'), 4,
+      \ 'substitute_confirm_matches: four foo in the source')
+
+    let nrep = len(item.replace_cells)
+    call Assert(nrep == 2 || nrep == 3,
+      \ 'substitute_confirm_matches: replaces 2 or 3 (a real subset)')
+    let sizes[nrep] = 1
+    " target flips exactly nrep foo's to bar
+    call AssertEq(count(split(item.target_lines[0]), 'bar'), nrep,
+      \ 'substitute_confirm_matches: bar count == subset size')
+    call AssertEq(count(split(item.target_lines[0]), 'foo'), 4 - nrep,
+      \ 'substitute_confirm_matches: foo remainder')
+    " each highlighted cell is a foo in the source and a bar in the target
+    for cell in item.replace_cells
+      let c = cell[1]
+      call AssertEq(item.lines[0][c - 1 : c + 1], 'foo',
+        \ 'substitute_confirm_matches: replace_cell sits on a source foo')
+      call AssertEq(item.target_lines[0][c - 1 : c + 1], 'bar',
+        \ 'substitute_confirm_matches: replace_cell becomes bar in target')
+    endfor
+  endfor
+  call Assert(get(sizes, 2, 0) && get(sizes, 3, 0),
+    \ 'substitute_confirm_matches: both subset sizes 2 and 3 appear')
+endfunction
+
 function! s:test_save_quit_vs_force_quit() abort
   call s:test_save_quit_pair('save_quit_vs_force_quit', 'save_quit_vs_force_quit', [':wq', ':q!'])
 endfunction
@@ -2630,6 +2670,7 @@ call s:test_insert_line_above_below()
 call s:test_save_vs_quit()
 call s:test_substitute_line_vs_file()
 call s:test_substitute_first_vs_all()
+call s:test_substitute_confirm_matches()
 call s:test_search_word_forward_backward()
 call s:test_search_pattern_forward_backward()
 call s:test_search_repeat_next_prev()

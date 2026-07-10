@@ -97,6 +97,8 @@ chkge() {  # name min got
 }
 correct() { NV 'matchstr(vimfluency#statusline(), "correct \\zs\\d\\+")'; }
 log_lines() { NV 'filereadable(vimfluency#log_dir() . "/sessions.jsonl") ? len(readfile(vimfluency#log_dir() . "/sessions.jsonl")) : 0'; }
+# y/n string for a /gc item: y where a source foo became bar in the target.
+ynof() { awk -v ln="$1" -v tl="$2" 'BEGIN{n=split(ln,a," ");split(tl,b," ");s="";for(i=1;i<=n;i++)if(a[i]=="foo")s=s (b[i]=="bar"?"y":"n");print s}'; }
 
 echo "== load =="
 chk "plugin loaded" 1 "$(NV 'exists("g:loaded_vimfluency")')"
@@ -329,6 +331,28 @@ chk "motion after a wrong repeat still does NOT credit (one-shot)" 0 "$(NV 'vimf
 NS 'gg'; NS "${nn_s}|"; NS '/foo<CR>'; settle
 NS "$nn_exp"; settle
 chkge "search then real n/N credits" 1 "$(NV 'vimfluency#_test_state().items_correct')"
+NS ':VfQuit<CR>'; settle; nap 0.5; settle
+chk "VfQuit ended session" "" "$(NV 'vimfluency#statusline()')"
+NS 'Q'; settle
+
+echo "== substitute_confirm_matches: interactive :s//gc + y/n, buffer-credited =="
+# /gc is genuinely interactive — the command is EXECUTED and the learner
+# answers y/n per match. Credit is on the resulting buffer (ignore_cursor,
+# since the confirm loop parks the cursor at the line start).
+NS ':VfTrain substitute_confirm_matches 120<CR>'; settle
+chk "session started" 1 "$(NV '!empty(vimfluency#statusline())')"
+gc_line="$(NV 'vimfluency#_test_state().current_item.lines[0]')"
+gc_tgt="$(NV 'vimfluency#_test_state().current_item.target_lines[0]')"
+gc_seq="$(ynof "$gc_line" "$gc_tgt")"
+chk "green-highlights the replace subset" "$(NV 'len(vimfluency#_test_state().current_item.replace_cells)')" "$(NV 'len(get(vimfluency#_test_state(),"waypoint_match_ids",[]))')"
+# the /g cheat replaces ALL matches — wrong subset, no credit
+NS ':s/foo/bar/g<CR>'; settle
+chk "/g cheat overshoots the subset — no credit" 0 "$(NV 'vimfluency#_test_state().items_correct')"
+NS 'u'; settle
+# the real confirm loop hits exactly the subset (credit proves the buffer
+# reached target_lines — it advances on credit, so don't read it after)
+NS ':s/foo/bar/gc<CR>'; settle; NS "$gc_seq"; settle
+chkge ":s//gc + y/n credits on the exact subset" 1 "$(NV 'vimfluency#_test_state().items_correct')"
 NS ':VfQuit<CR>'; settle; nap 0.5; settle
 chk "VfQuit ended session" "" "$(NV 'vimfluency#statusline()')"
 NS 'Q'; settle

@@ -161,14 +161,24 @@ endfunction
 " they can be cleared on render_complete or the next frame.
 function! s:add_waypoint_matches(item) abort
   let s:session.waypoint_match_ids = []
-  if !has_key(a:item, 'waypoints') || empty(a:item.waypoints)
-    return
+  if has_key(a:item, 'waypoints') && !empty(a:item.waypoints)
+    for wp in a:item.waypoints
+      let buf_row = s:session.header_offset + wp[0]
+      let id = matchaddpos('VfTarget', [[buf_row, wp[1], 1]], 20)
+      call add(s:session.waypoint_match_ids, id)
+    endfor
   endif
-  for wp in a:item.waypoints
-    let buf_row = s:session.header_offset + wp[0]
-    let id = matchaddpos('VfTarget', [[buf_row, wp[1], 1]], 20)
-    call add(s:session.waypoint_match_ids, id)
-  endfor
+  " replace_cells: green-highlight a SUBSET of cells with NO numbered
+  " annotation (waypoints imply an ordered path — wrong for /gc, where you
+  " just mark which identical matches to confirm). Each cell is [row, col,
+  " len]; reuses the waypoint match store so every render site clears it.
+  if has_key(a:item, 'replace_cells') && !empty(a:item.replace_cells)
+    for cell in a:item.replace_cells
+      let buf_row = s:session.header_offset + cell[0]
+      let id = matchaddpos('VfTarget', [[buf_row, cell[1], get(cell, 2, 1)]], 20)
+      call add(s:session.waypoint_match_ids, id)
+    endfor
+  endif
 endfunction
 
 function! s:clear_waypoint_matches() abort
@@ -2594,7 +2604,9 @@ function! s:on_change() abort
     return
   endif
 
-  if cur_lines ==# target_lines && cur_pos == item.target && s:search_ok(item)
+  if cur_lines ==# target_lines
+    \ && (get(item, 'ignore_cursor', 0) || cur_pos == item.target)
+    \ && s:search_ok(item)
     call s:credit_item()
   endif
   " One-shot: consume the n/N flag on any cursor event so a wrong repeat
@@ -4588,7 +4600,9 @@ function! s:learn_on_change() abort
     let s:session.last_event_state = new_state
     let s:session.test_motion_count += 1
 
-    if cur_lines ==# target_lines && cur_pos == item.target && s:search_ok(item)
+    if cur_lines ==# target_lines
+      \ && (get(item, 'ignore_cursor', 0) || cur_pos == item.target)
+      \ && s:search_ok(item)
       let s:session.frame_complete = 1
       let s:session.last_item_motions = s:session.test_motion_count
       let s:session.last_item_optimal = get(item, 'optimal_motions', 1)
@@ -4609,8 +4623,12 @@ function! s:learn_on_change() abort
 
   let frame = s:session.frames[s:session.frame_idx]
   if frame.kind !=# 'try' | return | endif
-  let buf_target_row = s:session.header_offset + frame.target[0]
-  if [line('.'), col('.')] != [buf_target_row, frame.target[1]] | return | endif
+  " ignore_cursor frames (the /gc confirm loop parks the cursor
+  " unpredictably) skip the cursor check and gate ENTIRELY on target_lines.
+  if !get(frame, 'ignore_cursor', 0)
+    let buf_target_row = s:session.header_offset + frame.target[0]
+    if [line('.'), col('.')] != [buf_target_row, frame.target[1]] | return | endif
+  endif
   " For editing-kind frames where start == target (dw stays put), the
   " cursor-only check would fire on s:learn_show_frame's own cursor()
   " call and credit before the learner typed anything. Frames declare
