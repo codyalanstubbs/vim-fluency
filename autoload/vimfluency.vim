@@ -3367,18 +3367,27 @@ function! s:check_mode_for_learn_credit(...) abort
     endif
   endif
   let s:session.frame_complete = 1
+  " s:learn_render_complete arms the auto-advance. For mode_switch this
+  " matters doubly: the learner may be in a non-Normal mode where Space
+  " types into the buffer instead of advancing, so the timer is the
+  " primary way out (the Space mapping still works from Normal mode).
   call s:learn_render_complete()
-  " Auto-advance after a brief pause. Without this, the user would
-  " have to <Esc> back to Normal and press Space — but they may
-  " already be in a non-Normal mode where Space types into the
-  " buffer instead of advancing. The Space mapping still works in
-  " Normal mode for the impatient.
-  call s:stop_learn_auto_advance()
-  let s:session.learn_auto_advance_timer = timer_start(600,
-    \ function('s:learn_mode_switch_auto_advance'))
 endfunction
 
-function! s:learn_mode_switch_auto_advance(timer) abort
+" Arm the one-shot auto-advance for a just-credited frame/item. Kept in
+" one place so every credit path (motion, editing, visual, mode,
+" mode_switch, command, recall) advances identically. 600ms is long
+" enough to register the ✓ and see the buffer/cursor change before the
+" next frame loads.
+function! s:arm_learn_auto_advance() abort
+  if get(s:session, 'mode', '') !=# 'learn' | return | endif
+  if !get(s:session, 'frame_complete', 0) | return | endif
+  call s:stop_learn_auto_advance()
+  let s:session.learn_auto_advance_timer = timer_start(600,
+    \ function('s:learn_auto_advance'))
+endfunction
+
+function! s:learn_auto_advance(timer) abort
   if empty(s:session) | return | endif
   if get(s:session, 'phase', '') ==# 'complete' | return | endif
   if !get(s:session, 'frame_complete', 0) | return | endif
@@ -4761,15 +4770,13 @@ function! s:learn_on_text_changed_i() abort
       let s:session.wrongs += 1
     endif
   endif
+  " s:learn_render_complete arms the auto-advance timer.
   call s:learn_render_complete()
   " Drop the user back to Normal so the next frame renders cleanly.
   " 'i' inserts Esc at the start of the typeahead buffer so it
   " preempts any chars the learner over-typed in their reaction
   " window; frame_complete=1 makes the InsertLeave a no-op.
   call feedkeys("\<Esc>", 'ni')
-  call s:stop_learn_auto_advance()
-  let s:session.learn_auto_advance_timer = timer_start(600,
-    \ function('s:learn_mode_switch_auto_advance'))
 endfunction
 
 function! s:learn_on_insert_leave() abort
@@ -4842,6 +4849,13 @@ endfunction
 " overlay that's especially confusing for editing kinds where the
 " highlighted cells now sit on different characters than they did
 " pre-deletion.
+"
+" Every credit path funnels through here, so this is also where the
+" auto-advance timer is armed: after the brief ✓ dwell the lesson moves
+" on by itself (mirroring the free-operant flow of :VfTrain, but with a
+" pause long enough to see the motion took effect). The [Space=next]
+" mapping still advances immediately for the impatient — s:learn_advance_show
+" cancels this timer first.
 function! s:learn_render_complete() abort
   let s:session.advancing = 1
   setlocal modifiable
@@ -4857,6 +4871,7 @@ function! s:learn_render_complete() abort
   call setline(1, s:learn_header_line())
   let s:session.advancing = 0
   redraw
+  call s:arm_learn_auto_advance()
 endfunction
 
 function! s:learn_next() abort
