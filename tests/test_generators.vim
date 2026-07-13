@@ -2699,6 +2699,36 @@ function! s:test_delete_inside_around_quotes() abort
     \ ['diw', 'daw', 'dd', 'di"', "di'", 'di`', 'da"', "da'", 'da`'])
 endfunction
 
+" The six single-delimiter di/da pair drills (narrower_of the trios above),
+" all delegating to vimfluency#objpair. Same harness — real-vim execution
+" validates each da's whitespace behavior (double gap for brackets, single
+" gap for quotes). The sibling (di<->da for the one delimiter) is the
+" discrimination; d% guards the matched-bracket cheat on the brackets.
+function! s:test_delete_inside_around_paren() abort
+  call s:assert_inner_object_drill('delete_inside_around_paren',
+    \ ['di(', 'da('], ['diw', 'daw', 'dd', 'd%', 'di(', 'da('])
+endfunction
+function! s:test_delete_inside_around_brace() abort
+  call s:assert_inner_object_drill('delete_inside_around_brace',
+    \ ['di{', 'da{'], ['diw', 'daw', 'dd', 'd%', 'di{', 'da{'])
+endfunction
+function! s:test_delete_inside_around_square_bracket() abort
+  call s:assert_inner_object_drill('delete_inside_around_square_bracket',
+    \ ['di[', 'da['], ['diw', 'daw', 'dd', 'd%', 'di[', 'da['])
+endfunction
+function! s:test_delete_inside_around_double_quote() abort
+  call s:assert_inner_object_drill('delete_inside_around_double_quote',
+    \ ['di"', 'da"'], ['diw', 'daw', 'dd', 'di"', 'da"'])
+endfunction
+function! s:test_delete_inside_around_single_quote() abort
+  call s:assert_inner_object_drill('delete_inside_around_single_quote',
+    \ ["di'", "da'"], ['diw', 'daw', 'dd', "di'", "da'"])
+endfunction
+function! s:test_delete_inside_around_backtick() abort
+  call s:assert_inner_object_drill('delete_inside_around_backtick',
+    \ ['di`', 'da`'], ['diw', 'daw', 'dd', 'di`', 'da`'])
+endfunction
+
 " delete_inside_block: dib/diB. The literal bracket objects di(/di{ are
 " INTENDED equivalents (the drill teaches the alias), so they're not in
 " the cheat gate — instead we assert the equivalence holds.
@@ -2724,6 +2754,12 @@ call s:test_delete_inside_around_tag()
 call s:test_delete_inside_around_word()
 call s:test_delete_inside_around_brackets()
 call s:test_delete_inside_around_quotes()
+call s:test_delete_inside_around_paren()
+call s:test_delete_inside_around_brace()
+call s:test_delete_inside_around_square_bracket()
+call s:test_delete_inside_around_double_quote()
+call s:test_delete_inside_around_single_quote()
+call s:test_delete_inside_around_backtick()
 call s:test_change_inside_around_tag()
 call s:test_change_inside_brackets()
 call s:test_change_inside_quotes()
