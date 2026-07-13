@@ -2678,6 +2678,27 @@ function! s:test_delete_inside_angle_vs_tag() abort
     \ ['di<', 'dit'], ['diw', 'daw', 'dd', 'dt>', 'di<', 'dit'])
 endfunction
 
+" delete_inside_around_brackets: the inner/around discrimination across
+" all three bracket pairs. Cheat gate includes the SIBLINGS (di<->da for
+" each pair proves the one-space/double-space difference), the diw/daw
+" word ties, d% (matched-bracket delete), and dd. The harness executes
+" every motion against real vim, so da's no-whitespace behavior (double
+" gap) is validated, not assumed.
+function! s:test_delete_inside_around_brackets() abort
+  call s:assert_inner_object_drill('delete_inside_around_brackets',
+    \ ['di(', 'di{', 'di[', 'da(', 'da{', 'da['],
+    \ ['diw', 'daw', 'dd', 'd%', 'di(', 'di{', 'di[', 'da(', 'da{', 'da['])
+endfunction
+
+" delete_inside_around_quotes: same discrimination for quotes, where da
+" EATS the trailing space (opposite of brackets). The harness's real-vim
+" execution validates that da<quote> reproduces the single-gap target.
+function! s:test_delete_inside_around_quotes() abort
+  call s:assert_inner_object_drill('delete_inside_around_quotes',
+    \ ['di"', "di'", 'di`', 'da"', "da'", 'da`'],
+    \ ['diw', 'daw', 'dd', 'di"', "di'", 'di`', 'da"', "da'", 'da`'])
+endfunction
+
 " delete_inside_block: dib/diB. The literal bracket objects di(/di{ are
 " INTENDED equivalents (the drill teaches the alias), so they're not in
 " the cheat gate — instead we assert the equivalence holds.
@@ -2701,6 +2722,8 @@ endfunction
 
 call s:test_delete_inside_around_tag()
 call s:test_delete_inside_around_word()
+call s:test_delete_inside_around_brackets()
+call s:test_delete_inside_around_quotes()
 call s:test_change_inside_around_tag()
 call s:test_change_inside_brackets()
 call s:test_change_inside_quotes()
