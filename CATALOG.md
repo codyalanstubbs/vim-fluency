@@ -80,14 +80,14 @@ this file is the static snapshot for browsing on GitHub.
 |---|---|---|---|---|---|
 | `delete_char_vs_line` | delete char vs line (x / dd) | `x/dd` | `editing` | 60 | — |
 | `delete_inside_angle_vs_tag` | delete inside angle vs tag (di< / dit) | `di</dit` | `editing` | 45 | `delete_inside_around_tag` |
-| `delete_inside_around_backtick` | delete inside vs around backticks (di` / da`) | `` di`/da` `` | `editing` | 48 | `delete_inside_quotes` |
-| `delete_inside_around_brace` | delete inside vs around braces (di{ / da{) | `di{/da{` | `editing` | 48 | `delete_inside_brackets` |
+| `delete_inside_around_backtick` | delete inside vs around backticks (di` / da`) | `` di`/da` `` | `editing` | 48 | `delete_inside_around_tag` |
+| `delete_inside_around_brace` | delete inside vs around braces (di{ / da{) | `di{/da{` | `editing` | 48 | `delete_inside_around_tag` |
 | `delete_inside_around_brackets` | delete inside vs around brackets (di( / da( …) | `di(/da( …` | `editing` | 48 | `delete_inside_around_paren`, `delete_inside_around_brace`, `delete_inside_around_square_bracket` |
-| `delete_inside_around_double_quote` | delete inside vs around double quotes (di" / da") | `di"/da"` | `editing` | 48 | `delete_inside_quotes` |
-| `delete_inside_around_paren` | delete inside vs around parens (di( / da() | `di(/da(` | `editing` | 48 | `delete_inside_brackets` |
+| `delete_inside_around_double_quote` | delete inside vs around double quotes (di" / da") | `di"/da"` | `editing` | 48 | `delete_inside_around_tag` |
+| `delete_inside_around_paren` | delete inside vs around parens (di( / da() | `di(/da(` | `editing` | 48 | `delete_inside_around_tag` |
 | `delete_inside_around_quotes` | delete inside vs around quotes (di" / da" …) | `di"/da" …` | `editing` | 48 | `delete_inside_around_double_quote`, `delete_inside_around_single_quote`, `delete_inside_around_backtick` |
-| `delete_inside_around_single_quote` | delete inside vs around single quotes (di' / da') | `di'/da'` | `editing` | 48 | `delete_inside_quotes` |
-| `delete_inside_around_square_bracket` | delete inside vs around square brackets (di[ / da[) | `di[/da[` | `editing` | 48 | `delete_inside_brackets` |
+| `delete_inside_around_single_quote` | delete inside vs around single quotes (di' / da') | `di'/da'` | `editing` | 48 | `delete_inside_around_tag` |
+| `delete_inside_around_square_bracket` | delete inside vs around square brackets (di[ / da[) | `di[/da[` | `editing` | 48 | `delete_inside_around_tag` |
 | `delete_inside_around_tag` | delete inside vs around tag (dit / dat) | `dit/dat` | `editing` | 50 | `delete_char_vs_line` |
 | `delete_inside_around_word` | delete inside vs around word (diw / daw) | `diw/daw` | `editing` | 50 | `delete_char_vs_line` |
 | `delete_inside_block` | delete inside block — parens vs braces (dib / diB) | `dib/diB` | `editing` | 55 | `delete_inside_brackets` |

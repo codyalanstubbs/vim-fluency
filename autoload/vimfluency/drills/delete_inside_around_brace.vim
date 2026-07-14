@@ -7,7 +7,7 @@ function! vimfluency#drills#delete_inside_around_brace#meta() abort
   return {'id': 'delete_inside_around_brace',
     \ 'name': 'delete inside vs around braces (di{ / da{)',
     \ 'aim': 48, 'allowed_keys': 'dia{', 'kind': 'editing',
-    \ 'prereqs': ['delete_inside_brackets'], 'keys': 'di{/da{', 'family': 'delete',
+    \ 'prereqs': ['delete_inside_around_tag'], 'keys': 'di{/da{', 'family': 'delete',
     \ 'narrower_of': 'delete_inside_around_brackets',
     \ 'test_sequence': ['di{', 'da{']}
 endfunction

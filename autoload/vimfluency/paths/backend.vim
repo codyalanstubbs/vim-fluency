@@ -26,8 +26,7 @@
 "      reorder lines.
 "
 " Deferred to follow-on paths (and reachable via `general`): the around
-" objects (gathered in the Objects path), macros (q/@), marks, and the
-" quickfix list.
+" objects, macros (q/@), marks, and the quickfix list.
 "
 " Ids not yet in the registry (a planned-but-unshipped drill) are silently
 " dropped by s:filter_registry_by_path, so the path survives rename /

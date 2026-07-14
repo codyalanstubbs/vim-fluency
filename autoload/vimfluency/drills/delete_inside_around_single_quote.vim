@@ -8,7 +8,7 @@ function! vimfluency#drills#delete_inside_around_single_quote#meta() abort
   return {'id': 'delete_inside_around_single_quote',
     \ 'name': "delete inside vs around single quotes (di' / da')",
     \ 'aim': 48, 'allowed_keys': "dia'", 'kind': 'editing',
-    \ 'prereqs': ['delete_inside_quotes'], 'keys': "di'/da'", 'family': 'delete',
+    \ 'prereqs': ['delete_inside_around_tag'], 'keys': "di'/da'", 'family': 'delete',
     \ 'narrower_of': 'delete_inside_around_quotes',
     \ 'test_sequence': ["di'", "da'"]}
 endfunction

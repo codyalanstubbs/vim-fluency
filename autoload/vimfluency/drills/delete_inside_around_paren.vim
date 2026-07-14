@@ -8,7 +8,7 @@ function! vimfluency#drills#delete_inside_around_paren#meta() abort
   return {'id': 'delete_inside_around_paren',
     \ 'name': 'delete inside vs around parens (di( / da()',
     \ 'aim': 48, 'allowed_keys': 'dia(', 'kind': 'editing',
-    \ 'prereqs': ['delete_inside_brackets'], 'keys': 'di(/da(', 'family': 'delete',
+    \ 'prereqs': ['delete_inside_around_tag'], 'keys': 'di(/da(', 'family': 'delete',
     \ 'narrower_of': 'delete_inside_around_brackets',
     \ 'test_sequence': ['di(', 'da(']}
 endfunction

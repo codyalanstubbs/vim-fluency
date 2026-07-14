@@ -21,10 +21,10 @@
 "      change_inside_brackets: ci\"/ci{/ci( …) — gut a value and retype it,
 "      the move a frontend dev makes all day.
 "
-" Everything past that — the AROUND objects (da\"/di\" whitespace quirks,
-" now the Objects path), the rest of the yank/paste families, Visual mode,
-" search and :s — is deferred to follow-on paths and stays reachable via
-" `general`. A focused on-ramp, not the whole language.
+" Everything past that — the AROUND objects (da\"/di\" whitespace quirks),
+" the rest of the yank/paste families, Visual mode, search and :s — is
+" deferred to follow-on paths and stays reachable via `general`. A
+" focused on-ramp, not the whole language.
 "
 " As in foundational, ids listed here that aren't in the registry (a
 " planned-but-unshipped drill) are silently dropped by
