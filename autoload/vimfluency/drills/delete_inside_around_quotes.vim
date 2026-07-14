@@ -45,7 +45,9 @@ function! vimfluency#drills#delete_inside_around_quotes#meta() abort
   return {'id': 'delete_inside_around_quotes',
     \ 'name': 'delete inside vs around quotes (di" / da" …)',
     \ 'aim': 48, 'allowed_keys': "dia\"'`", 'kind': 'editing',
-    \ 'prereqs': ['delete_inside_quotes'], 'keys': "di\"/da\" …", 'family': 'delete',
+    \ 'prereqs': ['delete_inside_around_double_quote', 'delete_inside_around_single_quote',
+    \   'delete_inside_around_backtick'],
+    \ 'keys': "di\"/da\" …", 'family': 'delete',
     \ 'parallel_to': ['delete_inside_around_brackets'],
     \ 'test_sequence': ['di"', 'da"', "di'", "da'", 'di`', 'da`']}
 endfunction
