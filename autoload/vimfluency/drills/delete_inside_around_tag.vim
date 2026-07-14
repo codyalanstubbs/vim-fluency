@@ -70,7 +70,7 @@ function! vimfluency#drills#delete_inside_around_tag#meta() abort
   " Starting guess — revise on data.
   return {'id': 'delete_inside_around_tag', 'name': 'delete inside vs around tag (dit / dat)',
     \ 'aim': 50, 'allowed_keys': 'dita', 'kind': 'editing',
-    \ 'prereqs': ['delete_char_vs_line'], 'keys': 'dit/dat', 'family': 'delete',
+    \ 'prereqs': ['delete_inside_angle_vs_tag'], 'keys': 'dit/dat', 'family': 'delete',
     \ 'test_sequence': ['dit', 'dat']}
 endfunction
 

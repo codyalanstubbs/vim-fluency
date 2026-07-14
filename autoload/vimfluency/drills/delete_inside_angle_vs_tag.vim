@@ -45,7 +45,7 @@ function! vimfluency#drills#delete_inside_angle_vs_tag#meta() abort
   " tag drill. Starting guess.
   return {'id': 'delete_inside_angle_vs_tag', 'name': 'delete inside angle vs tag (di< / dit)',
     \ 'aim': 45, 'allowed_keys': 'di<t', 'kind': 'editing',
-    \ 'prereqs': ['delete_inside_around_tag'], 'keys': 'di</dit', 'family': 'delete',
+    \ 'prereqs': ['delete_char_vs_line'], 'keys': 'di</dit', 'family': 'delete',
     \ 'test_sequence': ['di<', 'dit']}
 endfunction
 
