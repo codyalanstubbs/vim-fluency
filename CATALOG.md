@@ -58,10 +58,10 @@ this file is the static snapshot for browsing on GitHub.
 | `move_to_line_edges_all` | line edges, all (0 ^ $ g_) | `0/^/$/g_` | `motion` | 35 | `move_to_line_edges_start_end`, `move_to_line_edges_non_white_space` |
 | `move_to_line_edges_non_white_space` | non-blank line edges (^ / g_) | `^/g_` | `motion` | 50 | — |
 | `move_to_line_edges_start_end` | line edges (0 / $) | `0/$` | `motion` | 90 | — |
-| `move_to_vs_till_backward` | find vs till, backward (F / T) | `F/T` | `motion` | 20 | — |
+| `move_to_vs_till_backward` | find vs till, backward (F / T) | `F/T` | `motion` | 20 | `move_to_char_forward_backward`, `move_till_char_forward_backward` |
 | `move_to_vs_till_backward_in_words` | find vs till in words, backward (F / T) | `F/T` | `motion` | 20 | `move_to_vs_till_backward` |
-| `move_to_vs_till_forward` | find vs till, forward (f / t) | `f/t` | `motion` | 20 | — |
-| `move_to_vs_till_forward_backward` | find vs till, 4-way (f / F / t / T) | `f/F/t/T` | `motion` | 20 | `move_to_char_forward_backward`, `move_till_char_forward_backward`, `move_to_vs_till_forward`, `move_to_vs_till_backward` |
+| `move_to_vs_till_forward` | find vs till, forward (f / t) | `f/t` | `motion` | 20 | `move_to_char_forward_backward`, `move_till_char_forward_backward` |
+| `move_to_vs_till_forward_backward` | find vs till, 4-way (f / F / t / T) | `f/F/t/T` | `motion` | 20 | `move_to_vs_till_forward`, `move_to_vs_till_backward` |
 | `move_to_vs_till_forward_in_words` | find vs till in words, forward (f / t) | `f/t` | `motion` | 20 | `move_to_vs_till_forward` |
 | `move_to_word_end_forward_backward` | word end forward / backward (e / ge) | `e/ge` | `motion` | 40 | — |
 | `move_to_word_start_forward_backward` | word start forward / backward (w / b) | `w/b` | `motion` | 55 | — |
