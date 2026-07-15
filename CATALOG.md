@@ -40,14 +40,14 @@ this file is the static snapshot for browsing on GitHub.
 
 | id (slug) | name | keys | kind | aim | prereqs |
 |---|---|---|---|---|---|
-| `move_repeat_last_find_backward` | repeat last find, backward (; ,) | `;/,` | `motion` | 25 | `move_repeat_last_find_forward`, `move_to_char_forward_backward` |
+| `move_repeat_last_find_backward` | repeat last find, backward (; ,) | `;/,` | `motion` | 25 | `move_to_char_forward_backward` |
 | `move_repeat_last_find_forward` | repeat last find, forward (; ,) | `;/,` | `motion` | 25 | `move_to_char_forward_backward` |
-| `move_repeat_last_find_forward_backward` | repeat last find (; ,) | `;/,` | `motion` | 20 | `move_repeat_last_find_forward`, `move_to_char_forward_backward` |
+| `move_repeat_last_find_forward_backward` | repeat last find (; ,) | `;/,` | `motion` | 20 | `move_repeat_last_find_forward`, `move_repeat_last_find_backward` |
 | `move_repeat_last_find_vs_till_backward` | repeat last find vs till, backward (; ,) | `;/,` | `motion` | 20 | `move_repeat_last_find_backward`, `move_repeat_last_till_backward` |
 | `move_repeat_last_find_vs_till_forward` | repeat last find vs till, forward (; ,) | `;/,` | `motion` | 20 | `move_repeat_last_find_forward`, `move_repeat_last_till_forward` |
 | `move_repeat_last_find_vs_till_forward_backward` | repeat last find/till, all ways (; ,) | `;/,` | `motion` | 20 | `move_repeat_last_find_vs_till_forward`, `move_repeat_last_find_vs_till_backward` |
-| `move_repeat_last_till_backward` | repeat last till, backward (; ,) | `;/,` | `motion` | 25 | `move_repeat_last_till_forward`, `move_till_char_forward_backward` |
-| `move_repeat_last_till_forward` | repeat last till, forward (; ,) | `;/,` | `motion` | 25 | `move_repeat_last_find_forward`, `move_till_char_forward_backward` |
+| `move_repeat_last_till_backward` | repeat last till, backward (; ,) | `;/,` | `motion` | 25 | `move_till_char_forward_backward` |
+| `move_repeat_last_till_forward` | repeat last till, forward (; ,) | `;/,` | `motion` | 25 | `move_till_char_forward_backward` |
 | `move_repeat_last_till_forward_backward` | repeat last till, both ways (; ,) | `;/,` | `motion` | 20 | `move_repeat_last_till_forward`, `move_repeat_last_till_backward` |
 | `move_single_char_left_right` | move one char left / right (h / l) | `h/l` | `motion` | 80 | — |
 | `move_single_char_up_down` | move one char down / up (j / k) | `j/k` | `motion` | 90 | — |

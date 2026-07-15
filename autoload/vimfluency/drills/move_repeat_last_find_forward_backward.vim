@@ -59,7 +59,9 @@ let s:WORDS = ['return', 'import', 'while', 'range', 'class', 'value',
 
 function! vimfluency#drills#move_repeat_last_find_forward_backward#meta() abort
   return {'id': 'move_repeat_last_find_forward_backward', 'name': 'repeat last find (; ,)',
-    \ 'aim': 20, 'allowed_keys': ';,fF', 'prereqs': ['move_repeat_last_find_forward', 'move_to_char_forward_backward'], 'keys': ';/,', 'family': 'motion',
+    \ 'aim': 20, 'allowed_keys': ';,fF',
+    \ 'prereqs': ['move_repeat_last_find_forward', 'move_repeat_last_find_backward'],
+    \ 'keys': ';/,', 'family': 'motion',
     \ 'test_sequence': [';', ',']}
 endfunction
 
