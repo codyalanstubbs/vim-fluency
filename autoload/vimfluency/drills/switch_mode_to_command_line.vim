@@ -15,9 +15,6 @@ function! vimfluency#drills#switch_mode_to_command_line#meta() abort
     \ 'name': 'switch mode to command line (: / Ctrl+[)',
     \ 'aim': 100, 'allowed_keys': '', 'kind': 'mode_switch',
     \ 'prereqs': [], 'keys': ':/C-[', 'family': 'survival',
-    \ 'parallel_to': ['switch_mode_to_insert',
-    \                 'switch_mode_to_visual',
-    \                 'switch_mode_to_replace'],
     \ 'stroke_counts': {':': 1, 'C-[': 1},
     \ 'test_sequence': [':', 'C-[']}
 endfunction

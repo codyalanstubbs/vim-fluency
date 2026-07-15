@@ -44,7 +44,6 @@ function! vimfluency#drills#delete_inside_quotes#meta() abort
   return {'id': 'delete_inside_quotes', 'name': 'delete inside quotes (di" / di'' / di`)',
     \ 'aim': 55, 'allowed_keys': "di\"'`", 'kind': 'editing',
     \ 'prereqs': ['delete_inside_around_tag'], 'keys': "di\"/di'/di`", 'family': 'delete',
-    \ 'parallel_to': ['delete_inside_brackets'],
     \ 'test_sequence': ['di"', "di'", 'di`']}
 endfunction
 

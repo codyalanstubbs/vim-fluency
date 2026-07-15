@@ -9,7 +9,6 @@ function! vimfluency#drills#delete_inside_around_double_quote#meta() abort
     \ 'name': 'delete inside vs around double quotes (di" / da")',
     \ 'aim': 48, 'allowed_keys': 'dia"', 'kind': 'editing',
     \ 'prereqs': ['delete_inside_around_tag'], 'keys': 'di"/da"', 'family': 'delete',
-    \ 'narrower_of': 'delete_inside_around_quotes',
     \ 'test_sequence': ['di"', 'da"']}
 endfunction
 

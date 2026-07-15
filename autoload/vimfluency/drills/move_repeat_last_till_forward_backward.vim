@@ -27,7 +27,7 @@ function! vimfluency#drills#move_repeat_last_till_forward_backward#meta() abort
     \ 'name': 'repeat last till, both ways (; ,)',
     \ 'aim': 20, 'allowed_keys': ';,tT',
     \ 'prereqs': ['move_repeat_last_till_forward', 'move_repeat_last_till_backward'],
-    \ 'parallel_to': ['move_repeat_last_find_forward_backward'], 'keys': ';/,', 'family': 'motion',
+    \ 'keys': ';/,', 'family': 'motion',
     \ 'test_sequence': [';', ',']}
 endfunction
 

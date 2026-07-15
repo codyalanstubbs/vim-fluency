@@ -48,7 +48,6 @@ function! vimfluency#drills#delete_inside_around_brackets#meta() abort
     \ 'prereqs': ['delete_inside_around_paren', 'delete_inside_around_brace',
     \   'delete_inside_around_square_bracket'],
     \ 'keys': 'di(/da( …', 'family': 'delete',
-    \ 'parallel_to': ['delete_inside_around_quotes'],
     \ 'test_sequence': ['di(', 'da(', 'di{', 'da{', 'di[', 'da[']}
 endfunction
 

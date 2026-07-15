@@ -22,7 +22,7 @@ let s:chars = ['a', 'e', 'i', 'o', 'r', 's']
 function! vimfluency#drills#move_to_word_start_forward_backward#meta() abort
   return {'id': 'move_to_word_start_forward_backward', 'name': 'word start forward / backward (w / b)', 'aim': 55,
     \ 'allowed_keys': 'wb', 'prereqs': [],
-    \ 'parallel_to': ['move_to_word_end_forward_backward'], 'keys': 'w/b', 'family': 'motion',
+    \ 'keys': 'w/b', 'family': 'motion',
     \ 'test_sequence': ['w', 'b']}
 endfunction
 

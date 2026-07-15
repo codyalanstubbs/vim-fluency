@@ -56,7 +56,7 @@ function! vimfluency#drills#move_repeat_last_till_forward#meta() abort
     \ 'name': 'repeat last till, forward (; ,)',
     \ 'aim': 25, 'allowed_keys': ';,t',
     \ 'prereqs': ['move_till_char_forward_backward'],
-    \ 'parallel_to': ['move_repeat_last_find_forward'], 'keys': ';/,', 'family': 'motion',
+    \ 'keys': ';/,', 'family': 'motion',
     \ 'test_sequence': [';', ',']}
 endfunction
 

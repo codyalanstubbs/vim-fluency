@@ -20,8 +20,6 @@ function! vimfluency#drills#move_to_line_edges_start_end#meta() abort
   " no whitespace axis to read. Starting guess.
   return {'id': 'move_to_line_edges_start_end', 'name': 'line edges (0 / $)', 'aim': 90,
     \ 'allowed_keys': '0$', 'prereqs': [],
-    \ 'narrower_of': 'move_to_line_edges_all',
-    \ 'parallel_to': ['move_to_line_edges_non_white_space'],
     \ 'keys': '0/$', 'family': 'motion',
     \ 'test_sequence': ['0', '$']}
 endfunction

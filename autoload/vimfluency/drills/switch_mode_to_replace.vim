@@ -13,9 +13,6 @@ function! vimfluency#drills#switch_mode_to_replace#meta() abort
     \ 'name': 'switch mode to replace (R / Ctrl+[)',
     \ 'aim': 90, 'allowed_keys': '', 'kind': 'mode_switch',
     \ 'prereqs': [], 'keys': 'R/C-[', 'family': 'survival',
-    \ 'parallel_to': ['switch_mode_to_insert',
-    \                 'switch_mode_to_visual',
-    \                 'switch_mode_to_command_line'],
     \ 'stroke_counts': {'R': 1, 'C-[': 1},
     \ 'test_sequence': ['R', 'C-[']}
 endfunction

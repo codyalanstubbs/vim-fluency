@@ -23,7 +23,7 @@ function! vimfluency#drills#move_repeat_last_find_vs_till_forward_backward#meta(
     \ 'name': 'repeat last find/till, all ways (; ,)',
     \ 'aim': 20, 'allowed_keys': ';,fFtT',
     \ 'prereqs': ['move_repeat_last_find_vs_till_forward', 'move_repeat_last_find_vs_till_backward'],
-    \ 'parallel_to': ['move_repeat_last_find_forward_backward'], 'keys': ';/,', 'family': 'motion',
+    \ 'keys': ';/,', 'family': 'motion',
     \ 'test_sequence': [';', ',']}
 endfunction
 

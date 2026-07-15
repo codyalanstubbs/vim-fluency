@@ -64,22 +64,27 @@ Each file must export:
   `mode_switch`, `command`, or `visual_motion` (see `:help vf-kinds`).
   Omit for the default cursor-only `motion` kind.
 
-### Optional structural-annotation fields
+### Structure lives in `prereqs`
 
-Two fields formalize relationships across drills (used by lessons for
-cross-reference; no impact on training behavior). Both default to absent
-/ `[]`; adding them is schema-additive, no runner work required.
+There are no separate annotation fields for how drills relate — `prereqs`
+carries it, and it's the only encoding the runtime reads (`:VfList`
+eligibility). Two `narrower_of` / `parallel_to` fields once duplicated
+this; they were removed in 2026-07 because nothing consumed them and a
+second, unread encoding can silently disagree with the live one.
 
-- `narrower_of: '<id>'` — this drill is a narrower sub-component of the
-  named broader drill. Example: `move_single_char_left_right` has
-  `narrower_of: 'move_single_char_up_down_left_right'`. The broader form
-  is the typical default drill; the narrower form is the fallback for
-  learners who plateau on one axis specifically.
-- `parallel_to: ['<id>', ...]` — this drill shares rule-statement shape
-  and matched lesson structure with the listed peers. Example:
-  `move_to_word_start_forward_backward` is parallel-by-design with
-  `move_to_word_end_forward_backward`. Used to group related drills
-  visually and to let lessons reference their kin.
+The rule `prereqs` expresses:
+
+- **A component drill requires only its base.** Components are siblings
+  of each other and never prereq one another — `move_repeat_last_find_backward`
+  requires `move_to_char_forward_backward`, NOT its sibling
+  `move_repeat_last_find_forward`.
+- **A composite requires exactly its components.** `move_repeat_last_find_forward_backward`
+  requires `move_repeat_last_find_forward` + `move_repeat_last_find_backward`
+  and nothing else — the base motions come along transitively.
+
+A component focuses one axis of the composite (one direction, one
+delimiter), so it's what a learner earns first. Listing a base that a
+component already implies is redundant; listing a sibling is wrong.
 
 ---
 
@@ -281,8 +286,8 @@ Slugs are user data — they're typed into `:VfTrain` and stored as
 1. `git mv` the file to the new slug.
 2. Update the three `vimfluency#drills#<slug>#` function names and the
    `id` in `meta()`.
-3. Update every in-repo reference: `prereqs` / `parallel_to` /
-   `narrower_of` in sibling drills, any paths files, and tests.
+3. Update every in-repo reference: `prereqs` in sibling drills, any
+   paths files, and tests.
 4. Add an old → new entry to `s:LEGACY_IDS` in
    `autoload/vimfluency.vim`. The alias map canonicalizes old ids at every
    read path (commands, session log, aim overrides) so user history

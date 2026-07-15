@@ -12,9 +12,6 @@ function! vimfluency#drills#switch_mode_to_visual#meta() abort
     \ 'name': 'switch mode to visual (v / Ctrl+[)',
     \ 'aim': 90, 'allowed_keys': '', 'kind': 'mode_switch',
     \ 'prereqs': [], 'keys': 'v/C-[', 'family': 'survival',
-    \ 'parallel_to': ['switch_mode_to_insert',
-    \                 'switch_mode_to_replace',
-    \                 'switch_mode_to_command_line'],
     \ 'stroke_counts': {'v': 1, 'C-[': 1},
     \ 'test_sequence': ['v', 'C-[']}
 endfunction

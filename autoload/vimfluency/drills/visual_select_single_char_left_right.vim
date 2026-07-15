@@ -31,7 +31,6 @@ function! vimfluency#drills#visual_select_single_char_left_right#meta() abort
     \ 'name': 'extend selection left / right (vh / vl)', 'aim': 70,
     \ 'allowed_keys': 'vhl', 'kind': 'visual_motion',
     \ 'prereqs': ['switch_mode_to_visual', 'move_single_char_left_right'],
-    \ 'parallel_to': ['delete_single_char_left_right'],
     \ 'keys': 'vh/vl', 'family': 'v',
     \ 'test_sequence': ['vh', 'vl']}
 endfunction

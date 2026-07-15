@@ -30,7 +30,6 @@ function! vimfluency#drills#move_to_vs_till_forward_in_words#meta() abort
     \ 'aim': 20, 'allowed_keys': 'ft',
     \ 'prereqs': ['move_to_vs_till_forward'],
     \ 'keys': 'f/t', 'family': 'motion',
-    \ 'parallel_to': ['move_to_vs_till_backward_in_words'],
     \ 'test_sequence': ['f', 't']}
 endfunction
 

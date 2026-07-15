@@ -48,7 +48,6 @@ function! vimfluency#drills#move_to_vs_till_forward#meta() abort
     \ 'aim': 20, 'allowed_keys': 'ft',
     \ 'prereqs': ['move_to_char_forward_backward', 'move_till_char_forward_backward'],
     \ 'keys': 'f/t', 'family': 'motion',
-    \ 'parallel_to': ['move_to_vs_till_backward'],
     \ 'test_sequence': ['f', 't']}
 endfunction
 

@@ -35,7 +35,6 @@ function! vimfluency#drills#change_inside_brackets#meta() abort
   return {'id': 'change_inside_brackets', 'name': 'change inside brackets (ci( / ci{ / ci[)',
     \ 'aim': 35, 'allowed_keys': 'ci({[foo', 'kind': 'mode',
     \ 'prereqs': ['delete_inside_brackets'], 'keys': 'ci(/ci{/ci[', 'family': 'change',
-    \ 'parallel_to': ['change_inside_quotes', 'change_inside_around_tag'],
     \ 'credit_on_text_typed': 1,
     \ 'test_sequence': ['ci(', 'ci{', 'ci[']}
 endfunction

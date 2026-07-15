@@ -35,7 +35,6 @@ function! vimfluency#drills#insert_before_after_char#meta() abort
     \ 'name': 'insert before / after char (i / a)',
     \ 'aim': 35, 'allowed_keys': 'iafo', 'kind': 'mode',
     \ 'prereqs': [], 'keys': 'i/a', 'family': 'survival',
-    \ 'parallel_to': ['insert_start_end_line'],
     \ 'credit_on_text_typed': 1,
     \ 'test_sequence': ['i', 'a']}
 endfunction

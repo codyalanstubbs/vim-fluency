@@ -62,7 +62,7 @@ function! vimfluency#drills#move_repeat_last_find_forward#meta() abort
     \ 'name': 'repeat last find, forward (; ,)',
     \ 'aim': 25, 'allowed_keys': ';,f',
     \ 'prereqs': ['move_to_char_forward_backward'],
-    \ 'parallel_to': [], 'keys': ';/,', 'family': 'motion',
+    \ 'keys': ';/,', 'family': 'motion',
     \ 'test_sequence': [';', ',']}
 endfunction
 

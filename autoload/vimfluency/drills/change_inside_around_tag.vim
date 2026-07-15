@@ -57,7 +57,6 @@ function! vimfluency#drills#change_inside_around_tag#meta() abort
   return {'id': 'change_inside_around_tag', 'name': 'change inside vs around tag (cit / cat)',
     \ 'aim': 35, 'allowed_keys': 'citanew', 'kind': 'mode',
     \ 'prereqs': ['delete_inside_around_tag'], 'keys': 'cit/cat', 'family': 'change',
-    \ 'parallel_to': ['delete_inside_around_tag'],
     \ 'credit_on_text_typed': 1,
     \ 'test_sequence': ['cit', 'cat']}
 endfunction

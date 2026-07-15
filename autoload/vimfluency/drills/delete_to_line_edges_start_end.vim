@@ -28,7 +28,7 @@ function! vimfluency#drills#delete_to_line_edges_start_end#meta() abort
   return {'id': 'delete_to_line_edges_start_end', 'name': 'delete to line edges (d0 / d$)', 'aim': 45,
     \ 'allowed_keys': 'd0$', 'kind': 'editing',
     \ 'prereqs': ['move_to_line_edges_start_end'],
-    \ 'parallel_to': ['delete_to_word_start_forward_backward', 'delete_single_char_left_right'], 'keys': 'd0/d$', 'family': 'delete',
+    \ 'keys': 'd0/d$', 'family': 'delete',
     \ 'test_sequence': ['d0', 'd$']}
 endfunction
 

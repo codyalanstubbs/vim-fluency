@@ -24,7 +24,7 @@ function! vimfluency#drills#move_single_char_left_right#meta() abort
   " guess, revise on data.
   return {'id': 'move_single_char_left_right', 'name': 'move one char left / right (h / l)', 'aim': 80,
     \ 'allowed_keys': 'hl', 'prereqs': [],
-    \ 'narrower_of': 'move_single_char_up_down_left_right', 'parallel_to': ['move_single_char_up_down'], 'keys': 'h/l', 'family': 'motion',
+    \ 'keys': 'h/l', 'family': 'motion',
     \ 'test_sequence': ['h', 'l']}
 endfunction
 

@@ -32,8 +32,6 @@ function! vimfluency#drills#visual_select_single_char_up_down#meta() abort
     \ 'name': 'extend selection down / up (vj / vk)', 'aim': 65,
     \ 'allowed_keys': 'vjk', 'kind': 'visual_motion',
     \ 'prereqs': ['switch_mode_to_visual', 'move_single_char_up_down'],
-    \ 'parallel_to': ['delete_two_lines_down_up',
-    \                  'visual_select_single_char_left_right'],
     \ 'keys': 'vj/vk', 'family': 'v',
     \ 'test_sequence': ['vj', 'vk']}
 endfunction

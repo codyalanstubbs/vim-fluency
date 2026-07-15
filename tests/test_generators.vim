@@ -2699,8 +2699,9 @@ function! s:test_delete_inside_around_quotes() abort
     \ ['diw', 'daw', 'dd', 'di"', "di'", 'di`', 'da"', "da'", 'da`'])
 endfunction
 
-" The six single-delimiter di/da pair drills (narrower_of the trios above),
-" all delegating to vimfluency#objpair. Same harness — real-vim execution
+" The six single-delimiter di/da pair drills (the components the trios
+" above require), all delegating to vimfluency#objpair. Same harness —
+" real-vim execution
 " validates each da's whitespace behavior (double gap for brackets, single
 " gap for quotes). The sibling (di<->da for the one delimiter) is the
 " discrimination; d% guards the matched-bracket cheat on the brackets.

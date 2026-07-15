@@ -27,7 +27,7 @@ function! vimfluency#drills#move_to_word_end_forward_backward#meta() abort
   " Starting guess; revise once the data accumulates.
   return {'id': 'move_to_word_end_forward_backward', 'name': 'word end forward / backward (e / ge)', 'aim': 40,
     \ 'allowed_keys': 'eg', 'prereqs': [],
-    \ 'parallel_to': ['move_to_word_start_forward_backward'], 'keys': 'e/ge', 'family': 'motion',
+    \ 'keys': 'e/ge', 'family': 'motion',
     \ 'test_sequence': ['e', 'ge']}
 endfunction
 

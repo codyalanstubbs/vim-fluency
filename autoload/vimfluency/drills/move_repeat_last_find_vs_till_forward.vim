@@ -30,7 +30,7 @@ function! vimfluency#drills#move_repeat_last_find_vs_till_forward#meta() abort
     \ 'name': 'repeat last find vs till, forward (; ,)',
     \ 'aim': 20, 'allowed_keys': ';,ft',
     \ 'prereqs': ['move_repeat_last_find_forward', 'move_repeat_last_till_forward'],
-    \ 'parallel_to': [], 'keys': ';/,', 'family': 'motion',
+    \ 'keys': ';/,', 'family': 'motion',
     \ 'test_sequence': [';', ',']}
 endfunction
 

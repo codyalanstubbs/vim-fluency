@@ -36,7 +36,6 @@ function! vimfluency#drills#visual_select_single_char_up_down_left_right#meta() 
     \ 'allowed_keys': 'vhjkl', 'kind': 'visual_motion',
     \ 'prereqs': ['visual_select_single_char_left_right',
     \              'visual_select_single_char_up_down'],
-    \ 'parallel_to': ['move_single_char_up_down_left_right'],
     \ 'keys': 'vh/vj/vk/vl', 'family': 'v',
     \ 'test_sequence': ['vh', 'vj', 'vk', 'vl']}
 endfunction
